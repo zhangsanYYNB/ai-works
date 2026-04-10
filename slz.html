@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>等面四面体与长方体切割法可视化</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: 'Segoe UI', sans-serif; }
+        #info {
+            position: absolute; top: 20px; left: 20px; color: white;
+            background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px;
+            pointer-events: none; max-width: 300px;
+        }
+        h3 { margin: 0 0 10px 0; color: #4fc3f7; }
+        p { margin: 5px 0; font-size: 14px; line-height: 1.5; }
+        .legend-item { display: flex; align-items: center; margin: 4px 0; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+        #controls {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 10px;
+        }
+        button {
+            padding: 8px 16px; background: #4fc3f7; border: none; border-radius: 4px;
+            color: #1a1a1a; font-weight: bold; cursor: pointer; transition: background 0.3s;
+        }
+        button:hover { background: #29b6f6; }
+        .label {
+            position: absolute; color: white; font-size: 14px; font-weight: bold;
+            pointer-events: none; text-shadow: 0 0 4px black;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+    <!-- Import Map for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="info">
+        <h3>等面四面体 (体积 = 2)</h3>
+        <p>由4个边长为 $\sqrt{5}, \sqrt{10}, \sqrt{13}$ 的全等三角形组成。</p>
+        <div class="legend-item"><div class="dot" style="background:#ff5252"></div>对棱 $\sqrt{5}$ (长方体 $xy$ 面)</div>
+        <div class="legend-item"><div class="dot" style="background:#4caf50"></div>对棱 $\sqrt{10}$ (长方体 $yz$ 面)</div>
+        <div class="legend-item"><div class="dot" style="background:#2196f3"></div>对棱 $\sqrt{13}$ (长方体 $xz$ 面)</div>
+        <p style="font-size:12px; color:#aaa; margin-top:10px;">长方体尺寸: $2 \times 1 \times 3$<br>提示: 四面体体积 = $\frac{1}{3}$ 长方体体积</p>
+    </div>
+    
+    <div id="controls">
+        <button id="toggleBox">切换长方体线框</button>
+        <button id="toggleRot">自动旋转</button>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // 场景设置
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x111111);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(4, 4, 6);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 1.5;
+
+        // 灯光
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 10, 7);
+        scene.add(directionalLight);
+
+        // --- 几何体数据 ---
+        // 长方体顶点
+        // A(0,0,0), B(2,1,0), C(0,1,3), D(2,0,3)
+        // 另外4个非四面体顶点: E(2,0,0), F(0,1,0), G(2,1,3), H(0,0,3)
+        const vertices = new Float32Array([
+            0, 0, 0,  // 0: A
+            2, 1, 0,  // 1: B
+            0, 1, 3,  // 2: C
+            2, 0, 3   // 3: D
+        ]);
+        
+        // 四面体面索引 (0,1,2 0,2,3 0,3,1 1,3,2) 确保法线向外
+        const indices = [
+            0, 1, 2,
+            0, 2, 3,
+            0, 3, 1,
+            1, 3, 2
+        ];
+
+        // --- 绘制长方体线框 ---
+        const boxGeometry = new THREE.BoxGeometry(2, 1, 3);
+        // 将中心移动到(1, 0.5, 1.5)
+        boxGeometry.translate(1, 0.5, 1.5);
+        const edges = new THREE.EdgesGeometry(boxGeometry);
+        const boxLineMaterial = new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.3 });
+        const wireframeBox = new THREE.LineSegments(edges, boxLineMaterial);
+        scene.add(wireframeBox);
+
+        // --- 绘制四面体 ---
+        const tetraGeometry = new THREE.BufferGeometry();
+        tetraGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        tetraGeometry.setIndex(indices);
+        tetraGeometry.computeVertexNormals();
+
+        // 半透明材质
+        const material = new THREE.MeshPhysicalMaterial({
+            color: 0x4fc3f7,
+            transparent: true,
+            opacity: 0.2,
+            side: THREE.DoubleSide,
+            roughness: 0.1,
+            metalness: 0.1,
+            depthWrite: false
+        });
+        const tetrahedron = new THREE.Mesh(tetraGeometry, material);
+        scene.add(tetrahedron);
+
+        // 四面体边框
+        const tetraEdges = new THREE.EdgesGeometry(tetraGeometry);
+        const tetraLineMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
+        const tetraWireframe = new THREE.LineSegments(tetraEdges, tetraLineMat);
+        scene.add(tetraWireframe);
+
+        // --- 顶点标记 ---
+        const sphereGeo = new THREE.SphereGeometry(0.08, 16, 16);
+        const sphereMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const positions = [[0,0,0], [2,1,0], [0,1,3], [2,0,3]];
+        positions.forEach(pos => {
+            const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+            sphere.position.set(...pos);
+            scene.add(sphere);
+        });
+
+        // --- 3D 文字标注 ---
+        function createLabel(text, position, color = '#ffffff') {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 256; canvas.height = 128;
+            ctx.font = 'bold 48px Arial';
+            ctx.fillStyle = color;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 128, 64);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            const sprite = new THREE.Sprite(spriteMat);
+            sprite.position.set(...position);
+            sprite.scale.set(0.8, 0.4, 1);
+            scene.add(sprite);
+        }
+
+        // 边长标注
+        createLabel('√5', [1, 0.5, 0], '#ff5252');   // AB
+        createLabel('√5', [1, 0.5, 3], '#ff5252');   // CD
+        createLabel('√10', [0, 0.5, 1.5], '#4caf50'); // AC
+        createLabel('√10', [2, 0.5, 1.5], '#4caf50'); // BD
+        createLabel('√13', [1, 0, 1.5], '#2196f3');   // AD
+        createLabel('√13', [1, 1, 1.5], '#2196f3');   // BC
+
+        // 长方体尺寸标注
+        createLabel('2', [1, -0.5, 0], '#aaaaaa');
+        createLabel('1', [-0.5, 0.5, 0], '#aaaaaa');
+        createLabel('3', [-0.5, 0, 1.5], '#aaaaaa');
+
+        // --- 控制逻辑 ---
+        document.getElementById('toggleBox').addEventListener('click', () => {
+            wireframeBox.visible = !wireframeBox.visible;
+        });
+        
+        document.getElementById('toggleRot').addEventListener('click', () => {
+            controls.autoRotate = !controls.autoRotate;
+        });
+
+        // --- 渲染循环 ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // 窗口大小调整
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
