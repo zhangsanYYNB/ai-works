@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>欢迎来到zhangsanYYNB的ai代码</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+        }
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .file-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 25px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        .file-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+        }
+        .file-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            display: block;
+        }
+        .file-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .file-path {
+            font-size: 0.9em;
+            color: #888;
+            word-break: break-all;
+            margin-bottom: 15px;
+        }
+        .file-desc {
+            font-size: 0.95em;
+            color: #555;
+            line-height: 1.5;
+        }
+        .no-files {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+            font-style: italic;
+        }
+        .refresh-btn {
+            display: block;
+            margin: 30px auto;
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .refresh-btn:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 欢迎来到zhangsanYYNB的ai代码</h1>
+        <p class="subtitle">探索由AI生成的精彩代码项目</p>
+        
+        <button class="refresh-btn" onclick="location.reload()">🔄 刷新文件列表</button>
+        
+        <div id="fileList" class="file-grid">
+            <!-- 文件列表将通过JavaScript动态加载 -->
+        </div>
+    </div>
+
+    <script>
+        // 已知的HTML文件列表（由于浏览器安全限制，无法自动扫描文件系统）
+        // 这里列出了仓库中已发现的HTML文件
+        const knownFiles = [
+            {
+                path: './simulation.html',
+                title: '双环运动仿真',
+                icon: '⚙️',
+                description: '物理仿真：两个垂直杆上的双环系统，展示角度、加速度、速度随时间变化的动态图表和运动动画。'
+            },
+            {
+                path: './slz.html',
+                title: 'SLZ 项目',
+                icon: '📄',
+                description: 'HTML项目文件（具体内容请在打开后查看）。'
+            }
+        ];
+
+        function renderFileList() {
+            const fileListContainer = document.getElementById('fileList');
+            
+            if (knownFiles.length === 0) {
+                fileListContainer.innerHTML = `
+                    <div class="no-files">
+                        <p>暂无发现的HTML文件</p>
+                        <p>请将HTML文件放置在仓库根目录或子目录中</p>
+                    </div>
+                `;
+                return;
+            }
+
+            fileListContainer.innerHTML = knownFiles.map(file => `
+                <a href="${file.path}" class="file-card" target="_blank">
+                    <span class="file-icon">${file.icon}</span>
+                    <div class="file-title">${file.title}</div>
+                    <div class="file-path">${file.path}</div>
+                    <div class="file-desc">${file.description}</div>
+                </a>
+            `).join('');
+        }
+
+        // 页面加载时渲染文件列表
+        document.addEventListener('DOMContentLoaded', renderFileList);
+    </script>
+</body>
+</html>
