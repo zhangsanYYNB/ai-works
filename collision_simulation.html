@@ -337,7 +337,7 @@
             let time = 0;
             let collisionCount = 0;
             let bigBlockPos = 0;
-            let smallBlockPos = 0;
+            let smallBlockPos = -1.0; // 小方块从更左侧开始
             let smallBlockVel = v;
             let bigBlockVel = 0;
             let isBigBlockMoving = false;
@@ -345,13 +345,16 @@
             const dt = 0.001; // 时间步长
             const maxTime = 100; // 最大仿真时间
             
+            // 方块尺寸（用于渲染和碰撞检测）- 使用点粒子模型，尺寸为 0
+            // 碰撞发生在两个方块位置相同时
+            
             // 记录初始位置
             smallBlockTrajectory.push({ t: time, x: smallBlockPos });
             bigBlockTrajectory.push({ t: time, x: bigBlockPos });
             
             while (time < maxTime) {
                 // 检查是否还有碰撞可能
-                if (!isBigBlockMoving && smallBlockVel <= 0) {
+                if (!isBigBlockMoving && smallBlockVel <= 0 && smallBlockPos < bigBlockPos) {
                     break;
                 }
                 
@@ -360,8 +363,8 @@
                 
                 // 小方块撞墙
                 if (smallBlockPos <= 0 && smallBlockVel < 0) {
-                    smallBlockPos = 0;
-                    smallBlockVel = -smallBlockVel;
+                    smallBlockPos = 0.001;
+                    smallBlockVel = Math.abs(smallBlockVel);
                     events.push({ type: 'wall', time: time, pos: 0 });
                 }
                 
@@ -381,7 +384,7 @@
                     bigBlockPos += bigBlockVel * dt;
                 }
                 
-                // 检查碰撞
+                // 检查碰撞（点粒子模型：位置相同且小方块速度大于大方块）
                 if (smallBlockPos >= bigBlockPos && smallBlockVel > bigBlockVel) {
                     // 弹性碰撞
                     const newSmallVel = ((m - M) * smallBlockVel + 2 * M * bigBlockVel) / (m + M);
@@ -393,14 +396,16 @@
                     collisionCount++;
                     isBigBlockMoving = true;
                     
+                    // 分离两个方块，避免重复检测
+                    const gap = 0.001;
+                    smallBlockPos = bigBlockPos - gap;
+                    
                     events.push({ 
                         type: 'collision', 
                         time: time, 
                         pos: bigBlockPos,
                         collisionNum: collisionCount 
                     });
-                    
-                    smallBlockPos = bigBlockPos - 0.01; // 避免重复检测
                 }
                 
                 // 记录轨迹
@@ -422,7 +427,9 @@
                 bigBlockTrajectory,
                 collisionCount,
                 totalDistance: finalBigPos,
-                totalTime: time
+                totalTime: time,
+                smallBlockSize: 0,
+                bigBlockSize: 0
             };
         }
 
@@ -440,7 +447,7 @@
             
             // 插值获取当前位置
             function getPosition(traj, t) {
-                if (traj.length === 0) return 0;
+                if (traj.length === 0) return -0.5;
                 if (t <= traj[0].t) return traj[0].x;
                 if (t >= traj[traj.length - 1].t) return traj[traj.length - 1].x;
                 
@@ -456,10 +463,10 @@
             const smallPos = getPosition(smallBlockTrajectory, time);
             const bigPos = getPosition(bigBlockTrajectory, time);
             
-            // 比例尺
+            // 比例尺 - 确保大方块位置始终可见
             const maxPos = Math.max(
-                Math.max(...smallBlockTrajectory.map(p => p.x)),
-                Math.max(...bigBlockTrajectory.map(p => p.x)),
+                Math.max(...smallBlockTrajectory.map(p => p.x), 0),
+                Math.max(...bigBlockTrajectory.map(p => p.x), 1),
                 1
             );
             const scaleX = (width - 100) / maxPos;
@@ -487,8 +494,8 @@
             ctx.font = '12px Arial';
             ctx.fillText('m', smallX - 5, groundY - smallSize/2);
             
-            // 绘制大方块
-            const bigSize = 50;
+            // 绘制大方块（根据质量比调整大小）
+            const bigSize = 50 + Math.min(20, (k - 1) * 5);
             const bigX = 10 + bigPos * scaleX;
             ctx.fillStyle = '#e74c3c';
             ctx.fillRect(bigX - bigSize/2, groundY - bigSize, bigSize, bigSize);
