@@ -298,6 +298,7 @@
         let simulationData = null;
         let currentTime = 0;
         let isRunning = false;
+        let k_global = 3; // 保存当前 k 值用于绘图
 
         // Canvas 上下文
         const animCanvas = document.getElementById('animationCanvas');
@@ -311,9 +312,95 @@
             animCanvas.height = animCanvas.offsetHeight;
             txCanvas.width = txCanvas.offsetWidth;
             txCanvas.height = txCanvas.offsetHeight;
+            // 重绘
+            if (simulationData) {
+                drawAnimation(currentTime);
+                drawTxChart(true);
+            } else {
+                drawInitialView();
+            }
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
+
+        // 绘制初始视图（显示大方块和小方块的初始位置）
+        function drawInitialView() {
+            const ctx = animCtx;
+            const width = animCanvas.width;
+            const height = animCanvas.height;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            const groundY = height / 2 + 80;
+            const k = parseFloat(document.getElementById('massRatio').value) || 3;
+            k_global = k;
+            
+            // 绘制地面
+            ctx.fillStyle = '#ecf0f1';
+            ctx.fillRect(0, groundY, width, height - groundY);
+            
+            // 绘制光滑面和粗糙面分界（x=0 处）
+            const boundaryX = 50;
+            ctx.fillStyle = '#bdc3c7';
+            ctx.fillRect(0, groundY, boundaryX, 20);
+            ctx.fillStyle = '#95a5a6';
+            ctx.fillRect(boundaryX, groundY, width - boundaryX, 20);
+            
+            // 绘制墙
+            ctx.fillStyle = '#7f8c8d';
+            ctx.fillRect(0, groundY - 100, 10, 100);
+            
+            // 小方块初始位置 x = -1.0（在光滑面上）
+            const smallPos = -1.0;
+            const maxPos = 10; // 假设最大位置
+            const scaleX = (width - 100) / maxPos;
+            const offsetX = boundaryX;
+            
+            // 绘制小方块
+            const smallSize = 30;
+            const smallX = offsetX + smallPos * scaleX;
+            ctx.fillStyle = '#3498db';
+            ctx.fillRect(smallX - smallSize/2, groundY - smallSize, smallSize, smallSize);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 14px Arial';
+            ctx.fillText('m', smallX - 8, groundY - smallSize/2);
+            
+            // 大方块初始位置 x = 0（在交界处）
+            const bigPos = 0;
+            const bigSize = 50 + Math.min(20, (k - 1) * 5);
+            const bigX = offsetX + bigPos * scaleX;
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(bigX - bigSize/2, groundY - bigSize, bigSize, bigSize);
+            ctx.fillStyle = 'white';
+            ctx.fillText('M', bigX - 10, groundY - bigSize/2);
+            
+            // 绘制标尺
+            ctx.fillStyle = '#666';
+            ctx.font = '11px Arial';
+            ctx.fillText('墙', 5, groundY - 110);
+            ctx.fillText('光滑面', boundaryX / 2 - 25, groundY + 35);
+            ctx.fillText('粗糙面', boundaryX + (width - boundaryX) / 2 - 25, groundY + 35);
+            for (let i = 0; i <= 5; i++) {
+                const x = offsetX + i * scaleX;
+                ctx.fillRect(x, groundY + 20, 1, 5);
+                ctx.fillText(i.toFixed(0), x - 5, groundY + 35);
+            }
+            
+            // 绘制速度箭头
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(smallX + smallSize/2 + 5, groundY - smallSize/2);
+            ctx.lineTo(smallX + smallSize/2 + 40, groundY - smallSize/2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(smallX + smallSize/2 + 35, groundY - smallSize/2 - 8);
+            ctx.lineTo(smallX + smallSize/2 + 40, groundY - smallSize/2);
+            ctx.lineTo(smallX + smallSize/2 + 35, groundY - smallSize/2 + 8);
+            ctx.stroke();
+            ctx.fillStyle = '#3498db';
+            ctx.fillText('v', smallX + smallSize/2 + 20, groundY - smallSize/2 - 10);
+        }
 
         // 计算理论值
         function calculateTheoretical(k, m, v, f) {
@@ -337,16 +424,13 @@
             let time = 0;
             let collisionCount = 0;
             let bigBlockPos = 0;
-            let smallBlockPos = -1.0; // 小方块从更左侧开始
+            let smallBlockPos = -1.0;
             let smallBlockVel = v;
             let bigBlockVel = 0;
             let isBigBlockMoving = false;
             
-            const dt = 0.001; // 时间步长
-            const maxTime = 100; // 最大仿真时间
-            
-            // 方块尺寸（用于渲染和碰撞检测）- 使用点粒子模型，尺寸为 0
-            // 碰撞发生在两个方块位置相同时
+            const dt = 0.001;
+            const maxTime = 100;
             
             // 记录初始位置
             smallBlockTrajectory.push({ t: time, x: smallBlockPos });
@@ -373,7 +457,6 @@
                     const frictionAccel = -f / M * Math.sign(bigBlockVel);
                     bigBlockVel += frictionAccel * dt;
                     
-                    // 大方块停止
                     if (Math.abs(bigBlockVel) < 0.01 || 
                         (bigBlockVel > 0 && bigBlockVel + frictionAccel * dt <= 0) ||
                         (bigBlockVel < 0 && bigBlockVel + frictionAccel * dt >= 0)) {
@@ -384,9 +467,8 @@
                     bigBlockPos += bigBlockVel * dt;
                 }
                 
-                // 检查碰撞（点粒子模型：位置相同且小方块速度大于大方块）
+                // 检查碰撞
                 if (smallBlockPos >= bigBlockPos && smallBlockVel > bigBlockVel) {
-                    // 弹性碰撞
                     const newSmallVel = ((m - M) * smallBlockVel + 2 * M * bigBlockVel) / (m + M);
                     const newBigVel = ((M - m) * bigBlockVel + 2 * m * smallBlockVel) / (m + M);
                     
@@ -396,7 +478,6 @@
                     collisionCount++;
                     isBigBlockMoving = true;
                     
-                    // 分离两个方块，避免重复检测
                     const gap = 0.001;
                     smallBlockPos = bigBlockPos - gap;
                     
@@ -409,7 +490,7 @@
                 }
                 
                 // 记录轨迹
-                if (time % 0.05 < dt) { // 每 0.05 秒记录一次
+                if (time % 0.05 < dt) {
                     smallBlockTrajectory.push({ t: time, x: smallBlockPos });
                     bigBlockTrajectory.push({ t: time, x: bigBlockPos });
                 }
@@ -417,7 +498,6 @@
                 time += dt;
             }
             
-            // 最终位置
             const finalBigPos = bigBlockTrajectory.length > 0 ? 
                 bigBlockTrajectory[bigBlockTrajectory.length - 1].x : 0;
             
@@ -427,9 +507,7 @@
                 bigBlockTrajectory,
                 collisionCount,
                 totalDistance: finalBigPos,
-                totalTime: time,
-                smallBlockSize: 0,
-                bigBlockSize: 0
+                totalTime: time
             };
         }
 
@@ -472,14 +550,17 @@
             const scaleX = (width - 100) / maxPos;
             const offsetY = height / 2;
             const groundY = offsetY + 80;
+            const boundaryX = 50; // x=0 的边界位置
             
             // 绘制地面
             ctx.fillStyle = '#ecf0f1';
             ctx.fillRect(0, groundY, width, height - groundY);
             
-            // 绘制光滑面和粗糙面分界
+            // 绘制光滑面和粗糙面分界（x=0 处）
+            ctx.fillStyle = '#bdc3c7';
+            ctx.fillRect(0, groundY, boundaryX, 20);
             ctx.fillStyle = '#95a5a6';
-            ctx.fillRect(0, groundY, width, 20);
+            ctx.fillRect(boundaryX, groundY, width - boundaryX, 20);
             
             // 绘制墙
             ctx.fillStyle = '#7f8c8d';
@@ -487,16 +568,17 @@
             
             // 绘制小方块
             const smallSize = 30;
-            const smallX = 10 + smallPos * scaleX;
+            const smallX = boundaryX + smallPos * scaleX;
             ctx.fillStyle = '#3498db';
             ctx.fillRect(smallX - smallSize/2, groundY - smallSize, smallSize, smallSize);
             ctx.fillStyle = 'white';
-            ctx.font = '12px Arial';
+            ctx.font = 'bold 12px Arial';
             ctx.fillText('m', smallX - 5, groundY - smallSize/2);
             
             // 绘制大方块（根据质量比调整大小）
+            const k = k_global || 3;
             const bigSize = 50 + Math.min(20, (k - 1) * 5);
-            const bigX = 10 + bigPos * scaleX;
+            const bigX = boundaryX + bigPos * scaleX;
             ctx.fillStyle = '#e74c3c';
             ctx.fillRect(bigX - bigSize/2, groundY - bigSize, bigSize, bigSize);
             ctx.fillStyle = 'white';
@@ -505,8 +587,9 @@
             // 绘制标尺
             ctx.fillStyle = '#666';
             ctx.font = '10px Arial';
+            ctx.fillText('墙', 5, groundY - 110);
             for (let i = 0; i <= maxPos; i += Math.ceil(maxPos / 10)) {
-                const x = 10 + i * scaleX;
+                const x = boundaryX + i * scaleX;
                 ctx.fillRect(x, groundY + 20, 1, 5);
                 ctx.fillText(i.toFixed(1), x - 10, groundY + 35);
             }
@@ -657,7 +740,8 @@
             document.getElementById('theoreticalN').textContent = '-';
             document.getElementById('theoreticalS').textContent = '-';
             
-            animCtx.clearRect(0, 0, animCanvas.width, animCanvas.height);
+            // 重绘初始视图
+            drawInitialView();
             txCtx.clearRect(0, 0, txCanvas.width, txCanvas.height);
         }
 
@@ -684,8 +768,7 @@
 
         // 初始化绘制
         resizeCanvas();
-        drawAnimation(0);
-        drawTxChart(true);
+        drawInitialView();
     </script>
 </body>
 </html>
