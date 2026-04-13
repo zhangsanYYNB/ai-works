@@ -1,1 +1,1 @@
-Nothing needs to be added to .gitignore since the changes only include HTML files (collision_simulation.html and index.html) which are source files that should be tracked in version control.
+Nothing should be ignored based on the provided file changes. The only modified file is `collision_simulation.html`, which is a source file and should not be added to .gitignore.
