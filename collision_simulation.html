@@ -474,7 +474,7 @@
                 // 小方块撞墙（墙在 x=0 处，完全弹性碰撞）
                 if (smallBlockPos <= 0 && smallBlockVel < 0) {
                     smallBlockPos = 0.0001;
-                    smallBlockVel = -smallBlockVel;  // 反向
+                    smallBlockVel = -smallBlockVel;  // 完全弹性碰撞，速度反向
                     events.push({ type: 'wall', time: time, pos: 0 });
                 }
 
@@ -510,7 +510,9 @@
                 // 检查小方块与大方块的碰撞
                 // 根据题目："小方块是在大方块停止之后才撞上的"
                 // 所以只有当大方块静止时，才允许发生碰撞
-                if (bigBlockStopped && smallBlockPos >= bigBlockPos && smallBlockVel > 0) {
+                // 同时小方块必须向右运动 (vel > 0) 且位置接近大方块
+                if (bigBlockStopped && smallBlockVel > 0 && 
+                    smallBlockPos >= bigBlockPos - 0.001 && smallBlockPos <= bigBlockPos + 0.1) {
                     // 弹性碰撞公式
                     const newSmallVel = ((m - M) * smallBlockVel + 2 * M * bigBlockVel) / (m + M);
                     const newBigVel = ((M - m) * bigBlockVel + 2 * m * smallBlockVel) / (m + M);
@@ -522,7 +524,7 @@
                     collisionCount++;
 
                     // 防止穿透，稍微分离
-                    smallBlockPos = bigBlockPos - 0.0001;
+                    smallBlockPos = bigBlockPos - 0.001;
 
                     events.push({
                         type: 'collision',
@@ -534,9 +536,15 @@
 
                 // 检查结束条件：
                 // 1. 两者都几乎静止
-                // 2. 小方块无法再追上大方块
+                // 2. 小方块无法再追上大方块（小方块速度 <= 0 且大方块静止）
                 if (Math.abs(smallBlockVel) < stopThreshold && Math.abs(bigBlockVel) < stopThreshold) {
                     break;
+                }
+                
+                // 如果小方块向左运动且大方块静止，且小方块已经在大方块左边很远，不会再碰撞
+                if (bigBlockStopped && smallBlockVel <= 0 && smallBlockPos < bigBlockPos - 10) {
+                    // 小方块正在远离大方块，且距离很远，可以结束
+                    // 但实际上小方块会撞墙反弹，所以不能直接结束
                 }
 
                 // 记录轨迹（每隔一定时间记录）
