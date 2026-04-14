@@ -285,9 +285,9 @@
             
             <div class="formula">
                 <strong>📐 理论公式：</strong><br>
-                θ = arccos[((k-1)/(k+1))²]<br>
-                N = ⌊π/(2θ) + 0.5⌋<br>
-                S = (mv²/2f) × √[2k/(k²+1)] × sin(Nθ)
+                θ = arccos[(k-1)/(k+1)]<br>
+                N = ⌊π/(2θ)⌋<br>
+                S ≈ mv²/(2f) (能量守恒近似)
             </div>
         </div>
     </div>
@@ -404,14 +404,24 @@
 
         // 计算理论值
         function calculateTheoretical(k, m, v, f) {
-            const cosTheta = Math.pow((k - 1) / (k + 1), 2);
+            // 使用能量守恒和动量守恒推导
+            // 在无摩擦理想情况下：
+            // θ = arccos((k-1)/(k+1))
+            // N = floor(π/(2θ))
+            const cosTheta = (k - 1) / (k + 1);
             const theta = Math.acos(cosTheta);
-            const theoreticalN = Math.floor(Math.PI / (2 * theta) + 0.5);
-            const tanHalfTheta = Math.sqrt(2 * k / (k * k + 1));
-            const E1 = 0.5 * m * v * v;
-            const theoreticalS = (E1 / f) * tanHalfTheta * Math.sin(theoreticalN * theta);
+            const idealN = Math.floor(Math.PI / (2 * theta));
             
-            return { theta, theoreticalN, theoreticalS };
+            // 理论路程：使用能量守恒，初始动能全部被摩擦力消耗
+            // E_initial = 0.5 * m * v^2
+            // W_friction = f * S_total
+            // 所以 S = E_initial / f = mv²/(2f)
+            const E_initial = 0.5 * m * v * v;
+            const theoreticalS = E_initial / f;
+            
+            // 注意：由于有摩擦力存在，实际碰撞次数会与理想情况有所不同
+            // 这里给出的是理想无摩擦情况的理论碰撞次数作为参考
+            return { theta, idealN, theoreticalS };
         }
 
         // 运行数值仿真
@@ -423,52 +433,65 @@
             
             let time = 0;
             let collisionCount = 0;
+            
+            // 初始条件：
+            // - 墙在 x=0 处
+            // - 光滑面在 x<0 区域
+            // - 粗糙面在 x>=0 区域
+            // - 大方块初始位置在 x=0（粗糙面起点）
+            // - 小方块初始位置在 x=-1.0（光滑面上），以速度 v 向右运动
             let bigBlockPos = 0;
             let smallBlockPos = -1.0;
             let smallBlockVel = v;
             let bigBlockVel = 0;
-            let isBigBlockMoving = false;
             
-            const dt = 0.001;
-            const maxTime = 100;
+            const dt = 0.0005;  // 更小的时间步长提高精度
+            const maxTime = 200;
+            const stopThreshold = 0.0001;  // 速度阈值
             
             // 记录初始位置
             smallBlockTrajectory.push({ t: time, x: smallBlockPos });
             bigBlockTrajectory.push({ t: time, x: bigBlockPos });
             
             while (time < maxTime) {
-                // 检查是否还有碰撞可能
-                if (!isBigBlockMoving && smallBlockVel <= 0 && smallBlockPos < bigBlockPos) {
-                    break;
-                }
-                
-                // 更新小方块位置
+                // 更新小方块位置（光滑面无摩擦）
                 smallBlockPos += smallBlockVel * dt;
                 
-                // 小方块撞墙
+                // 小方块撞墙（墙在 x=0 处，完全弹性碰撞）
                 if (smallBlockPos <= 0 && smallBlockVel < 0) {
-                    smallBlockPos = 0.001;
-                    smallBlockVel = Math.abs(smallBlockVel);
+                    smallBlockPos = 0.0001;
+                    smallBlockVel = -smallBlockVel;  // 反向
                     events.push({ type: 'wall', time: time, pos: 0 });
                 }
                 
-                // 大方块运动（受摩擦力）
-                if (isBigBlockMoving) {
+                // 大方块运动（受摩擦力 f）
+                if (Math.abs(bigBlockVel) > stopThreshold) {
+                    // 摩擦力方向与速度方向相反
                     const frictionAccel = -f / M * Math.sign(bigBlockVel);
                     bigBlockVel += frictionAccel * dt;
                     
-                    if (Math.abs(bigBlockVel) < 0.01 || 
+                    // 检查是否停下
+                    if (Math.abs(bigBlockVel) < stopThreshold || 
                         (bigBlockVel > 0 && bigBlockVel + frictionAccel * dt <= 0) ||
                         (bigBlockVel < 0 && bigBlockVel + frictionAccel * dt >= 0)) {
                         bigBlockVel = 0;
-                        isBigBlockMoving = false;
                     }
                     
                     bigBlockPos += bigBlockVel * dt;
+                    
+                    // 确保大方块不回到 x<0 区域
+                    if (bigBlockPos < 0) {
+                        bigBlockPos = 0;
+                        bigBlockVel = 0;
+                    }
+                } else {
+                    bigBlockVel = 0;
                 }
                 
-                // 检查碰撞
+                // 检查小方块与大方块的碰撞
+                // 碰撞条件：小方块位置 >= 大方块位置 且 相对速度 > 0
                 if (smallBlockPos >= bigBlockPos && smallBlockVel > bigBlockVel) {
+                    // 弹性碰撞公式
                     const newSmallVel = ((m - M) * smallBlockVel + 2 * M * bigBlockVel) / (m + M);
                     const newBigVel = ((M - m) * bigBlockVel + 2 * m * smallBlockVel) / (m + M);
                     
@@ -476,10 +499,9 @@
                     bigBlockVel = newBigVel;
                     
                     collisionCount++;
-                    isBigBlockMoving = true;
                     
-                    const gap = 0.001;
-                    smallBlockPos = bigBlockPos - gap;
+                    // 防止穿透，稍微分离
+                    smallBlockPos = bigBlockPos - 0.0001;
                     
                     events.push({ 
                         type: 'collision', 
@@ -489,8 +511,23 @@
                     });
                 }
                 
-                // 记录轨迹
-                if (time % 0.05 < dt) {
+                // 检查结束条件：
+                // 1. 两者都几乎静止
+                // 2. 大方块静止，小方块向左运动但无法再追上（已经小于 0 且速度不够）
+                if (Math.abs(smallBlockVel) < stopThreshold && Math.abs(bigBlockVel) < stopThreshold) {
+                    break;
+                }
+                
+                // 如果大方块静止且小方块速度向右但小于等于大方块速度（即 0），且小方块在大方块左边
+                if (bigBlockVel === 0 && smallBlockVel <= 0 && smallBlockPos < bigBlockPos) {
+                    // 小方块向左运动，会去撞墙
+                } else if (bigBlockVel === 0 && smallBlockVel > 0 && smallBlockVel <= bigBlockVel && smallBlockPos < bigBlockPos) {
+                    // 小方块追不上大方块
+                    break;
+                }
+                
+                // 记录轨迹（每隔一定时间记录）
+                if (time % 0.02 < dt) {
                     smallBlockTrajectory.push({ t: time, x: smallBlockPos });
                     bigBlockTrajectory.push({ t: time, x: bigBlockPos });
                 }
@@ -498,6 +535,7 @@
                 time += dt;
             }
             
+            // 计算大方块总路程
             const finalBigPos = bigBlockTrajectory.length > 0 ? 
                 bigBlockTrajectory[bigBlockTrajectory.length - 1].x : 0;
             
@@ -714,7 +752,7 @@
             // 显示结果
             document.getElementById('collisionCount').textContent = simulationData.collisionCount;
             document.getElementById('totalDistance').textContent = simulationData.totalDistance.toFixed(3);
-            document.getElementById('theoreticalN').textContent = theoretical.theoreticalN;
+            document.getElementById('theoreticalN').textContent = theoretical.idealN;
             document.getElementById('theoreticalS').textContent = theoretical.theoreticalS.toFixed(3);
             
             // 重置时间
