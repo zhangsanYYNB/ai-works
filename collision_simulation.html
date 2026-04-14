@@ -285,8 +285,8 @@
             
             <div class="formula">
                 <strong>📐 理论公式：</strong><br>
-                θ = arccos[(k-1)/(k+1)]<br>
-                N = ⌊π/(2θ)⌋<br>
+                θ = arccos[((k-1)/(k+1))²]<br>
+                N = ⌊π/θ⌋<br>
                 S ≈ mv²/(2f) (能量守恒近似)
             </div>
         </div>
@@ -323,94 +323,96 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
+
         // 绘制初始视图（显示大方块和小方块的初始位置）
         function drawInitialView() {
             const ctx = animCtx;
             const width = animCanvas.width;
             const height = animCanvas.height;
-            
+
             ctx.clearRect(0, 0, width, height);
-            
+
             const groundY = height / 2 + 80;
             const k = parseFloat(document.getElementById('massRatio').value) || 3;
             k_global = k;
-            
+
             // 绘制地面
             ctx.fillStyle = '#ecf0f1';
             ctx.fillRect(0, groundY, width, height - groundY);
-            
-            // 绘制光滑面和粗糙面分界（x=0 处）
-            const boundaryX = 50;
+
+            // 墙在 x=0，boundary 在 x=5
+            const boundary = 5.0;
+            const wallX = 50;
+            const scaleX = (width - 100) / 15;
+            const roughStartX = wallX + boundary * scaleX;
+
+            // 光滑面（墙到 boundary）
             ctx.fillStyle = '#bdc3c7';
-            ctx.fillRect(0, groundY, boundaryX, 20);
+            ctx.fillRect(wallX, groundY, roughStartX - wallX, 20);
+            // 粗糙面（boundary 之后）
             ctx.fillStyle = '#95a5a6';
-            ctx.fillRect(boundaryX, groundY, width - boundaryX, 20);
-            
+            ctx.fillRect(roughStartX, groundY, width - roughStartX, 20);
+
             // 绘制墙
             ctx.fillStyle = '#7f8c8d';
             ctx.fillRect(0, groundY - 100, 10, 100);
-            
-            // 小方块初始位置 x = -1.0（在光滑面上）
-            const smallPos = -1.0;
-            const maxPos = 10; // 假设最大位置
-            const scaleX = (width - 100) / maxPos;
-            const offsetX = boundaryX;
-            
-            // 绘制小方块
+
+            // 小方块初始位置 x = boundary/2 = 2.5（在光滑面上）
+            const smallPos = boundary / 2;
             const smallSize = 30;
-            const smallX = offsetX + smallPos * scaleX;
+            const smallX = wallX + smallPos * scaleX;
             ctx.fillStyle = '#3498db';
             ctx.fillRect(smallX - smallSize/2, groundY - smallSize, smallSize, smallSize);
             ctx.fillStyle = 'white';
             ctx.font = 'bold 14px Arial';
             ctx.fillText('m', smallX - 8, groundY - smallSize/2);
-            
-            // 大方块初始位置 x = 0（在交界处）
-            const bigPos = 0;
+
+            // 大方块初始位置 x = boundary = 5（在交界处）
+            const bigPos = boundary;
             const bigSize = 50 + Math.min(20, (k - 1) * 5);
-            const bigX = offsetX + bigPos * scaleX;
+            const bigX = wallX + bigPos * scaleX;
             ctx.fillStyle = '#e74c3c';
             ctx.fillRect(bigX - bigSize/2, groundY - bigSize, bigSize, bigSize);
             ctx.fillStyle = 'white';
             ctx.fillText('M', bigX - 10, groundY - bigSize/2);
-            
+
             // 绘制标尺
             ctx.fillStyle = '#666';
             ctx.font = '11px Arial';
             ctx.fillText('墙', 5, groundY - 110);
-            ctx.fillText('光滑面', boundaryX / 2 - 25, groundY + 35);
-            ctx.fillText('粗糙面', boundaryX + (width - boundaryX) / 2 - 25, groundY + 35);
-            for (let i = 0; i <= 5; i++) {
-                const x = offsetX + i * scaleX;
+            ctx.fillText('光滑面', wallX + (roughStartX - wallX)/2 - 20, groundY + 35);
+            ctx.fillText('粗糙面', roughStartX + 30, groundY + 35);
+            for (let i = 0; i <= 10; i++) {
+                const x = wallX + i * scaleX;
                 ctx.fillRect(x, groundY + 20, 1, 5);
                 ctx.fillText(i.toFixed(0), x - 5, groundY + 35);
             }
-            
-            // 绘制速度箭头
+
+            // 绘制速度箭头（向左，表示先去撞墙）
             ctx.strokeStyle = '#3498db';
             ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.moveTo(smallX + smallSize/2 + 5, groundY - smallSize/2);
-            ctx.lineTo(smallX + smallSize/2 + 40, groundY - smallSize/2);
+            ctx.moveTo(smallX - smallSize/2 - 5, groundY - smallSize/2);
+            ctx.lineTo(smallX - smallSize/2 - 40, groundY - smallSize/2);
             ctx.stroke();
             ctx.beginPath();
-            ctx.moveTo(smallX + smallSize/2 + 35, groundY - smallSize/2 - 8);
-            ctx.lineTo(smallX + smallSize/2 + 40, groundY - smallSize/2);
-            ctx.lineTo(smallX + smallSize/2 + 35, groundY - smallSize/2 + 8);
+            ctx.moveTo(smallX - smallSize/2 - 35, groundY - smallSize/2 - 8);
+            ctx.lineTo(smallX - smallSize/2 - 40, groundY - smallSize/2);
+            ctx.lineTo(smallX - smallSize/2 - 35, groundY - smallSize/2 + 8);
             ctx.stroke();
             ctx.fillStyle = '#3498db';
-            ctx.fillText('v', smallX + smallSize/2 + 20, groundY - smallSize/2 - 10);
+            ctx.fillText('v', smallX - smallSize/2 - 25, groundY - smallSize/2 - 10);
         }
 
         // 计算理论值
         function calculateTheoretical(k, m, v, f) {
             // 使用能量守恒和动量守恒推导
             // 在无摩擦理想情况下：
-            // θ = arccos((k-1)/(k+1))
-            // N = floor(π/(2θ))
-            const cosTheta = (k - 1) / (k + 1);
+            // θ = arccos(((k-1)/(k+1))^2)
+            // N = floor(π/θ)
+            const cosTheta = Math.pow((k - 1) / (k + 1), 2);
             const theta = Math.acos(cosTheta);
-            const idealN = Math.floor(Math.PI / (2 * theta));
+            const idealN = Math.floor(Math.PI / theta);
             
             // 理论路程：使用能量守恒，初始动能全部被摩擦力消耗
             // E_initial = 0.5 * m * v^2
@@ -423,128 +425,140 @@
             // 这里给出的是理想无摩擦情况的理论碰撞次数作为参考
             return { theta, idealN, theoreticalS };
         }
-
-        // 运行数值仿真
         function runSimulation(k, m, v, f) {
             const M = k * m;
             const events = [];
             const smallBlockTrajectory = [];
             const bigBlockTrajectory = [];
-            
+
             let time = 0;
             let collisionCount = 0;
-            
+
             // 初始条件：
-            // - 墙在 x=0 处
-            // - 光滑面在 x<0 区域
-            // - 粗糙面在 x>=0 区域
-            // - 大方块初始位置在 x=0（粗糙面起点）
-            // - 小方块初始位置在 x=-1.0（光滑面上），以速度 v 向右运动
-            let bigBlockPos = 0;
-            let smallBlockPos = -1.0;
-            let smallBlockVel = v;
+            // - 墙在 x=0 处（最左侧）
+            // - 光滑面在 0 < x < boundary 区域
+            // - 粗糙面在 x >= boundary 区域
+            // - 大方块初始位置在 x=boundary（粗糙面起点），静止
+            // - 小方块初始位置在 x=boundary/2（光滑面中间），以速度 v 向左运动去撞墙
+            
+            const boundary = 5.0; // 光滑面和粗糙面的分界位置
+            let bigBlockPos = boundary;
+            let smallBlockPos = boundary / 2;
+            let smallBlockVel = -v; // 初始向左运动，先去撞墙
             let bigBlockVel = 0;
-            
+
             const dt = 0.0005;  // 更小的时间步长提高精度
-            const maxTime = 200;
+            const maxTime = 500;
             const stopThreshold = 0.0001;  // 速度阈值
-            
+
             // 记录初始位置
             smallBlockTrajectory.push({ t: time, x: smallBlockPos });
             bigBlockTrajectory.push({ t: time, x: bigBlockPos });
-            
+
+            let bigBlockStopped = true; // 大方块初始是静止的
+
             while (time < maxTime) {
-                // 更新小方块位置（光滑面无摩擦）
+                // 更新小方块位置
+                // 根据题目："小方块来回在粗糙面上都受这个 f"
+                // 所以小方块在 x >= boundary 时受摩擦力 f
+                if (smallBlockPos >= boundary && Math.abs(smallBlockVel) > stopThreshold) {
+                    // 小方块在粗糙面上，受摩擦力 f
+                    const frictionAccelSmall = -f / m * Math.sign(smallBlockVel);
+                    smallBlockVel += frictionAccelSmall * dt;
+                    if (Math.abs(smallBlockVel) < stopThreshold) {
+                        smallBlockVel = 0;
+                    }
+                }
                 smallBlockPos += smallBlockVel * dt;
-                
+
                 // 小方块撞墙（墙在 x=0 处，完全弹性碰撞）
                 if (smallBlockPos <= 0 && smallBlockVel < 0) {
                     smallBlockPos = 0.0001;
                     smallBlockVel = -smallBlockVel;  // 反向
                     events.push({ type: 'wall', time: time, pos: 0 });
                 }
-                
+
                 // 大方块运动（受摩擦力 f）
                 if (Math.abs(bigBlockVel) > stopThreshold) {
                     // 摩擦力方向与速度方向相反
                     const frictionAccel = -f / M * Math.sign(bigBlockVel);
                     bigBlockVel += frictionAccel * dt;
-                    
+
                     // 检查是否停下
-                    if (Math.abs(bigBlockVel) < stopThreshold || 
+                    if (Math.abs(bigBlockVel) < stopThreshold ||
                         (bigBlockVel > 0 && bigBlockVel + frictionAccel * dt <= 0) ||
                         (bigBlockVel < 0 && bigBlockVel + frictionAccel * dt >= 0)) {
                         bigBlockVel = 0;
+                        bigBlockStopped = true;
                     }
-                    
+
                     bigBlockPos += bigBlockVel * dt;
-                    
-                    // 确保大方块不回到 x<0 区域
-                    if (bigBlockPos < 0) {
-                        bigBlockPos = 0;
+
+                    // 确保大方块不回到 x < boundary 区域
+                    if (bigBlockPos < boundary) {
+                        bigBlockPos = boundary;
                         bigBlockVel = 0;
+                        bigBlockStopped = true;
                     }
                 } else {
-                    bigBlockVel = 0;
+                    if (bigBlockVel !== 0) {
+                        bigBlockVel = 0;
+                        bigBlockStopped = true;
+                    }
                 }
-                
+
                 // 检查小方块与大方块的碰撞
-                // 碰撞条件：小方块位置 >= 大方块位置 且 相对速度 > 0
-                if (smallBlockPos >= bigBlockPos && smallBlockVel > bigBlockVel) {
+                // 根据题目："小方块是在大方块停止之后才撞上的"
+                // 所以只有当大方块静止时，才允许发生碰撞
+                if (bigBlockStopped && smallBlockPos >= bigBlockPos && smallBlockVel > 0) {
                     // 弹性碰撞公式
                     const newSmallVel = ((m - M) * smallBlockVel + 2 * M * bigBlockVel) / (m + M);
                     const newBigVel = ((M - m) * bigBlockVel + 2 * m * smallBlockVel) / (m + M);
-                    
+
                     smallBlockVel = newSmallVel;
                     bigBlockVel = newBigVel;
-                    
+                    bigBlockStopped = false; // 碰撞后大方块开始运动
+
                     collisionCount++;
-                    
+
                     // 防止穿透，稍微分离
                     smallBlockPos = bigBlockPos - 0.0001;
-                    
-                    events.push({ 
-                        type: 'collision', 
-                        time: time, 
+
+                    events.push({
+                        type: 'collision',
+                        time: time,
                         pos: bigBlockPos,
-                        collisionNum: collisionCount 
+                        collisionNum: collisionCount
                     });
                 }
-                
+
                 // 检查结束条件：
                 // 1. 两者都几乎静止
-                // 2. 大方块静止，小方块向左运动但无法再追上（已经小于 0 且速度不够）
+                // 2. 小方块无法再追上大方块
                 if (Math.abs(smallBlockVel) < stopThreshold && Math.abs(bigBlockVel) < stopThreshold) {
                     break;
                 }
-                
-                // 如果大方块静止且小方块速度向右但小于等于大方块速度（即 0），且小方块在大方块左边
-                if (bigBlockVel === 0 && smallBlockVel <= 0 && smallBlockPos < bigBlockPos) {
-                    // 小方块向左运动，会去撞墙
-                } else if (bigBlockVel === 0 && smallBlockVel > 0 && smallBlockVel <= bigBlockVel && smallBlockPos < bigBlockPos) {
-                    // 小方块追不上大方块
-                    break;
-                }
-                
+
                 // 记录轨迹（每隔一定时间记录）
                 if (time % 0.02 < dt) {
                     smallBlockTrajectory.push({ t: time, x: smallBlockPos });
                     bigBlockTrajectory.push({ t: time, x: bigBlockPos });
                 }
-                
+
                 time += dt;
             }
-            
+
             // 计算大方块总路程
-            const finalBigPos = bigBlockTrajectory.length > 0 ? 
-                bigBlockTrajectory[bigBlockTrajectory.length - 1].x : 0;
-            
+            const finalBigPos = bigBlockTrajectory.length > 0 ?
+                bigBlockTrajectory[bigBlockTrajectory.length - 1].x : boundary;
+            const totalDistance = finalBigPos - boundary;
+
             return {
                 events,
                 smallBlockTrajectory,
                 bigBlockTrajectory,
                 collisionCount,
-                totalDistance: finalBigPos,
+                totalDistance: totalDistance,
                 totalTime: time
             };
         }
@@ -554,10 +568,93 @@
             const ctx = animCtx;
             const width = animCanvas.width;
             const height = animCanvas.height;
-            
+
             ctx.clearRect(0, 0, width, height);
-            
+
             if (!simulationData) return;
+
+            const { smallBlockTrajectory, bigBlockTrajectory } = simulationData;
+
+            // 插值获取当前位置
+            function getPosition(traj, t) {
+                if (traj.length === 0) return 2.5;
+                if (t <= traj[0].t) return traj[0].x;
+                if (t >= traj[traj.length - 1].t) return traj[traj.length - 1].x;
+
+                for (let i = 0; i < traj.length - 1; i++) {
+                    if (traj[i].t <= t && traj[i + 1].t >= t) {
+                        const ratio = (t - traj[i].t) / (traj[i + 1].t - traj[i].t);
+                        return traj[i].x + ratio * (traj[i + 1].x - traj[i].x);
+                    }
+                }
+                return traj[traj.length - 1].x;
+            }
+
+            const smallPos = getPosition(smallBlockTrajectory, time);
+            const bigPos = getPosition(bigBlockTrajectory, time);
+
+            // 比例尺 - 确保大方块位置始终可见
+            const boundary = 5.0;
+            const maxPos = Math.max(
+                Math.max(...smallBlockTrajectory.map(p => p.x), boundary),
+                Math.max(...bigBlockTrajectory.map(p => p.x), boundary + 1),
+                boundary + 1
+            );
+            const scaleX = (width - 100) / (maxPos - boundary + 5);
+            const offsetY = height / 2;
+            const groundY = offsetY + 80;
+            const boundaryX = 50; // x=0 的边界位置（墙的位置）
+
+            // 绘制地面
+            ctx.fillStyle = '#ecf0f1';
+            ctx.fillRect(0, groundY, width, height - groundY);
+
+            // 绘制光滑面（墙到 boundary）和粗糙面（boundary 之后）
+            // 墙在 x=0，boundary 在 x=5
+            const wallX = boundaryX;
+            const roughStartX = boundaryX + boundary * scaleX;
+            
+            // 光滑面（灰色）
+            ctx.fillStyle = '#bdc3c7';
+            ctx.fillRect(wallX, groundY, roughStartX - wallX, 20);
+            // 粗糙面（深灰色）
+            ctx.fillStyle = '#95a5a6';
+            ctx.fillRect(roughStartX, groundY, width - roughStartX, 20);
+
+            // 绘制墙
+            ctx.fillStyle = '#7f8c8d';
+            ctx.fillRect(0, groundY - 100, 10, 100);
+
+            // 绘制小方块
+            const smallSize = 30;
+            const smallX = wallX + (smallPos) * scaleX;
+            ctx.fillStyle = '#3498db';
+            ctx.fillRect(smallX - smallSize/2, groundY - smallSize, smallSize, smallSize);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText('m', smallX - 5, groundY - smallSize/2);
+
+            // 绘制大方块（根据质量比调整大小）
+            const k = k_global || 3;
+            const bigSize = 50 + Math.min(20, (k - 1) * 5);
+            const bigX = wallX + (bigPos) * scaleX;
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(bigX - bigSize/2, groundY - bigSize, bigSize, bigSize);
+            ctx.fillStyle = 'white';
+            ctx.fillText('M', bigX - 8, groundY - bigSize/2);
+
+            // 绘制标尺
+            ctx.fillStyle = '#666';
+            ctx.font = '10px Arial';
+            ctx.fillText('墙', 5, groundY - 110);
+            ctx.fillText('光滑面', wallX + (roughStartX - wallX)/2 - 20, groundY + 35);
+            ctx.fillText('粗糙面', roughStartX + 30, groundY + 35);
+            for (let i = 0; i <= Math.ceil(maxPos); i++) {
+                const x = wallX + i * scaleX;
+                ctx.fillRect(x, groundY + 20, 1, 5);
+                ctx.fillText(i.toFixed(0), x - 5, groundY + 35);
+            }
+        }
             
             const { smallBlockTrajectory, bigBlockTrajectory } = simulationData;
             
