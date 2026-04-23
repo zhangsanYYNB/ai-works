@@ -350,52 +350,133 @@
             
             const lineCount = parseInt(document.getElementById('line-count').value);
             
-            for (let charge of charges) {
-                if (charge.q === 0) continue;
-                
-                const linesPerCharge = charge.q > 0 ? lineCount : Math.floor(lineCount * Math.abs(charge.q) / getMaxCharge());
-                
-                for (let i = 0; i < linesPerCharge; i++) {
-                    // 在电荷周围随机选择起始方向
-                    const theta = Math.random() * Math.PI * 2;
-                    const phi = Math.acos(2 * Math.random() - 1);
-                    
-                    const direction = new THREE.Vector3(
-                        Math.sin(phi) * Math.cos(theta),
-                        Math.sin(phi) * Math.sin(theta),
-                        Math.cos(phi)
-                    );
-                    
-                    const points = traceFieldLine(charge.x, charge.y, charge.z, direction, charge.q > 0);
-                    
-                    if (points.length > 1) {
-                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                        const material = new THREE.LineBasicMaterial({ 
-                            color: charge.q > 0 ? 0xff4444 : 0x4444ff,
-                            opacity: 0.7,
-                            transparent: true
-                        });
+            // 分离正负电荷
+            const positiveCharges = charges.filter(c => c.q > 0);
+            const negativeCharges = charges.filter(c => c.q < 0);
+            
+            // 如果只有正电荷或只有负电荷，也需要显示电场线
+            if (positiveCharges.length === 0 && negativeCharges.length > 0) {
+                // 只有负电荷：电场线从无穷远指向负电荷，我们从边界开始追踪
+                for (let charge of negativeCharges) {
+                    const linesForThisCharge = Math.max(5, Math.floor(lineCount * Math.abs(charge.q)));
+                    for (let i = 0; i < linesForThisCharge; i++) {
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = Math.acos(2 * Math.random() - 1);
                         
-                        const line = new THREE.Line(geometry, material);
-                        scene.add(line);
-                        fieldLineMeshes.push(line);
+                        const direction = new THREE.Vector3(
+                            Math.sin(phi) * Math.cos(theta),
+                            Math.sin(phi) * Math.sin(theta),
+                            Math.cos(phi)
+                        );
+                        
+                        // 从负电荷向外反向追踪（电场线指向负电荷）
+                        const points = traceFieldLineToNegative(charge.x, charge.y, charge.z, direction);
+                        
+                        if (points.length > 1) {
+                            createFieldLine(points, false);
+                        }
+                    }
+                }
+            } else if (negativeCharges.length === 0 && positiveCharges.length > 0) {
+                // 只有正电荷：电场线从正电荷指向无穷远
+                for (let charge of positiveCharges) {
+                    const linesForThisCharge = Math.max(5, Math.floor(lineCount * charge.q));
+                    for (let i = 0; i < linesForThisCharge; i++) {
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = Math.acos(2 * Math.random() - 1);
+                        
+                        const direction = new THREE.Vector3(
+                            Math.sin(phi) * Math.cos(theta),
+                            Math.sin(phi) * Math.sin(theta),
+                            Math.cos(phi)
+                        );
+                        
+                        const points = traceFieldLineFromPositive(charge.x, charge.y, charge.z, direction, true);
+                        
+                        if (points.length > 1) {
+                            createFieldLine(points, true);
+                        }
+                    }
+                }
+            } else {
+                // 既有正电荷也有负电荷
+                for (let charge of positiveCharges) {
+                    const linesForThisCharge = Math.max(5, Math.floor(lineCount * charge.q));
+                    for (let i = 0; i < linesForThisCharge; i++) {
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = Math.acos(2 * Math.random() - 1);
+                        
+                        const direction = new THREE.Vector3(
+                            Math.sin(phi) * Math.cos(theta),
+                            Math.sin(phi) * Math.sin(theta),
+                            Math.cos(phi)
+                        );
+                        
+                        const points = traceFieldLineFromPositive(charge.x, charge.y, charge.z, direction, false);
+                        
+                        if (points.length > 1) {
+                            createFieldLine(points, true);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 创建带箭头的电场线
+        function createFieldLine(points, fromPositive) {
+            if (points.length < 2) return;
+            
+            // 创建主线条
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({ 
+                color: fromPositive ? 0xff4444 : 0x4444ff,
+                opacity: 0.7,
+                transparent: true
+            });
+            
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+            fieldLineMeshes.push(line);
+            
+            // 在线上添加多个箭头
+            const arrowCount = Math.min(3, Math.floor(points.length / 20));
+            if (arrowCount > 0) {
+                const arrowGeometry = new THREE.ConeGeometry(0.08, 0.3, 8);
+                const arrowMaterial = new THREE.MeshBasicMaterial({ 
+                    color: fromPositive ? 0xff6666 : 0x6666ff 
+                });
+                
+                for (let i = 1; i <= arrowCount; i++) {
+                    const idx = Math.floor((points.length - 1) * i / (arrowCount + 1));
+                    if (idx >= 0 && idx < points.length - 1) {
+                        const pos = points[idx];
+                        const nextPos = points[idx + 1];
+                        const dir = new THREE.Vector3().subVectors(nextPos, pos).normalize();
+                        
+                        const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+                        arrow.position.copy(pos);
+                        arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+                        scene.add(arrow);
+                        fieldLineMeshes.push(arrow);
                     }
                 }
             }
         }
 
-        // 追踪电场线
-        function traceFieldLine(startX, startY, startZ, direction, isPositive) {
+        // 追踪电场线（从正电荷出发）
+        function traceFieldLineFromPositive(startX, startY, startZ, direction, toInfinity) {
             const points = [];
-            let x = startX + direction.x * 0.5;
-            let y = startY + direction.y * 0.5;
-            let z = startZ + direction.z * 0.5;
+            let x = startX + direction.x * 0.3;
+            let y = startY + direction.y * 0.3;
+            let z = startZ + direction.z * 0.3;
             
+            // 第一个点要非常接近起始电荷，确保衔接
             points.push(new THREE.Vector3(x, y, z));
             
-            const stepSize = 0.1;
-            const maxSteps = 500;
-            const boundary = 10;
+            const stepSize = 0.15;
+            const maxSteps = 400;
+            const boundary = 12;
+            const minDistToCharge = 0.25;
             
             for (let i = 0; i < maxSteps; i++) {
                 const E = calculateElectricField(x, y, z);
@@ -418,26 +499,108 @@
                     break;
                 }
                 
-                // 检查是否接近其他电荷
-                let tooClose = false;
+                // 检查是否接近任何电荷（包括起始电荷）
+                let reachedCharge = false;
                 for (let charge of charges) {
                     const dist = Math.sqrt(
                         Math.pow(x - charge.x, 2) +
                         Math.pow(y - charge.y, 2) +
-                        Math.pow(y - charge.z, 2)
+                        Math.pow(z - charge.z, 2)
                     );
-                    if (dist < 0.3 && charge !== charges[0]) {
-                        tooClose = true;
+                    
+                    // 如果接近负电荷，说明电场线终止于此
+                    if (dist < minDistToCharge && charge.q < 0) {
+                        // 将终点精确设置到电荷表面
+                        const approachFactor = (minDistToCharge - 0.1) / dist;
+                        const finalX = x - (x - charge.x) * (1 - approachFactor * 0.5);
+                        const finalY = y - (y - charge.y) * (1 - approachFactor * 0.5);
+                        const finalZ = z - (z - charge.z) * (1 - approachFactor * 0.5);
+                        points.push(new THREE.Vector3(finalX, finalY, finalZ));
+                        reachedCharge = true;
+                        break;
+                    }
+                    
+                    // 如果回到正电荷（不应该发生），停止
+                    if (dist < minDistToCharge && charge.q > 0) {
+                        reachedCharge = true;
                         break;
                     }
                 }
                 
-                if (tooClose) break;
+                if (reachedCharge) break;
                 
                 points.push(new THREE.Vector3(x, y, z));
             }
             
             return points;
+        }
+        
+        // 追踪电场线（到负电荷）- 用于只有负电荷的情况
+        function traceFieldLineToNegative(chargeX, chargeY, chargeZ, outwardDirection) {
+            const points = [];
+            
+            // 从较远处开始，逆着电场方向追踪到负电荷
+            const startDistance = 8;
+            let x = chargeX + outwardDirection.x * startDistance;
+            let y = chargeY + outwardDirection.y * startDistance;
+            let z = chargeZ + outwardDirection.z * startDistance;
+            
+            const stepSize = 0.15;
+            const maxSteps = 600;
+            const minDistToCharge = 0.25;
+            
+            for (let i = 0; i < maxSteps; i++) {
+                // 记录当前点
+                points.push(new THREE.Vector3(x, y, z));
+                
+                const E = calculateElectricField(x, y, z);
+                const magnitude = E.length();
+                
+                if (magnitude < 1e-10) break;
+                
+                // 逆着电场方向移动（因为电场线指向负电荷）
+                E.normalize();
+                
+                const dx = -E.x * stepSize;
+                const dy = -E.y * stepSize;
+                const dz = -E.z * stepSize;
+                
+                x += dx;
+                y += dy;
+                z += dz;
+                
+                // 检查距离电荷的距离
+                const dist = Math.sqrt(
+                    Math.pow(x - chargeX, 2) +
+                    Math.pow(y - chargeY, 2) +
+                    Math.pow(z - chargeZ, 2)
+                );
+                
+                // 接近目标负电荷，终止
+                if (dist < minDistToCharge) {
+                    // 精确衔接到电荷表面
+                    const ratio = minDistToCharge / dist;
+                    const finalX = chargeX + (x - chargeX) * ratio;
+                    const finalY = chargeY + (y - chargeY) * ratio;
+                    const finalZ = chargeZ + (z - chargeZ) * ratio;
+                    points.push(new THREE.Vector3(finalX, finalY, finalZ));
+                    break;
+                }
+                
+                // 检查是否超出边界
+                if (Math.abs(x) > 15 || Math.abs(y) > 15 || Math.abs(z) > 15) {
+                    break;
+                }
+            }
+            
+            // 反转点顺序，使线条从外向内
+            points.reverse();
+            return points;
+        }
+
+        // 旧函数保留兼容性（不再使用）
+        function traceFieldLine(startX, startY, startZ, direction, isPositive) {
+            return traceFieldLineFromPositive(startX, startY, startZ, direction, false);
         }
 
         // 绘制向量场
