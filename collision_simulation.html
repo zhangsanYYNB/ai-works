@@ -3,845 +3,1160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>方块碰撞仿真 - 多次碰撞与能量耗散</title>
+    <title>多碰撞能量耗散模型 - 物理模拟</title>
     <style>
+        :root {
+            --bg: #1a1a2e;
+            --panel-bg: #16213e;
+            --card-bg: #0f3460;
+            --text: #e0e0e0;
+            --accent: #e94560;
+            --accent2: #0ea5e9;
+            --gold: #f59e0b;
+            --smooth: #334155;
+            --rough: #78350f;
+            --wall: #94a3b8;
+            --small-block: #3b82f6;
+            --large-block: #ef4444;
+            --grid: #1e293b;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--bg);
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+            color: var(--text);
             min-height: 100vh;
-            padding: 20px;
-            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 15px;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            padding: 30px;
-        }
-        h1 {
+
+        .header {
             text-align: center;
-            color: #667eea;
-            margin-bottom: 10px;
-            font-size: 2em;
+            margin-bottom: 12px;
         }
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 20px;
+        .header h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            background: linear-gradient(135deg, #e94560, #f59e0b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 4px;
         }
-        .controls {
+        .header .subtitle {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            letter-spacing: 0.04em;
+        }
+
+        .main-container {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 14px;
+            width: 100%;
+            max-width: 1200px;
             justify-content: center;
-            margin-bottom: 20px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
         }
+
+        .canvas-panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            border: 1px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1 1 500px;
+            min-width: 380px;
+            max-width: 700px;
+        }
+        .canvas-panel h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: #cbd5e1;
+            margin-bottom: 8px;
+        }
+        canvas {
+            border-radius: 8px;
+            background: #0a0a14;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .tx-panel {
+            flex: 1 1 500px;
+            min-width: 380px;
+            max-width: 700px;
+        }
+
+        .controls-panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 18px 22px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            border: 1px solid #1e293b;
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
         .control-group {
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 4px;
+            min-width: 100px;
         }
         .control-group label {
-            font-weight: bold;
-            color: #555;
-            font-size: 0.9em;
-        }
-        .control-group input {
-            padding: 8px 12px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-size: 1em;
-            width: 120px;
-        }
-        .control-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .btn-group {
-            display: flex;
-            gap: 10px;
-            align-items: flex-end;
-        }
-        button {
-            padding: 10px 25px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 25px;
-            font-size: 1em;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        button:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-        }
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 20px;
-        }
-        @media (max-width: 900px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-        }
-        .panel {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-        }
-        .panel h3 {
-            color: #667eea;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-        canvas {
-            background: white;
-            border-radius: 5px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        #animationCanvas {
-            width: 100%;
-            height: 300px;
-        }
-        #txChart {
-            width: 100%;
-            height: 300px;
-        }
-        .results {
-            margin-top: 20px;
-            padding: 20px;
-            background: #e8f4f8;
-            border-radius: 10px;
-        }
-        .results h3 {
-            color: #667eea;
-            margin-bottom: 15px;
-        }
-        .result-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-        .result-item {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .result-label {
-            color: #666;
-            font-size: 0.9em;
-            margin-bottom: 5px;
-        }
-        .result-value {
-            color: #667eea;
-            font-size: 1.5em;
-            font-weight: bold;
-        }
-        .formula {
-            margin-top: 20px;
-            padding: 15px;
-            background: #fff;
-            border-left: 4px solid #667eea;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9em;
-            line-height: 1.6;
-        }
-        .legend {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            margin-top: 10px;
-            flex-wrap: wrap;
-        }
-        .legend-item {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #94a3b8;
+            letter-spacing: 0.03em;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 4px;
         }
-        .legend-color {
-            width: 20px;
-            height: 20px;
+        .control-group label .icon {
+            font-size: 1rem;
+        }
+        .control-group input[type="range"] {
+            -webkit-appearance: none;
+            width: 130px;
+            height: 6px;
             border-radius: 3px;
+            background: #334155;
+            outline: none;
+            cursor: pointer;
         }
-        .wall-indicator {
-            position: relative;
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 8px rgba(233, 68, 96, 0.5);
+            transition: transform 0.15s;
         }
-        .wall-indicator::before {
-            content: '🧱 墙';
-            position: absolute;
-            left: -30px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 0.8em;
-            color: #666;
+        .control-group input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+        .control-group .value-display {
+            font-size: 0.8rem;
+            color: #f1f5f9;
+            font-weight: 600;
+            text-align: center;
+            background: #1e293b;
+            border-radius: 6px;
+            padding: 2px 8px;
+            min-width: 42px;
+        }
+
+        .btn {
+            padding: 10px 22px;
+            border-radius: 25px;
+            border: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: all 0.25s;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+            white-space: nowrap;
+        }
+        .btn-play {
+            background: var(--accent2);
+            color: #fff;
+        }
+        .btn-play:hover {
+            background: #38bdf8;
+            box-shadow: 0 6px 20px rgba(14, 165, 233, 0.5);
+            transform: translateY(-2px);
+        }
+        .btn-reset {
+            background: #475569;
+            color: #e2e8f0;
+        }
+        .btn-reset:hover {
+            background: #64748b;
+            transform: translateY(-2px);
+        }
+        .btn-speed {
+            background: #4c1d95;
+            color: #e0e7ff;
+            font-size: 0.8rem;
+            padding: 8px 16px;
+        }
+        .btn-speed:hover {
+            background: #6d28d9;
+        }
+
+        .results {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 0;
+            align-items: center;
+        }
+        .result-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 10px 16px;
+            text-align: center;
+            border: 1px solid #334155;
+            min-width: 80px;
+        }
+        .result-card .val {
+            font-size: 1.6rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #f59e0b, #e94560);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .result-card .lbl {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            letter-spacing: 0.04em;
+        }
+
+        @media (max-width: 850px) {
+            .canvas-panel {
+                flex: 1 1 100%;
+                min-width: 300px;
+                max-width: 100%;
+            }
+            .controls-panel {
+                gap: 12px;
+                padding: 12px;
+            }
+            .control-group input[type="range"] {
+                width: 90px;
+            }
+            .header h1 {
+                font-size: 1.3rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎱 方块碰撞仿真</h1>
-        <p class="subtitle">多次碰撞与能量耗散物理模型可视化</p>
-        
-        <div class="controls">
-            <div class="control-group">
-                <label for="massRatio">质量比 k (M=km)</label>
-                <input type="number" id="massRatio" value="3" min="1.1" step="0.1" />
-            </div>
-            <div class="control-group">
-                <label for="initialVelocity">初速度 v (m/s)</label>
-                <input type="number" id="initialVelocity" value="5" min="0.1" step="0.5" />
-            </div>
-            <div class="control-group">
-                <label for="smallMass">小方块质量 m (kg)</label>
-                <input type="number" id="smallMass" value="1" min="0.1" step="0.1" />
-            </div>
-            <div class="control-group">
-                <label for="frictionForce">摩擦力 f (N)</label>
-                <input type="number" id="frictionForce" value="2" min="0.1" step="0.5" />
-            </div>
-            <div class="btn-group">
-                <button id="startBtn" onclick="startSimulation()">▶ 开始仿真</button>
-                <button id="resetBtn" onclick="resetSimulation()">🔄 重置</button>
-            </div>
-        </div>
 
-        <div class="main-content">
-            <div class="panel">
-                <h3>🎬 运动动画</h3>
-                <div class="wall-indicator">
-                    <canvas id="animationCanvas"></canvas>
+    <div class="header">
+        <h1>🔬 多碰撞能量耗散模型</h1>
+        <p class="subtitle">光滑面 · 弹性碰撞 · 粗糙面恒定摩擦力 · 能量递推</p>
+    </div>
+
+    <div class="main-container">
+        <!-- 动画面板 -->
+        <div class="canvas-panel" id="animPanel">
+            <h3>📐 实时动画模拟</h3>
+            <canvas id="animCanvas" width="620" height="240"></canvas>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
+                <div class="result-card">
+                    <div class="val" id="collisionCount">—</div>
+                    <div class="lbl">碰撞次数 N</div>
                 </div>
-                <div class="legend">
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #3498db;"></div>
-                        <span>小方块 (m)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #e74c3c;"></div>
-                        <span>大方块 (M=km)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #95a5a6;"></div>
-                        <span>粗糙面</span>
-                    </div>
+                <div class="result-card">
+                    <div class="val" id="largeDist">—</div>
+                    <div class="lbl">大方块总路程 S (m)</div>
                 </div>
-            </div>
-            
-            <div class="panel">
-                <h3>📈 t-x 位置时间图</h3>
-                <canvas id="txChart"></canvas>
-                <div class="legend">
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #3498db;"></div>
-                        <span>小方块位置</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #e74c3c;"></div>
-                        <span>大方块位置</span>
-                    </div>
+                <div class="result-card">
+                    <div class="val" id="simTime">—</div>
+                    <div class="lbl">模拟时间 (s)</div>
                 </div>
             </div>
         </div>
 
-        <div class="results">
-            <h3>📊 仿真结果</h3>
-            <div class="result-grid">
-                <div class="result-item">
-                    <div class="result-label">碰撞次数 N</div>
-                    <div class="result-value" id="collisionCount">-</div>
-                </div>
-                <div class="result-item">
-                    <div class="result-label">大方块总路程 S (m)</div>
-                    <div class="result-value" id="totalDistance">-</div>
-                </div>
-                <div class="result-item">
-                    <div class="result-label">理论碰撞次数</div>
-                    <div class="result-value" id="theoreticalN">-</div>
-                </div>
-                <div class="result-item">
-                    <div class="result-label">理论路程 (m)</div>
-                    <div class="result-value" id="theoreticalS">-</div>
-                </div>
-            </div>
-            
-            <div class="formula">
-                <strong>📐 理论公式：</strong><br>
-                θ = arccos[((k-1)/(k+1))²]<br>
-                N = ⌊π/θ⌋<br>
-                S ≈ mv²/(2f) (能量守恒近似)
+        <!-- t-x图面板 -->
+        <div class="canvas-panel tx-panel" id="txPanel">
+            <h3>📈 时间-位置图 (t-x)</h3>
+            <canvas id="txCanvas" width="620" height="380"></canvas>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px;font-size:0.7rem;color:#94a3b8;">
+                <span>🔵 小方块 (m)</span>
+                <span>🔴 大方块 (km)</span>
+                <span>⚡ 碰撞点</span>
+                <span style="color:#22c55e;">⬤ x=0 边界</span>
             </div>
         </div>
     </div>
 
+    <!-- 控制面板 -->
+    <div class="controls-panel" id="controls">
+        <div class="control-group">
+            <label><span class="icon">🔷</span> 质量比 k = M/m</label>
+            <input type="range" id="paramK" min="1.5" max="60" step="0.5" value="16">
+            <span class="value-display" id="valK">16</span>
+        </div>
+        <div class="control-group">
+            <label><span class="icon">⚡</span> 初速度 v (m/s)</label>
+            <input type="range" id="paramV" min="1" max="10" step="0.1" value="4">
+            <span class="value-display" id="valV">4.0</span>
+        </div>
+        <div class="control-group">
+            <label><span class="icon">🛡️</span> 摩擦力 f (N)</label>
+            <input type="range" id="paramF" min="0.3" max="5" step="0.1" value="1.2">
+            <span class="value-display" id="valF">1.2</span>
+        </div>
+        <div class="control-group">
+            <label><span class="icon">📏</span> 光滑面长度 (m)</label>
+            <input type="range" id="paramW" min="4" max="16" step="0.5" value="8">
+            <span class="value-display" id="valW">8.0</span>
+        </div>
+        <button class="btn btn-play" id="btnPlay" title="运行/重新运行模拟">▶ 运行模拟</button>
+        <button class="btn btn-reset" id="btnReset" title="重置参数到默认值">↺ 默认参数</button>
+        <button class="btn btn-speed" id="btnSpeed" title="切换动画速度">⏱ 速度: 1x</button>
+    </div>
+
     <script>
-        // 全局变量
-        let animationId = null;
-        let simulationData = null;
-        let currentTime = 0;
-        let isRunning = false;
-        let k_global = 3; // 保存当前 k 值用于绘图
+        (function() {
+            // ============ DOM元素 ============
+            const animCanvas = document.getElementById('animCanvas');
+            const animCtx = animCanvas.getContext('2d');
+            const txCanvas = document.getElementById('txCanvas');
+            const txCtx = txCanvas.getContext('2d');
 
-        // Canvas 上下文
-        const animCanvas = document.getElementById('animationCanvas');
-        const animCtx = animCanvas.getContext('2d');
-        const txCanvas = document.getElementById('txChart');
-        const txCtx = txCanvas.getContext('2d');
+            const elCollisionCount = document.getElementById('collisionCount');
+            const elLargeDist = document.getElementById('largeDist');
+            const elSimTime = document.getElementById('simTime');
+            const elValK = document.getElementById('valK');
+            const elValV = document.getElementById('valV');
+            const elValF = document.getElementById('valF');
+            const elValW = document.getElementById('valW');
+            const btnPlay = document.getElementById('btnPlay');
+            const btnReset = document.getElementById('btnReset');
+            const btnSpeed = document.getElementById('btnSpeed');
 
-        // 设置 Canvas 尺寸
-        function resizeCanvas() {
-            animCanvas.width = animCanvas.offsetWidth;
-            animCanvas.height = animCanvas.offsetHeight;
-            txCanvas.width = txCanvas.offsetWidth;
-            txCanvas.height = txCanvas.offsetHeight;
-            // 重绘
-            if (simulationData) {
-                drawAnimation(currentTime);
-                drawTxChart(true);
-            } else {
-                drawInitialView();
-            }
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+            const sliderK = document.getElementById('paramK');
+            const sliderV = document.getElementById('paramV');
+            const sliderF = document.getElementById('paramF');
+            const sliderW = document.getElementById('paramW');
 
+            // ============ 参数 ============
+            let paramK = 16; // k = M/m
+            let paramV = 4; // 初始速度 m/s
+            let paramF = 1.2; // 恒定摩擦力 N
+            let paramWallDist = 8; // 光滑面长度(墙到x=0的距离) m
+            const paramM = 1; // 小方块质量 kg (固定)
 
-        // 绘制初始视图（显示大方块和小方块的初始位置）
-        function drawInitialView() {
-            const ctx = animCtx;
-            const width = animCanvas.width;
-            const height = animCanvas.height;
+            // ============ 模拟状态 ============
+            let trajectoryData = null; // { times, smallX, largeX, collisions, totalLargeDist, finalTime, collisionCount }
+            let animSpeed = 1; // 动画速度倍率
+            let animRunning = false;
+            let animRAFId = null;
+            let animProgress = 0; // 0到1
+            let lastFrameTime = null;
 
-            ctx.clearRect(0, 0, width, height);
+            // ============ 数值模拟 ============
+            function runSimulation(k, v0, f, wallDist, m) {
+                const M = k * m; // 大方块质量
+                const dt = 0.0002; // 时间步长
+                const maxTime = 200; // 最大模拟时间
+                const maxCollisions = 30; // 最大碰撞次数
+                const collisionThreshold = 0.0005; // 碰撞检测阈值
 
-            const groundY = height / 2 + 80;
-            const k = parseFloat(document.getElementById('massRatio').value) || 3;
-            k_global = k;
+                // 状态变量
+                let sx = -wallDist + 0.5; // 小方块初始位置(光滑面内)
+                let sv = v0; // 小方块速度(正=向右)
+                let lx = 0; // 大方块位置
+                let lv = 0; // 大方块速度
+                let t = 0;
+                let collisionCount = 0;
+                let totalLargeDist = 0;
+                let prevLx = 0; // 用于累计大方块路程
+                let largeMoving = false;
 
-            // 绘制地面
-            ctx.fillStyle = '#ecf0f1';
-            ctx.fillRect(0, groundY, width, height - groundY);
+                // 轨迹记录
+                const times = [];
+                const smallX = [];
+                const largeX = [];
+                const collisions = []; // { time, x, index }
+                const recordInterval = 0.002; // 记录间隔
+                let lastRecordTime = -1;
 
-            // 墙在 x=0，boundary 在 x=5
-            const boundary = 5.0;
-            const wallX = 50;
-            const scaleX = (width - 100) / 15;
-            const roughStartX = wallX + boundary * scaleX;
-
-            // 光滑面（墙到 boundary）
-            ctx.fillStyle = '#bdc3c7';
-            ctx.fillRect(wallX, groundY, roughStartX - wallX, 20);
-            // 粗糙面（boundary 之后）
-            ctx.fillStyle = '#95a5a6';
-            ctx.fillRect(roughStartX, groundY, width - roughStartX, 20);
-
-            // 绘制墙
-            ctx.fillStyle = '#7f8c8d';
-            ctx.fillRect(0, groundY - 100, 10, 100);
-
-            // 小方块初始位置 x = boundary/2 = 2.5（在光滑面上）
-            const smallPos = boundary / 2;
-            const smallSize = 30;
-            const smallX = wallX + smallPos * scaleX;
-            ctx.fillStyle = '#3498db';
-            ctx.fillRect(smallX - smallSize/2, groundY - smallSize, smallSize, smallSize);
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 14px Arial';
-            ctx.fillText('m', smallX - 8, groundY - smallSize/2);
-
-            // 大方块初始位置 x = boundary = 5（在交界处）
-            const bigPos = boundary;
-            const bigSize = 50 + Math.min(20, (k - 1) * 5);
-            const bigX = wallX + bigPos * scaleX;
-            ctx.fillStyle = '#e74c3c';
-            ctx.fillRect(bigX - bigSize/2, groundY - bigSize, bigSize, bigSize);
-            ctx.fillStyle = 'white';
-            ctx.fillText('M', bigX - 10, groundY - bigSize/2);
-
-            // 绘制标尺
-            ctx.fillStyle = '#666';
-            ctx.font = '11px Arial';
-            ctx.fillText('墙', 5, groundY - 110);
-            ctx.fillText('光滑面', wallX + (roughStartX - wallX)/2 - 20, groundY + 35);
-            ctx.fillText('粗糙面', roughStartX + 30, groundY + 35);
-            for (let i = 0; i <= 10; i++) {
-                const x = wallX + i * scaleX;
-                ctx.fillRect(x, groundY + 20, 1, 5);
-                ctx.fillText(i.toFixed(0), x - 5, groundY + 35);
-            }
-
-            // 绘制速度箭头（向左，表示先去撞墙）
-            ctx.strokeStyle = '#3498db';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(smallX - smallSize/2 - 5, groundY - smallSize/2);
-            ctx.lineTo(smallX - smallSize/2 - 40, groundY - smallSize/2);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(smallX - smallSize/2 - 35, groundY - smallSize/2 - 8);
-            ctx.lineTo(smallX - smallSize/2 - 40, groundY - smallSize/2);
-            ctx.lineTo(smallX - smallSize/2 - 35, groundY - smallSize/2 + 8);
-            ctx.stroke();
-            ctx.fillStyle = '#3498db';
-            ctx.fillText('v', smallX - smallSize/2 - 25, groundY - smallSize/2 - 10);
-        }
-
-        // 计算理论值
-        function calculateTheoretical(k, m, v, f) {
-            // 使用能量守恒和动量守恒推导
-            // 在无摩擦理想情况下：
-            // θ = arccos(((k-1)/(k+1))^2)
-            // N = floor(π/θ)
-            const cosTheta = Math.pow((k - 1) / (k + 1), 2);
-            const theta = Math.acos(cosTheta);
-            const idealN = Math.floor(Math.PI / theta);
-            
-            // 理论路程：使用能量守恒，初始动能全部被摩擦力消耗
-            // E_initial = 0.5 * m * v^2
-            // W_friction = f * S_total
-            // 所以 S = E_initial / f = mv²/(2f)
-            const E_initial = 0.5 * m * v * v;
-            const theoreticalS = E_initial / f;
-            
-            // 注意：由于有摩擦力存在，实际碰撞次数会与理想情况有所不同
-            // 这里给出的是理想无摩擦情况的理论碰撞次数作为参考
-            return { theta, idealN, theoreticalS };
-        }
-        function runSimulation(k, m, v, f) {
-            const M = k * m;
-            const events = [];
-            const smallBlockTrajectory = [];
-            const bigBlockTrajectory = [];
-
-            let time = 0;
-            let collisionCount = 0;
-
-            // 初始条件：
-            // - 墙在 x=0 处（最左侧）
-            // - 光滑面在 0 < x < boundary 区域
-            // - 粗糙面在 x >= boundary 区域
-            // - 大方块初始位置在 x=boundary（粗糙面起点），静止
-            // - 小方块初始位置在 x=boundary/2（光滑面中间），以速度 v 向左运动去撞墙
-            
-            const boundary = 5.0; // 光滑面和粗糙面的分界位置
-            let bigBlockPos = boundary;
-            let smallBlockPos = boundary / 2;
-            let smallBlockVel = -v; // 初始向左运动，先去撞墙
-            let bigBlockVel = 0;
-
-            const dt = 0.0005;  // 更小的时间步长提高精度
-            const maxTime = 500;
-            const stopThreshold = 0.0001;  // 速度阈值
-
-            // 记录初始位置
-            smallBlockTrajectory.push({ t: time, x: smallBlockPos });
-            bigBlockTrajectory.push({ t: time, x: bigBlockPos });
-
-            let bigBlockStopped = true; // 大方块初始是静止的
-
-            while (time < maxTime) {
-                // 更新小方块位置
-                // 根据题目："小方块来回在粗糙面上都受这个 f"
-                // 所以小方块在 x >= boundary 时受摩擦力 f
-                if (smallBlockPos >= boundary && Math.abs(smallBlockVel) > stopThreshold) {
-                    // 小方块在粗糙面上，受摩擦力 f
-                    const frictionAccelSmall = -f / m * Math.sign(smallBlockVel);
-                    smallBlockVel += frictionAccelSmall * dt;
-                    if (Math.abs(smallBlockVel) < stopThreshold) {
-                        smallBlockVel = 0;
-                    }
-                }
-                smallBlockPos += smallBlockVel * dt;
-
-                // 小方块撞墙（墙在 x=0 处，完全弹性碰撞）
-                if (smallBlockPos <= 0 && smallBlockVel < 0) {
-                    smallBlockPos = 0.0001;
-                    smallBlockVel = -smallBlockVel;  // 完全弹性碰撞，速度反向
-                    events.push({ type: 'wall', time: time, pos: 0 });
-                }
-
-                // 大方块运动（受摩擦力 f）
-                if (Math.abs(bigBlockVel) > stopThreshold) {
-                    // 摩擦力方向与速度方向相反
-                    const frictionAccel = -f / M * Math.sign(bigBlockVel);
-                    bigBlockVel += frictionAccel * dt;
-
-                    // 检查是否停下
-                    if (Math.abs(bigBlockVel) < stopThreshold ||
-                        (bigBlockVel > 0 && bigBlockVel + frictionAccel * dt <= 0) ||
-                        (bigBlockVel < 0 && bigBlockVel + frictionAccel * dt >= 0)) {
-                        bigBlockVel = 0;
-                        bigBlockStopped = true;
-                    }
-
-                    bigBlockPos += bigBlockVel * dt;
-
-                    // 确保大方块不回到 x < boundary 区域
-                    if (bigBlockPos < boundary) {
-                        bigBlockPos = boundary;
-                        bigBlockVel = 0;
-                        bigBlockStopped = true;
-                    }
-                } else {
-                    if (bigBlockVel !== 0) {
-                        bigBlockVel = 0;
-                        bigBlockStopped = true;
+                function record(force = false) {
+                    if (force || t - lastRecordTime >= recordInterval) {
+                        times.push(t);
+                        smallX.push(sx);
+                        largeX.push(lx);
+                        lastRecordTime = t;
                     }
                 }
 
-                // 检查小方块与大方块的碰撞
-                // 根据题目："小方块是在大方块停止之后才撞上的"
-                // 所以只有当大方块静止时，才允许发生碰撞
-                // 同时小方块必须向右运动 (vel > 0) 且位置接近大方块
-                if (bigBlockStopped && smallBlockVel > 0 && 
-                    smallBlockPos >= bigBlockPos - 0.001 && smallBlockPos <= bigBlockPos + 0.1) {
-                    // 弹性碰撞公式
-                    const newSmallVel = ((m - M) * smallBlockVel + 2 * M * bigBlockVel) / (m + M);
-                    const newBigVel = ((M - m) * bigBlockVel + 2 * m * smallBlockVel) / (m + M);
-
-                    smallBlockVel = newSmallVel;
-                    bigBlockVel = newBigVel;
-                    bigBlockStopped = false; // 碰撞后大方块开始运动
-
-                    collisionCount++;
-
-                    // 防止穿透，稍微分离
-                    smallBlockPos = bigBlockPos - 0.001;
-
-                    events.push({
-                        type: 'collision',
-                        time: time,
-                        pos: bigBlockPos,
-                        collisionNum: collisionCount
-                    });
+                function isOnRough(x) {
+                    return x > 1e-9;
                 }
 
-                // 检查结束条件：
-                // 1. 两者都几乎静止
-                // 2. 小方块无法再追上大方块（小方块速度 <= 0 且大方块静止）
-                if (Math.abs(smallBlockVel) < stopThreshold && Math.abs(bigBlockVel) < stopThreshold) {
-                    break;
-                }
-                
-                // 如果小方块向左运动且大方块静止，且小方块已经在大方块左边很远，不会再碰撞
-                if (bigBlockStopped && smallBlockVel <= 0 && smallBlockPos < bigBlockPos - 10) {
-                    // 小方块正在远离大方块，且距离很远，可以结束
-                    // 但实际上小方块会撞墙反弹，所以不能直接结束
+                function applyFriction(x, v, mass) {
+                    if (!isOnRough(x)) return v; // 光滑面，无摩擦
+                    if (Math.abs(v) < 1e-12) return 0; // 已停止
+                    const a = f / mass; // 加速度大小
+                    const dv = a * dt;
+                    if (Math.abs(v) <= dv) {
+                        return 0; // 摩擦力使其停止
+                    }
+                    return v - Math.sign(v) * dv;
                 }
 
-                // 记录轨迹（每隔一定时间记录）
-                if (time % 0.02 < dt) {
-                    smallBlockTrajectory.push({ t: time, x: smallBlockPos });
-                    bigBlockTrajectory.push({ t: time, x: bigBlockPos });
-                }
+                record(true);
 
-                time += dt;
-            }
+                // 主模拟循环
+                let simSteps = 0;
+                const maxSteps = Math.ceil(maxTime / dt);
 
-            // 计算大方块总路程
-            const finalBigPos = bigBlockTrajectory.length > 0 ?
-                bigBlockTrajectory[bigBlockTrajectory.length - 1].x : boundary;
-            const totalDistance = finalBigPos - boundary;
+                while (t < maxTime && collisionCount < maxCollisions && simSteps < maxSteps) {
+                    simSteps++;
 
-            return {
-                events,
-                smallBlockTrajectory,
-                bigBlockTrajectory,
-                collisionCount,
-                totalDistance: totalDistance,
-                totalTime: time
-            };
-        }
+                    // 更新速度(摩擦力)
+                    sv = applyFriction(sx, sv, m);
+                    lv = applyFriction(lx, lv, M);
 
-        // 绘制动画
-        function drawAnimation(time) {
-            const ctx = animCtx;
-            const width = animCanvas.width;
-            const height = animCanvas.height;
+                    // 更新位置
+                    const oldSx = sx;
+                    const oldLx = lx;
+                    sx += sv * dt;
+                    lx += lv * dt;
 
-            ctx.clearRect(0, 0, width, height);
+                    // 累计大方块路程
+                    if (Math.abs(lv) > 1e-10 && lx > oldLx) {
+                        totalLargeDist += (lx - oldLx);
+                    }
+                    if (lv > 1e-10 && lx > prevLx) {
+                        prevLx = lx;
+                    }
 
-            if (!simulationData) return;
+                    // 小方块撞墙 (x <= -wallDist)
+                    if (sx <= -wallDist && sv < 0) {
+                        sx = -wallDist + (-wallDist - sx); // 反弹
+                        sv = Math.abs(sv);
+                        // 确保不穿透
+                        if (sx < -wallDist) sx = -wallDist;
+                    }
 
-            const { smallBlockTrajectory, bigBlockTrajectory } = simulationData;
+                    // 碰撞检测：小方块与大方块
+                    if (sv > 1e-10 && lv < sv && sx >= lx - collisionThreshold && oldSx < oldLx - collisionThreshold) {
+                        // 发生了碰撞！回退到精确碰撞时刻
+                        // 简化处理：在当前位置执行弹性碰撞
+                        const approachSpeed = sv - lv;
+                        if (approachSpeed > 1e-10) {
+                            // 弹性碰撞公式
+                            const v1 = sv;
+                            const v2 = lv;
+                            const newSv = ((m - M) / (m + M)) * v1 + (2 * M / (m + M)) * v2;
+                            const newLv = (2 * m / (m + M)) * v1 + ((M - m) / (m + M)) * v2;
+                            sv = newSv;
+                            lv = newLv;
+                            collisionCount++;
+                            collisions.push({ time: t, x: lx, index: collisionCount });
+                            // 稍微调整位置避免重复碰撞
+                            sx = lx - 0.0002;
+                        }
+                    }
 
-            // 插值获取当前位置
-            function getPosition(traj, t) {
-                if (traj.length === 0) return 2.5;
-                if (t <= traj[0].t) return traj[0].x;
-                if (t >= traj[traj.length - 1].t) return traj[traj.length - 1].x;
+                    // 如果小方块从左侧接近大方块且重叠
+                    if (sv > 0 && sx >= lx && oldSx < oldLx && Math.abs(sv - lv) > 1e-10) {
+                        const v1 = sv;
+                        const v2 = lv;
+                        const newSv = ((m - M) / (m + M)) * v1 + (2 * M / (m + M)) * v2;
+                        const newLv = (2 * m / (m + M)) * v1 + ((M - m) / (m + M)) * v2;
+                        sv = newSv;
+                        lv = newLv;
+                        collisionCount++;
+                        collisions.push({ time: t, x: lx, index: collisionCount });
+                        sx = lx - 0.0002;
+                    }
 
-                for (let i = 0; i < traj.length - 1; i++) {
-                    if (traj[i].t <= t && traj[i + 1].t >= t) {
-                        const ratio = (t - traj[i].t) / (traj[i + 1].t - traj[i].t);
-                        return traj[i].x + ratio * (traj[i + 1].x - traj[i].x);
+                    t += dt;
+                    record();
+
+                    // 终止条件检查
+                    const smallOnRough = isOnRough(sx);
+                    const largeOnRough = isOnRough(lx);
+                    const smallStopped = Math.abs(sv) < 1e-10;
+                    const largeStopped = Math.abs(lv) < 1e-10;
+
+                    if (smallStopped && largeStopped && collisionCount >= 1 && sx <= lx + 0.001) {
+                        // 两者都停了，小方块无法追上方块
+                        // 再检查小方块是否在光滑面上(可能还会反弹回来)
+                        if (sx <= 0 && !smallOnRough && !largeOnRough && lx <= 0.001 && collisionCount >= 1) {
+                            // 都在光滑面附近且停止
+                            break;
+                        }
+                        if (smallOnRough && smallStopped && sx <= lx + 0.002) {
+                            break;
+                        }
+                        if (!smallOnRough && smallStopped && lx <= 0.002 && collisionCount >= 1 && sx <= 0) {
+                            break;
+                        }
+                    }
+
+                    // 额外终止：小方块在粗糙面停止且无法到达大方块
+                    if (smallStopped && smallOnRough && sx < lx - 0.01 && largeStopped) {
+                        break;
+                    }
+                    // 小方块在光滑面停止(速度为零)且大方块在粗糙面远处停止
+                    if (smallStopped && !smallOnRough && sx <= 0 && largeStopped && lx > 0.01 && collisionCount >= 1) {
+                        break;
                     }
                 }
-                return traj[traj.length - 1].x;
+
+                // 确保最后状态被记录
+                record(true);
+
+                return {
+                    times,
+                    smallX,
+                    largeX,
+                    collisions,
+                    totalLargeDist,
+                    finalTime: t,
+                    collisionCount,
+                    k,
+                    v0,
+                    f,
+                    wallDist,
+                    m,
+                    M,
+                };
             }
 
-            const smallPos = getPosition(smallBlockTrajectory, time);
-            const bigPos = getPosition(bigBlockTrajectory, time);
+            // ============ 绘制动画 ============
+            function drawAnimation(data, progress) {
+                if (!data) return;
+                const ctx = animCtx;
+                const W = animCanvas.width;
+                const H = animCanvas.height;
 
-            // 比例尺 - 确保大方块位置始终可见
-            const boundary = 5.0;
-            const maxPos = Math.max(
-                Math.max(...smallBlockTrajectory.map(p => p.x), boundary),
-                Math.max(...bigBlockTrajectory.map(p => p.x), boundary + 1),
-                boundary + 1
-            );
-            const scaleX = (width - 100) / (maxPos - boundary + 5);
-            const offsetY = height / 2;
-            const groundY = offsetY + 80;
-            const boundaryX = 50; // x=0 的边界位置（墙的位置）
+                ctx.clearRect(0, 0, W, H);
 
-            // 绘制地面
-            ctx.fillStyle = '#ecf0f1';
-            ctx.fillRect(0, groundY, width, height - groundY);
+                // 坐标映射
+                const wallDist = data.wallDist;
+                const maxRoughExtent = Math.max(data.totalLargeDist * 1.3, wallDist * 0.5, 3);
+                const xMin = -wallDist - 1.5;
+                const xMax = maxRoughExtent + 1.5;
+                const totalSpan = xMax - xMin;
+                const margin = 35;
+                const plotWidth = W - 2 * margin;
+                const scaleX = plotWidth / totalSpan;
 
-            // 绘制光滑面（墙到 boundary）和粗糙面（boundary 之后）
-            // 墙在 x=0，boundary 在 x=5
-            const wallX = boundaryX;
-            const roughStartX = boundaryX + boundary * scaleX;
-            
-            // 光滑面（灰色）
-            ctx.fillStyle = '#bdc3c7';
-            ctx.fillRect(wallX, groundY, roughStartX - wallX, 20);
-            // 粗糙面（深灰色）
-            ctx.fillStyle = '#95a5a6';
-            ctx.fillRect(roughStartX, groundY, width - roughStartX, 20);
+                function worldToScreenX(wx) {
+                    return margin + (wx - xMin) * scaleX;
+                }
 
-            // 绘制墙
-            ctx.fillStyle = '#7f8c8d';
-            ctx.fillRect(0, groundY - 100, 10, 100);
+                // 地面Y坐标
+                const groundY = H * 0.72;
+                const blockThickness = 22;
+                const smallBlockW = Math.max(18, Math.min(32, wallDist * scaleX * 0.15));
+                const largeBlockW = Math.max(28, Math.min(55, (data.k > 1 ? Math.pow(data.k, 1 / 3) * 14 : 20)));
 
-            // 绘制小方块
-            const smallSize = 30;
-            const smallX = wallX + (smallPos) * scaleX;
-            ctx.fillStyle = '#3498db';
-            ctx.fillRect(smallX - smallSize/2, groundY - smallSize, smallSize, smallSize);
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 12px Arial';
-            ctx.fillText('m', smallX - 5, groundY - smallSize/2);
+                // 绘制地面
+                const roughStartX = worldToScreenX(0);
+                const wallX = worldToScreenX(-data.wallDist);
 
-            // 绘制大方块（根据质量比调整大小）
-            const k = k_global || 3;
-            const bigSize = 50 + Math.min(20, (k - 1) * 5);
-            const bigX = wallX + (bigPos) * scaleX;
-            ctx.fillStyle = '#e74c3c';
-            ctx.fillRect(bigX - bigSize/2, groundY - bigSize, bigSize, bigSize);
-            ctx.fillStyle = 'white';
-            ctx.fillText('M', bigX - 8, groundY - bigSize/2);
+                // 光滑面 (浅灰蓝)
+                ctx.fillStyle = '#2d3b4f';
+                ctx.fillRect(wallX, groundY + 2, roughStartX - wallX, 10);
+                ctx.fillStyle = '#3b4f66';
+                ctx.fillRect(wallX, groundY + 4, roughStartX - wallX, 2);
 
-            // 绘制标尺
-            ctx.fillStyle = '#666';
-            ctx.font = '10px Arial';
-            ctx.fillText('墙', 5, groundY - 110);
-            ctx.fillText('光滑面', wallX + (roughStartX - wallX)/2 - 20, groundY + 35);
-            ctx.fillText('粗糙面', roughStartX + 30, groundY + 35);
-            for (let i = 0; i <= Math.ceil(maxPos); i++) {
-                const x = wallX + i * scaleX;
-                ctx.fillRect(x, groundY + 20, 1, 5);
-                ctx.fillText(i.toFixed(0), x - 5, groundY + 35);
-            }
-        }
+                // 粗糙面 (深棕纹理)
+                const roughEndX = worldToScreenX(xMax);
+                ctx.fillStyle = '#5c3d2e';
+                ctx.fillRect(roughStartX, groundY + 2, roughEndX - roughStartX, 10);
+                // 纹理
+                ctx.fillStyle = '#4a2f20';
+                const texSpacing = 8;
+                for (let rx = roughStartX; rx < roughEndX; rx += texSpacing) {
+                    ctx.fillRect(rx + 2, groundY + 3, 3, 2);
+                    ctx.fillRect(rx + 5, groundY + 7, 2, 3);
+                }
 
-        // 绘制 t-x 图
-        function drawTxChart(fullView = false) {
-            const ctx = txCtx;
-            const width = txCanvas.width;
-            const height = txCanvas.height;
-            
-            ctx.clearRect(0, 0, width, height);
-            
-            if (!simulationData) return;
-            
-            const { smallBlockTrajectory, bigBlockTrajectory } = simulationData;
-            
-            const allTimes = [...smallBlockTrajectory, ...bigBlockTrajectory].map(p => p.t);
-            const allPositions = [...smallBlockTrajectory, ...bigBlockTrajectory].map(p => p.x);
-            
-            const maxTimeVal = fullView ? Math.max(...allTimes) : currentTime;
-            const maxPosVal = Math.max(...allPositions, 1);
-            
-            // 防止除以零
-            const maxTime = maxTimeVal > 0 ? maxTimeVal : 1;
-            const maxPos = maxPosVal > 0 ? maxPosVal : 1;
-            
-            const padding = 50;
-            const graphWidth = width - 2 * padding;
-            const graphHeight = height - 2 * padding;
-            
-            // 坐标轴
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(padding, padding);
-            ctx.lineTo(padding, height - padding);
-            ctx.lineTo(width - padding, height - padding);
-            ctx.stroke();
-            
-            // 标签
-            ctx.fillStyle = '#333';
-            ctx.font = '14px Arial';
-            ctx.fillText('t (s)', width / 2, height - 15);
-            ctx.save();
-            ctx.translate(20, height / 2);
-            ctx.rotate(-Math.PI / 2);
-            ctx.fillText('x (m)', 0, 0);
-            ctx.restore();
-            
-            // 网格线
-            ctx.strokeStyle = '#eee';
-            ctx.lineWidth = 1;
-            for (let i = 0; i <= 5; i++) {
-                const y = padding + (graphHeight * i / 5);
+                // 边界线x=0
+                ctx.strokeStyle = '#22c55e';
+                ctx.lineWidth = 1.8;
+                ctx.setLineDash([6, 4]);
                 ctx.beginPath();
-                ctx.moveTo(padding, y);
-                ctx.lineTo(width - padding, y);
+                ctx.moveTo(roughStartX, groundY - 8);
+                ctx.lineTo(roughStartX, groundY + 14);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#22c55e';
+                ctx.font = '10px "PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('x=0', roughStartX, groundY - 12);
+
+                // 墙
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(wallX, groundY - 30);
+                ctx.lineTo(wallX, groundY + 18);
+                ctx.stroke();
+                // 墙的阴影
+                ctx.fillStyle = '#64748b';
+                ctx.fillRect(wallX - 3, groundY - 28, 8, 46);
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillRect(wallX - 1, groundY - 26, 4, 42);
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = 'bold 10px "PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('墙', wallX, groundY - 34);
+
+                // 标签
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '11px "PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'center';
+                const smoothMidX = (wallX + roughStartX) / 2;
+                ctx.fillText('光滑面 (无摩擦)', smoothMidX, groundY + 30);
+                const roughMidX = (roughStartX + roughEndX) / 2;
+                ctx.fillText('粗糙面 (恒力 f)', roughMidX, groundY + 30);
+
+                // 根据progress插值位置
+                if (data.times.length < 2) return;
+                const totalSimTime = data.finalTime;
+                const targetTime = progress * totalSimTime;
+
+                // 二分查找对应时间点的位置
+                let idx = 0;
+                for (let i = 0; i < data.times.length - 1; i++) {
+                    if (data.times[i] <= targetTime && data.times[i + 1] > targetTime) {
+                        idx = i;
+                        break;
+                    }
+                    if (i === data.times.length - 2) idx = i;
+                }
+                const t0 = data.times[idx];
+                const t1 = Math.min(data.times[idx + 1] || t0 + 0.001, data.times[data.times.length - 1]);
+                const frac = (t1 > t0) ? Math.min(1, Math.max(0, (targetTime - t0) / (t1 - t0))) : 0;
+                const curSmallX = data.smallX[idx] + (data.smallX[Math.min(idx + 1, data.smallX.length - 1)] - data
+                    .smallX[idx]) * frac;
+                const curLargeX = data.largeX[idx] + (data.largeX[Math.min(idx + 1, data.largeX.length - 1)] - data
+                    .largeX[idx]) * frac;
+
+                const sSx = worldToScreenX(curSmallX);
+                const lSx = worldToScreenX(curLargeX);
+
+                // 绘制大方块
+                const lby = groundY - blockThickness;
+                const lbh = blockThickness;
+                // 阴影
+                ctx.fillStyle = 'rgba(239,68,68,0.3)';
+                ctx.fillRect(lSx - largeBlockW / 2 - 2, lby - 2, largeBlockW + 4, lbh + 4);
+                // 主体
+                const lgGrad = ctx.createLinearGradient(lSx, lby, lSx, lby + lbh);
+                lgGrad.addColorStop(0, '#f87171');
+                lgGrad.addColorStop(0.5, '#ef4444');
+                lgGrad.addColorStop(1, '#b91c1c');
+                ctx.fillStyle = lgGrad;
+                ctx.fillRect(lSx - largeBlockW / 2, lby, largeBlockW, lbh);
+                ctx.strokeStyle = '#fca5a5';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(lSx - largeBlockW / 2, lby, largeBlockW, lbh);
+                // 标签
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 10px "PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`M=${data.k.toFixed(1)}m`, lSx, lby - 6);
+
+                // 绘制小方块
+                const sby = groundY - blockThickness - 4;
+                const sbh = blockThickness - 8;
+                // 阴影
+                ctx.fillStyle = 'rgba(59,130,246,0.3)';
+                ctx.fillRect(sSx - smallBlockW / 2 - 2, sby - 2, smallBlockW + 4, sbh + 4);
+                // 主体
+                const sgGrad = ctx.createLinearGradient(sSx, sby, sSx, sby + sbh);
+                sgGrad.addColorStop(0, '#60a5fa');
+                sgGrad.addColorStop(0.5, '#3b82f6');
+                sgGrad.addColorStop(1, '#1d4ed8');
+                ctx.fillStyle = sgGrad;
+                ctx.fillRect(sSx - smallBlockW / 2, sby, smallBlockW, sbh);
+                ctx.strokeStyle = '#93c5fd';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(sSx - smallBlockW / 2, sby, smallBlockW, sbh);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 9px "PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.fillText('m', sSx, sby - 5);
+
+                // 碰撞闪光效果
+                const recentCollision = data.collisions.find(c => Math.abs(c.time - targetTime) < 0.08);
+                if (recentCollision) {
+                    const cx = worldToScreenX(recentCollision.x);
+                    const cy = groundY - blockThickness / 2;
+                    const alpha = 1 - Math.abs(recentCollision.time - targetTime) / 0.08;
+                    ctx.fillStyle = `rgba(255,215,0,${alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 18 + (1 - alpha) * 22, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = `rgba(255,255,255,${alpha*0.7})`;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 8 + (1 - alpha) * 12, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // 时间显示
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = 'bold 12px "PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(`t = ${targetTime.toFixed(2)} s`, W - margin, 22);
+
+                // 碰撞计数
+                const colsSoFar = data.collisions.filter(c => c.time <= targetTime).length;
+                ctx.fillStyle = '#f59e0b';
+                ctx.textAlign = 'left';
+                ctx.fillText(`碰撞: ${colsSoFar} 次`, margin, 22);
+
+                // 进度条
+                const progressBarY = H - 10;
+                const progressBarW = plotWidth;
+                const progressBarX = margin;
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(progressBarX, progressBarY, progressBarW, 5);
+                ctx.fillStyle = '#e94560';
+                ctx.fillRect(progressBarX, progressBarY, progressBarW * progress, 5);
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(progressBarX + progressBarW * progress, progressBarY + 2.5, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#e94560';
+                ctx.lineWidth = 2;
                 ctx.stroke();
             }
-            
-            // 转换坐标
-            function toGraph(t, x) {
-                const graphT = padding + (t / maxTime) * graphWidth;
-                const graphX = height - padding - (x / maxPos) * graphHeight;
-                return { x: graphT, y: graphX };
-            }
-            
-            // 绘制小方块轨迹
-            ctx.strokeStyle = '#3498db';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            smallBlockTrajectory.forEach((point, i) => {
-                if (point.t > maxTime) return;
-                const pos = toGraph(point.t, point.x);
-                if (i === 0) ctx.moveTo(pos.x, pos.y);
-                else ctx.lineTo(pos.x, pos.y);
-            });
-            ctx.stroke();
-            
-            // 绘制大方块轨迹
-            ctx.strokeStyle = '#e74c3c';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            bigBlockTrajectory.forEach((point, i) => {
-                if (point.t > maxTime) return;
-                const pos = toGraph(point.t, point.x);
-                if (i === 0) ctx.moveTo(pos.x, pos.y);
-                else ctx.lineTo(pos.x, pos.y);
-            });
-            ctx.stroke();
-            
-            // 绘制事件标记
-            if (simulationData.events) {
-                simulationData.events.forEach(event => {
-                    if (event.time > maxTime) return;
-                    const pos = toGraph(event.time, event.pos);
-                    ctx.fillStyle = event.type === 'collision' ? '#e74c3c' : '#95a5a6';
+
+            // ============ 绘制t-x图 ============
+            function drawTXDiagram(data) {
+                if (!data) return;
+                const ctx = txCtx;
+                const W = txCanvas.width;
+                const H = txCanvas.height;
+                ctx.clearRect(0, 0, W, H);
+
+                const margin = { top: 30, right: 40, bottom: 40, left: 55 };
+                const plotW = W - margin.left - margin.right;
+                const plotH = H - margin.top - margin.bottom;
+
+                // 坐标范围
+                const tMax = data.finalTime * 1.05;
+                const allX = [...data.smallX, ...data.largeX];
+                const xMin = Math.min(-data.wallDist - 1, ...allX) - 0.5;
+                const xMax = Math.max(data.totalLargeDist * 1.2, 2, ...allX) + 1;
+
+                function tx(t) { return margin.left + (t / tMax) * plotW; }
+
+                function ty(x) { return margin.top + plotH - ((x - xMin) / (xMax - xMin)) * plotH; }
+
+                // 背景网格
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 0.5;
+                const gridLinesT = 10;
+                const gridLinesX = 8;
+                for (let i = 0; i <= gridLinesT; i++) {
+                    const gt = (i / gridLinesT) * tMax;
+                    const gtx = tx(gt);
                     ctx.beginPath();
-                    ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+                    ctx.moveTo(gtx, margin.top);
+                    ctx.lineTo(gtx, margin.top + plotH);
+                    ctx.stroke();
+                }
+                for (let i = 0; i <= gridLinesX; i++) {
+                    const gx = xMin + (i / gridLinesX) * (xMax - xMin);
+                    const gty = ty(gx);
+                    ctx.beginPath();
+                    ctx.moveTo(margin.left, gty);
+                    ctx.lineTo(margin.left + plotW, gty);
+                    ctx.stroke();
+                }
+
+                // x=0参考线
+                const zeroY = ty(0);
+                ctx.strokeStyle = '#22c55e';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([5, 3]);
+                ctx.beginPath();
+                ctx.moveTo(margin.left, zeroY);
+                ctx.lineTo(margin.left + plotW, zeroY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#22c55e';
+                ctx.font = '10px "PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText('x=0', margin.left - 6, zeroY + 4);
+
+                // 墙参考线
+                const wallY = ty(-data.wallDist);
+                ctx.strokeStyle = '#64748b';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 5]);
+                ctx.beginPath();
+                ctx.moveTo(margin.left, wallY);
+                ctx.lineTo(margin.left + plotW, wallY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillText('墙', margin.left - 6, wallY - 3);
+
+                // 绘制大方块轨迹
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                for (let i = 0; i < data.times.length; i++) {
+                    const sx = tx(data.times[i]);
+                    const sy = ty(data.largeX[i]);
+                    if (i === 0) ctx.moveTo(sx, sy);
+                    else ctx.lineTo(sx, sy);
+                }
+                ctx.stroke();
+
+                // 绘制小方块轨迹
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let i = 0; i < data.times.length; i++) {
+                    const sx = tx(data.times[i]);
+                    const sy = ty(data.smallX[i]);
+                    if (i === 0) ctx.moveTo(sx, sy);
+                    else ctx.lineTo(sx, sy);
+                }
+                ctx.stroke();
+
+                // 碰撞点标记
+                for (const col of data.collisions) {
+                    const cx = tx(col.time);
+                    const cy = ty(col.x);
+                    // 光晕
+                    const glowGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 12);
+                    glowGrad.addColorStop(0, 'rgba(255,215,0,0.9)');
+                    glowGrad.addColorStop(0.5, 'rgba(255,180,0,0.4)');
+                    glowGrad.addColorStop(1, 'rgba(255,150,0,0)');
+                    ctx.fillStyle = glowGrad;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 12, 0, Math.PI * 2);
                     ctx.fill();
-                });
-            }
-        }
+                    // 核心
+                    ctx.fillStyle = '#ffd700';
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    // 编号
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 9px "PingFang SC","Microsoft YaHei",sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(col.index, cx, cy - 10);
+                }
 
-        // 启动仿真
-        function startSimulation() {
-            if (isRunning) return;
-            
-            const k = parseFloat(document.getElementById('massRatio').value);
-            const v = parseFloat(document.getElementById('initialVelocity').value);
-            const m = parseFloat(document.getElementById('smallMass').value);
-            const f = parseFloat(document.getElementById('frictionForce').value);
-            
-            if (k <= 1) {
-                alert('质量比 k 必须大于 1，否则小方块不会反弹！');
-                return;
-            }
-            
-            // 计算理论值
-            const theoretical = calculateTheoretical(k, m, v, f);
-            
-            // 运行仿真
-            simulationData = runSimulation(k, m, v, f);
-            
-            // 显示结果
-            document.getElementById('collisionCount').textContent = simulationData.collisionCount;
-            document.getElementById('totalDistance').textContent = simulationData.totalDistance.toFixed(3);
-            document.getElementById('theoreticalN').textContent = theoretical.idealN;
-            document.getElementById('theoreticalS').textContent = theoretical.theoreticalS.toFixed(3);
-            
-            // 重置时间
-            currentTime = 0;
-            isRunning = true;
-            document.getElementById('startBtn').disabled = true;
-            
-            // 开始动画
-            animate();
-        }
+                // 坐标轴
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(margin.left, margin.top);
+                ctx.lineTo(margin.left, margin.top + plotH);
+                ctx.lineTo(margin.left + plotW, margin.top + plotH);
+                ctx.stroke();
 
-        // 重置仿真
-        function resetSimulation() {
-            if (animationId) {
-                cancelAnimationFrame(animationId);
-            }
-            isRunning = false;
-            currentTime = 0;
-            simulationData = null;
-            document.getElementById('startBtn').disabled = false;
-            document.getElementById('collisionCount').textContent = '-';
-            document.getElementById('totalDistance').textContent = '-';
-            document.getElementById('theoreticalN').textContent = '-';
-            document.getElementById('theoreticalS').textContent = '-';
-            
-            // 重绘初始视图
-            drawInitialView();
-            txCtx.clearRect(0, 0, txCanvas.width, txCanvas.height);
-        }
+                // 轴标签
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = 'bold 12px "PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('时间 t (s)', margin.left + plotW / 2, H - 6);
+                ctx.save();
+                ctx.translate(12, margin.top + plotH / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText('位置 x (m)', 0, 0);
+                ctx.restore();
 
-        // 动画循环
-        function animate() {
-            if (!isRunning || !simulationData) return;
-            
-            currentTime += 0.05; // 每次增加 0.05 秒
-            
-            const maxTime = simulationData.totalTime;
-            if (currentTime >= maxTime) {
-                currentTime = maxTime;
-                isRunning = false;
-                document.getElementById('startBtn').disabled = false;
-            }
-            
-            drawAnimation(currentTime);
-            drawTxChart(true); // 显示完整图表
-            
-            if (isRunning) {
-                animationId = requestAnimationFrame(animate);
-            }
-        }
+                // 刻度
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '9px "PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'center';
+                for (let i = 0; i <= 5; i++) {
+                    const tt = (i / 5) * tMax;
+                    const ttx = tx(tt);
+                    ctx.fillText(tt.toFixed(1), ttx, margin.top + plotH + 16);
+                }
+                ctx.textAlign = 'right';
+                for (let i = 0; i <= 5; i++) {
+                    const xx = xMin + (i / 5) * (xMax - xMin);
+                    const tty = ty(xx);
+                    ctx.fillText(xx.toFixed(1), margin.left - 8, tty + 3);
+                }
 
-        // 初始化绘制
-        resizeCanvas();
-        drawInitialView();
+                // 图例
+                const legendX = margin.left + plotW - 140;
+                const legendY = margin.top + 8;
+                ctx.fillStyle = 'rgba(15,23,42,0.85)';
+                ctx.fillRect(legendX - 6, legendY - 4, 140, 44);
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(legendX - 6, legendY - 4, 140, 44);
+
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(legendX, legendY + 10);
+                ctx.lineTo(legendX + 22, legendY + 10);
+                ctx.stroke();
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = '10px "PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText('小方块 m', legendX + 28, legendY + 13);
+
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(legendX, legendY + 28);
+                ctx.lineTo(legendX + 22, legendY + 28);
+                ctx.stroke();
+                ctx.fillText('大方块 km', legendX + 28, legendY + 31);
+
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.arc(legendX + 11, legendY + 10, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillText('碰撞点', legendX + 28, legendY + 13);
+            }
+
+            // ============ 动画循环 ============
+            function startAnimation(data) {
+                stopAnimation();
+                if (!data || data.times.length < 2) return;
+                animRunning = true;
+                animProgress = 0;
+                lastFrameTime = performance.now();
+                const totalDuration = data.finalTime / animSpeed; // 动画持续秒数(实际时间)
+
+                function frame(now) {
+                    if (!animRunning) return;
+                    if (lastFrameTime === null) lastFrameTime = now;
+                    const dt = (now - lastFrameTime) / 1000; // 实际经过的秒数
+                    lastFrameTime = now;
+                    animProgress += dt / totalDuration;
+                    if (animProgress >= 1) {
+                        animProgress = 1;
+                        drawAnimation(data, 1);
+                        animRunning = false;
+                        return;
+                    }
+                    drawAnimation(data, animProgress);
+                    animRAFId = requestAnimationFrame(frame);
+                }
+                animRAFId = requestAnimationFrame(frame);
+            }
+
+            function stopAnimation() {
+                animRunning = false;
+                if (animRAFId) {
+                    cancelAnimationFrame(animRAFId);
+                    animRAFId = null;
+                }
+                lastFrameTime = null;
+            }
+
+            // ============ 主控制 ============
+            function updateAll() {
+                stopAnimation();
+                const k = paramK;
+                const v0 = paramV;
+                const f = paramF;
+                const wallDist = paramWallDist;
+                const m = paramM;
+
+                trajectoryData = runSimulation(k, v0, f, wallDist, m);
+
+                // 更新显示
+                elCollisionCount.textContent = trajectoryData.collisionCount;
+                elLargeDist.textContent = trajectoryData.totalLargeDist.toFixed(3);
+                elSimTime.textContent = trajectoryData.finalTime.toFixed(2);
+
+                // 绘制
+                drawAnimation(trajectoryData, 0);
+                drawTXDiagram(trajectoryData);
+
+                // 自动开始动画
+                animProgress = 0;
+                startAnimation(trajectoryData);
+            }
+
+            function updateSliders() {
+                paramK = parseFloat(sliderK.value);
+                paramV = parseFloat(sliderV.value);
+                paramF = parseFloat(sliderF.value);
+                paramWallDist = parseFloat(sliderW.value);
+                elValK.textContent = paramK;
+                elValV.textContent = paramV.toFixed(1);
+                elValF.textContent = paramF.toFixed(1);
+                elValW.textContent = paramWallDist.toFixed(1);
+            }
+
+            // ============ 事件监听 ============
+            sliderK.addEventListener('input', () => {
+                updateSliders();
+                updateAll();
+            });
+            sliderV.addEventListener('input', () => {
+                updateSliders();
+                updateAll();
+            });
+            sliderF.addEventListener('input', () => {
+                updateSliders();
+                updateAll();
+            });
+            sliderW.addEventListener('input', () => {
+                updateSliders();
+                updateAll();
+            });
+
+            btnPlay.addEventListener('click', () => {
+                updateSliders();
+                updateAll();
+            });
+
+            btnReset.addEventListener('click', () => {
+                sliderK.value = 16;
+                sliderV.value = 4;
+                sliderF.value = 1.2;
+                sliderW.value = 8;
+                animSpeed = 1;
+                btnSpeed.textContent = '⏱ 速度: 1x';
+                updateSliders();
+                updateAll();
+            });
+
+            btnSpeed.addEventListener('click', () => {
+                const speeds = [0.5, 1, 2, 3, 5];
+                const currentIdx = speeds.indexOf(animSpeed);
+                const nextIdx = (currentIdx + 1) % speeds.length;
+                animSpeed = speeds[nextIdx];
+                btnSpeed.textContent = `⏱ 速度: ${animSpeed}x`;
+                if (trajectoryData && animRunning) {
+                    stopAnimation();
+                    animProgress = Math.min(animProgress, 1);
+                    startAnimation(trajectoryData);
+                } else if (trajectoryData && !animRunning) {
+                    animProgress = 0;
+                    startAnimation(trajectoryData);
+                }
+            });
+
+            // 键盘控制
+            document.addEventListener('keydown', (e) => {
+                switch (e.key.toLowerCase()) {
+                    case ' ':
+                        e.preventDefault();
+                        if (animRunning) {
+                            stopAnimation();
+                        } else if (trajectoryData) {
+                            startAnimation(trajectoryData);
+                        }
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        btnReset.click();
+                        break;
+                    case 'arrowright':
+                        e.preventDefault();
+                        if (!animRunning && trajectoryData) {
+                            animProgress = Math.min(1, animProgress + 0.03);
+                            drawAnimation(trajectoryData, animProgress);
+                        }
+                        break;
+                    case 'arrowleft':
+                        e.preventDefault();
+                        if (!animRunning && trajectoryData) {
+                            animProgress = Math.max(0, animProgress - 0.03);
+                            drawAnimation(trajectoryData, animProgress);
+                        }
+                        break;
+                }
+            });
+
+            // Canvas点击切换播放/暂停
+            animCanvas.addEventListener('click', () => {
+                if (animRunning) {
+                    stopAnimation();
+                } else if (trajectoryData) {
+                    if (animProgress >= 0.999) animProgress = 0;
+                    startAnimation(trajectoryData);
+                }
+            });
+            animCanvas.style.cursor = 'pointer';
+            animCanvas.title = '点击播放/暂停 | 空格键控制 | ←→ 逐帧';
+
+            txCanvas.addEventListener('click', () => {
+                if (animRunning) {
+                    stopAnimation();
+                } else if (trajectoryData) {
+                    if (animProgress >= 0.999) animProgress = 0;
+                    startAnimation(trajectoryData);
+                }
+            });
+            txCanvas.style.cursor = 'pointer';
+            txCanvas.title = '点击播放/暂停';
+
+            // ============ 初始运行 ============
+            updateSliders();
+            trajectoryData = runSimulation(paramK, paramV, paramF, paramWallDist, paramM);
+            elCollisionCount.textContent = trajectoryData.collisionCount;
+            elLargeDist.textContent = trajectoryData.totalLargeDist.toFixed(3);
+            elSimTime.textContent = trajectoryData.finalTime.toFixed(2);
+            drawAnimation(trajectoryData, 0);
+            drawTXDiagram(trajectoryData);
+            startAnimation(trajectoryData);
+
+            // ============ 响应式Canvas调整 ============
+            function resizeCanvases() {
+                const animPanel = document.getElementById('animPanel');
+                const txPanel = document.getElementById('txPanel');
+                const animWidth = Math.min(620, animPanel.clientWidth - 32);
+                const txWidth = Math.min(620, txPanel.clientWidth - 32);
+                if (animCanvas.width !== animWidth) {
+                    animCanvas.width = animWidth;
+                    animCanvas.height = Math.round(animWidth * 240 / 620);
+                }
+                if (txCanvas.width !== txWidth) {
+                    txCanvas.width = txWidth;
+                    txCanvas.height = Math.round(txWidth * 380 / 620);
+                }
+                if (trajectoryData) {
+                    drawAnimation(trajectoryData, animProgress);
+                    drawTXDiagram(trajectoryData);
+                }
+            }
+
+            window.addEventListener('resize', resizeCanvases);
+            resizeCanvases();
+
+            console.log('🚀 多碰撞能量耗散模型已就绪');
+            console.log('   📐 动画面板 - 点击播放/暂停');
+            console.log('   📈 t-x图 - 实时轨迹');
+            console.log('   ⌨ 快捷键: 空格=暂停, R=重置, ←→=逐帧');
+            console.log('   🎛 拖动滑块实时更新参数');
+            console.log('   📊 理论碰撞次数 N = floor(π/(2θ) + 0.5)');
+            console.log('   📏 大方块总路程 S = (mv²/(2f))·√(2k/(k²+1))·sin(Nθ)');
+        })();
     </script>
 </body>
 </html>
