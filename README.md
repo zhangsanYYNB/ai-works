@@ -32,6 +32,35 @@
 - **技术栈**: Three.js, HTML5, JavaScript
 - **访问**: 直接在浏览器中打开 `slz.html`
 
+### 4. 碰撞仿真 (collision_simulation.html)
+- **描述**: 物理碰撞模拟项目
+- **功能**:
+  - 模拟物体碰撞运动
+  - 实时物理引擎计算
+  - 可视化碰撞效果
+- **技术栈**: HTML5 Canvas, JavaScript
+- **访问**: 直接在浏览器中打开 `collision_simulation.html`
+
+### 5. 3D 电场可视化 (electric_field_3d.html)
+- **描述**: 3D 电场线可视化项目
+- **功能**:
+  - Three.js 3D 渲染
+  - 电场线动态展示
+  - 交互式视角控制
+  - 电荷配置可视化
+- **技术栈**: Three.js, HTML5, JavaScript
+- **访问**: 直接在浏览器中打开 `electric_field_3d.html`
+
+### 6. 反应动力学仿真 (reaction_kinetics.html)
+- **描述**: 化学反应动力学模拟项目
+- **功能**:
+  - 模拟化学反应过程
+  - 浓度变化曲线展示
+  - 可调反应参数
+  - 动力学数据分析
+- **技术栈**: HTML5 Canvas, JavaScript
+- **访问**: 直接在浏览器中打开 `reaction_kinetics.html`
+
 ## 🚀 快速开始
 
 1. 克隆本仓库
@@ -48,11 +77,14 @@ cd <repository-directory>
 
 ```
 .
-├── index.html          # 项目导航主页
-├── simulation.html     # 双环连杆机构运动仿真
-├── slz.html           # 等面四面体可视化
-├── LICENSE            # 许可证文件
-└── README.md          # 项目说明文档
+├── index.html                  # 项目导航主页
+├── simulation.html             # 双环连杆机构运动仿真
+├── slz.html                    # 等面四面体可视化
+├── collision_simulation.html   # 碰撞仿真
+├── electric_field_3d.html      # 3D 电场可视化
+├── reaction_kinetics.html      # 反应动力学仿真
+├── LICENSE                     # 许可证文件
+└── README.md                   # 项目说明文档
 ```
 
 ## 🛠️ 技术特点
