@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShopData 可视化编辑器</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --surface2: #0f3460;
+    --accent: #e94560;
+    --accent2: #533483;
+    --text: #eee;
+    --text2: #aab;
+    --green: #2ecc71;
+    --orange: #f39c12;
+    --radius: 8px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+  /* ---- Top Bar ---- */
+  .topbar { display:flex; align-items:center; gap:12px; padding:12px 20px; background:var(--surface); border-bottom:1px solid #ffffff15; position:sticky; top:0; z-index:100; flex-wrap:wrap; }
+  .topbar h1 { font-size:18px; margin-right:auto; white-space:nowrap; }
+  .topbar h1 span { color:var(--accent); }
+  .btn { padding:7px 16px; border:none; border-radius:var(--radius); cursor:pointer; font-size:13px; font-weight:600; transition:all .15s; display:inline-flex; align-items:center; gap:5px; }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-primary:hover { background:#ff6b81; }
+  .btn-secondary { background:var(--surface2); color:var(--text); border:1px solid #ffffff20; }
+  .btn-secondary:hover { background:#1a4a8a; }
+  .btn-success { background:var(--green); color:#fff; }
+  .btn-success:hover { background:#27ae60; }
+  .btn-danger { background:#e74c3c; color:#fff; }
+  .btn-danger:hover { background:#c0392b; }
+  .btn-sm { padding:4px 10px; font-size:12px; }
+  .btn-icon { padding:5px 8px; font-size:14px; }
+  #fileInput { display:none; }
+
+  /* ---- Tabs ---- */
+  .tabs { display:flex; gap:0; padding:0 20px; background:var(--surface); border-bottom:2px solid var(--accent); }
+  .tab { padding:10px 28px; cursor:pointer; font-weight:600; color:var(--text2); border-bottom:3px solid transparent; margin-bottom:-2px; transition:all .15s; user-select:none; }
+  .tab:hover { color:var(--text); background:#ffffff08; }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+  /* ---- Main ---- */
+  .main { max-width:1200px; margin:0 auto; padding:16px 20px; }
+  .toolbar-row { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+
+  /* ---- Group Card ---- */
+  .group-card { background:var(--surface); border:1px solid #ffffff10; border-radius:var(--radius); margin-bottom:12px; overflow:hidden; }
+  .group-header { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--surface2); cursor:pointer; user-select:none; }
+  .group-header:hover { background:#1a4a8a; }
+  .group-arrow { transition:transform .2s; font-size:12px; color:var(--text2); }
+  .group-arrow.open { transform:rotate(90deg); }
+  .group-title { font-weight:700; font-size:15px; flex:1; }
+  .group-badge { font-size:11px; background:var(--accent2); padding:2px 8px; border-radius:10px; color:#ddd; }
+  .group-body { display:none; padding:10px 14px; }
+  .group-body.open { display:block; }
+
+  /* ---- Item Row ---- */
+  .item-row { display:grid; grid-template-columns:1fr 1fr 1fr 100px 120px auto; gap:8px; padding:8px 0; border-bottom:1px solid #ffffff08; align-items:center; font-size:13px; }
+  .item-row:last-child { border-bottom:none; }
+  .item-header { color:var(--text2); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid #ffffff15; padding-bottom:6px; }
+  .item-cell { display:flex; align-items:center; gap:4px; }
+  .item-cell input, .item-cell select { background:#0d1b36; border:1px solid #ffffff18; color:var(--text); padding:5px 8px; border-radius:4px; font-size:12px; width:100%; }
+  .item-cell input:focus, .item-cell select:focus { outline:none; border-color:var(--accent); }
+  .item-cell input[type=number] { width:80px; }
+  .item-actions { display:flex; gap:4px; }
+
+  /* ---- Edit Modal ---- */
+  .modal-overlay { display:none; position:fixed; inset:0; background:#000a; z-index:200; justify-content:center; align-items:center; }
+  .modal-overlay.show { display:flex; }
+  .modal { background:var(--surface); border:1px solid #ffffff15; border-radius:12px; padding:24px; width:90%; max-width:500px; max-height:85vh; overflow-y:auto; }
+  .modal h2 { margin-bottom:16px; font-size:18px; }
+  .form-group { margin-bottom:12px; }
+  .form-group label { display:block; font-size:12px; color:var(--text2); margin-bottom:4px; font-weight:600; }
+  .form-group input, .form-group select { width:100%; padding:8px 10px; background:#0d1b36; border:1px solid #ffffff18; color:var(--text); border-radius:6px; font-size:13px; }
+  .form-group input:focus { outline:none; border-color:var(--accent); }
+  .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; }
+
+  /* ---- Empty ---- */
+  .empty-state { text-align:center; padding:60px 20px; color:var(--text2); }
+  .empty-state .icon { font-size:48px; margin-bottom:12px; }
+
+  /* ---- Responsive ---- */
+  @media(max-width:768px){
+    .item-row { grid-template-columns:1fr 1fr; }
+    .item-header { display:none; }
+    .item-cell::before { content:attr(data-label); font-size:10px; color:var(--text2); display:block; margin-bottom:2px; }
+  }
+
+  .tag-buy { background:#2ecc7130; color:#2ecc71; }
+  .tag-sell { background:#e74c3c30; color:#e74c3c; }
+  .tag { padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+
+  .img-preview { width:24px; height:24px; object-fit:contain; border-radius:3px; background:#0003; }
+
+  .search-box { background:#0d1b36; border:1px solid #ffffff18; color:var(--text); padding:6px 12px; border-radius:var(--radius); font-size:13px; flex:1; min-width:150px; max-width:300px; }
+  .search-box:focus { outline:none; border-color:var(--accent); }
+
+  .toast { position:fixed; bottom:20px; right:20px; background:var(--green); color:#fff; padding:10px 20px; border-radius:var(--radius); font-size:13px; font-weight:600; z-index:300; opacity:0; transform:translateY(20px); transition:all .3s; }
+  .toast.show { opacity:1; transform:translateY(0); }
+  .toast.error { background:#e74c3c; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>🛒 <span>ShopData</span> 编辑器</h1>
+  <input type="file" id="fileInput" accept=".json">
+  <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">📂 上传 JSON</button>
+  <button class="btn btn-secondary" onclick="createNew()">📄 新建</button>
+  <button class="btn btn-success" onclick="downloadJSON()">💾 下载 JSON</button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="Buy" onclick="switchTab('Buy',this)">🛍️ Buy（购买）</div>
+  <div class="tab" data-tab="Sell" onclick="switchTab('Sell',this)">💰 Sell（出售）</div>
+</div>
+
+<div class="main">
+  <div class="toolbar-row">
+    <button class="btn btn-primary btn-sm" onclick="addGroup()">＋ 添加分类组</button>
+    <button class="btn btn-secondary btn-sm" onclick="addStandaloneItem()">＋ 添加独立项目</button>
+    <input type="text" class="search-box" placeholder="🔍 搜索项目..." oninput="filterItems(this.value)">
+    <span id="statsText" style="margin-left:auto;font-size:12px;color:var(--text2)"></span>
+  </div>
+  <div id="content"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ State ============
+let shopData = { "Buy": [], "Sell": [] };
+let currentTab = "Buy";
+let searchTerm = "";
+
+// ============ Init ============
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      let raw = JSON.parse(ev.target.result);
+      shopData = normalizeKeys(raw);
+      if (!shopData.Buy) shopData.Buy = [];
+      if (!shopData.Sell) shopData.Sell = [];
+      render();
+      showToast('文件加载成功');
+    } catch(err) {
+      showToast('JSON 解析失败: ' + err.message, true);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// Normalize keys (trim trailing spaces)
+function normalizeKeys(obj) {
+  if (Array.isArray(obj)) return obj.map(normalizeKeys);
+  if (obj && typeof obj === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) {
+      out[k.trim()] = normalizeKeys(v);
+    }
+    return out;
+  }
+  return obj;
+}
+
+function createNew() {
+  if (shopData.Buy.length > 0 || shopData.Sell.length > 0) {
+    if (!confirm('当前数据将被清空，确定新建吗？')) return;
+  }
+  shopData = { "Buy": [], "Sell": [] };
+  render();
+  showToast('已新建空数据');
+}
+
+function switchTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+function filterItems(term) {
+  searchTerm = term.toLowerCase();
+  render();
+}
+
+// ============ Render ============
+function render() {
+  const container = document.getElementById('content');
+  const items = shopData[currentTab] || [];
+  const filtered = filterData(items, searchTerm);
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">📦</div><div>${searchTerm ? '没有匹配的项目' : '暂无数据，点击上方按钮添加'}</div></div>`;
+    updateStats(items);
+    return;
+  }
+
+  let html = '';
+  filtered.forEach((item, idx) => {
+    const realIdx = items.indexOf(item);
+    if (item.type === 'group') {
+      html += renderGroup(item, realIdx);
+    } else {
+      html += renderStandaloneItem(item, realIdx);
+    }
+  });
+  container.innerHTML = html;
+  updateStats(items);
+}
+
+function filterData(items, term) {
+  if (!term) return items;
+  return items.filter(item => {
+    if (item.type === 'group') {
+      if ((item.name || '').toLowerCase().includes(term)) return true;
+      return (item.data || []).some(sub => (sub.name || '').toLowerCase().includes(term));
+    }
+    return (item.name || '').toLowerCase().includes(term);
+  });
+}
+
+function renderGroup(group, idx) {
+  const subs = group.data || [];
+  const subCount = subs.length;
+  const id = `group-${currentTab}-${idx}`;
+
+  let itemsHtml = '';
+  if (subs.length > 0) {
+    itemsHtml += `<div class="item-row item-header">
+      <div>名称</div><div>物品ID</div><div>图片路径</div><div>Aux</div><div>价格</div><div>操作</div>
+    </div>`;
+    subs.forEach((sub, si) => {
+      const d = sub.data || {};
+      const imgHtml = sub.image ? `<img class="img-preview" src="${esc(sub.image)}" onerror="this.style.display='none'" title="${esc(sub.image)}">` : '';
+      itemsHtml += `<div class="item-row" data-name="${esc((sub.name||'').toLowerCase())}">
+        <div class="item-cell" data-label="名称">${imgHtml} ${esc(sub.name || '')}</div>
+        <div class="item-cell" data-label="物品ID"><code style="font-size:11px;color:var(--orange)">${esc(d.type || '')}</code></div>
+        <div class="item-cell" data-label="图片"><span style="font-size:11px;color:var(--text2)">${esc(sub.image || '(无)')}</span></div>
+        <div class="item-cell" data-label="Aux">${d.aux ?? 0}</div>
+        <div class="item-cell" data-label="价格"><strong style="color:var(--green)">💰 ${d.money ?? 0}</strong></div>
+        <div class="item-cell item-actions">
+          <button class="btn btn-secondary btn-icon" title="编辑" onclick="editItem(${idx},${si})">✏️</button>
+          <button class="btn btn-danger btn-icon" title="删除" onclick="deleteItem(${idx},${si})">🗑️</button>
+        </div>
+      </div>`;
+    });
+  }
+
+  return `<div class="group-card" id="${id}">
+    <div class="group-header" onclick="toggleGroup('${id}')">
+      <span class="group-arrow open" id="arrow-${id}">▶</span>
+      <span class="group-title">📁 ${esc(group.name || '未命名分类')}</span>
+      <span class="group-badge">${subCount} 项</span>
+      <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();addItemToGroup(${idx})">＋ 添加项目</button>
+      <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();editGroup(${idx})">✏️ 编辑分类</button>
+      <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteGroup(${idx})">🗑️</button>
+    </div>
+    <div class="group-body open" id="body-${id}">
+      ${itemsHtml || '<div style="padding:12px;color:var(--text2);font-size:13px;">空分类，点击"添加项目"开始</div>'}
+    </div>
+  </div>`;
+}
+
+function renderStandaloneItem(item, idx) {
+  const d = item.data || {};
+  return `<div class="group-card">
+    <div class="group-header" style="cursor:default;">
+      <span style="font-size:16px">📌</span>
+      <span class="group-title">${esc(item.name || '未命名')}</span>
+      <span class="group-badge" style="background:var(--orange)30;color:var(--orange)">独立项</span>
+      <span style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+        <code style="font-size:11px;color:var(--orange)">${esc(d.type || '')}</code>
+        <strong style="color:var(--green)">💰 ${d.money ?? 0}</strong>
+        <button class="btn btn-secondary btn-sm" onclick="editStandalone(${idx})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteStandalone(${idx})">🗑️</button>
+      </span>
+    </div>
+  </div>`;
+}
+
+function toggleGroup(id) {
+  const body = document.getElementById('body-' + id);
+  const arrow = document.getElementById('arrow-' + id);
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+function updateStats(items) {
+  let groups = 0, total = 0;
+  items.forEach(it => {
+    if (it.type === 'group') { groups++; total += (it.data || []).length; }
+    else { total++; }
+  });
+  document.getElementById('statsText').textContent = `${groups} 个分类，共 ${total} 个项目`;
+}
+
+// ============ CRUD ============
+function addGroup() {
+  showItemModal({
+    title: '添加分类组',
+    fields: [
+      { key:'name', label:'分类名称', type:'text', placeholder:'如：矿物、基础方块' },
+      { key:'image', label:'图片路径', type:'text', placeholder:'(可选)' }
+    ],
+    onSave(vals) {
+      shopData[currentTab].push({ name:vals.name, type:'group', image:vals.image||'', data:[] });
+      render();
+      showToast('分类已添加');
+    }
+  });
+}
+
+function editGroup(idx) {
+  const g = shopData[currentTab][idx];
+  showItemModal({
+    title: '编辑分类',
+    fields: [
+      { key:'name', label:'分类名称', type:'text', value:g.name },
+      { key:'image', label:'图片路径', type:'text', value:g.image }
+    ],
+    onSave(vals) {
+      g.name = vals.name;
+      g.image = vals.image || '';
+      render();
+      showToast('分类已更新');
+    }
+  });
+}
+
+function deleteGroup(idx) {
+  const g = shopData[currentTab][idx];
+  if (!confirm(`确定删除分类「${g.name}」及其全部 ${(g.data||[]).length} 个项目？`)) return;
+  shopData[currentTab].splice(idx, 1);
+  render();
+  showToast('分类已删除');
+}
+
+function addItemToGroup(groupIdx) {
+  showExamModal({
+    title: '添加项目到「' + (shopData[currentTab][groupIdx].name||'') + '」',
+    onSave(vals) {
+      shopData[currentTab][groupIdx].data.push(vals);
+      render();
+      showToast('项目已添加');
+    }
+  });
+}
+
+function editItem(groupIdx, itemIdx) {
+  const item = shopData[currentTab][groupIdx].data[itemIdx];
+  showExamModal({
+    title: '编辑项目「' + (item.name||'') + '」',
+    values: item,
+    onSave(vals) {
+      shopData[currentTab][groupIdx].data[itemIdx] = vals;
+      render();
+      showToast('项目已更新');
+    }
+  });
+}
+
+function deleteItem(groupIdx, itemIdx) {
+  const item = shopData[currentTab][groupIdx].data[itemIdx];
+  if (!confirm(`确定删除「${item.name}」？`)) return;
+  shopData[currentTab][groupIdx].data.splice(itemIdx, 1);
+  render();
+  showToast('项目已删除');
+}
+
+function addStandaloneItem() {
+  showExamModal({
+    title: '添加独立项目',
+    onSave(vals) {
+      shopData[currentTab].push(vals);
+      render();
+      showToast('独立项目已添加');
+    }
+  });
+}
+
+function editStandalone(idx) {
+  const item = shopData[currentTab][idx];
+  showExamModal({
+    title: '编辑独立项目',
+    values: item,
+    onSave(vals) {
+      shopData[currentTab][idx] = vals;
+      render();
+      showToast('已更新');
+    }
+  });
+}
+
+function deleteStandalone(idx) {
+  const item = shopData[currentTab][idx];
+  if (!confirm(`确定删除「${item.name}」？`)) return;
+  shopData[currentTab].splice(idx, 1);
+  render();
+  showToast('已删除');
+}
+
+// ============ Modal System ============
+function showItemModal({ title, fields, onSave }) {
+  let html = `<h2>${title}</h2>`;
+  fields.forEach(f => {
+    html += `<div class="form-group">
+      <label>${f.label}</label>
+      <input type="${f.type||'text'}" id="mf_${f.key}" value="${esc(f.value||'')}" placeholder="${esc(f.placeholder||'')}">
+    </div>`;
+  });
+  html += `<div class="modal-actions">
+    <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" id="modalSaveBtn">保存</button>
+  </div>`;
+  openModal(html);
+  document.getElementById('modalSaveBtn').onclick = () => {
+    const vals = {};
+    fields.forEach(f => { vals[f.key] = document.getElementById('mf_'+f.key).value; });
+    if (!vals.name) { showToast('名称不能为空', true); return; }
+    onSave(vals);
+    closeModal();
+  };
+}
+
+function showExamModal({ title, values, onSave }) {
+  const v = values || {};
+  const d = v.data || {};
+  const html = `<h2>${title}</h2>
+    <div class="form-group"><label>显示名称</label><input id="ef_name" value="${esc(v.name||'')}"></div>
+    <div class="form-group"><label>图片路径</label><input id="ef_image" value="${esc(v.image||'')}" placeholder="textures/items/..."></div>
+    <hr style="border:none;border-top:1px solid #ffffff10;margin:14px 0">
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2)">物品数据</div>
+    <div class="form-group"><label>物品 ID（type）</label><input id="ef_type" value="${esc(d.type||'')}" placeholder="minecraft:diamond"></div>
+    <div class="form-group"><label>Aux（附加值）</label><input id="ef_aux" type="number" value="${d.aux??0}"></div>
+    <div class="form-group"><label>备注（remark）</label><input id="ef_remark" value="${esc(d.remark||'')}" placeholder="diamond"></div>
+    <div class="form-group"><label>价格（money）</label><input id="ef_money" type="number" value="${d.money??0}"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" id="modalSaveBtn">保存</button>
+    </div>`;
+  openModal(html);
+  document.getElementById('modalSaveBtn').onclick = () => {
+    const name = document.getElementById('ef_name').value.trim();
+    if (!name) { showToast('名称不能为空', true); return; }
+    const typeId = document.getElementById('ef_type').value.trim();
+    if (!typeId) { showToast('物品ID不能为空', true); return; }
+    onSave({
+      name: name,
+      type: 'exam',
+      image: document.getElementById('ef_image').value.trim(),
+      data: {
+        type: typeId,
+        aux: parseInt(document.getElementById('ef_aux').value) || 0,
+        remark: document.getElementById('ef_remark').value.trim(),
+        money: parseFloat(document.getElementById('ef_money').value) || 0
+      }
+    });
+    closeModal();
+  };
+}
+
+function openModal(html) {
+  document.getElementById('modal').innerHTML = html;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+// ============ Download ============
+function downloadJSON() {
+  const json = JSON.stringify(shopData, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'shopdata.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('文件已下载');
+}
+
+// ============ Utils ============
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.className = 'toast'; }, 2500);
+}
+</script>
+</body>
+</html>
