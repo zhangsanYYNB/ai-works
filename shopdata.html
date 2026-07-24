@@ -313,6 +313,64 @@ body {
 }
 .mode-switch button.active { background: var(--primary); color: #fff; }
 
+/* ===== MCBEID 物品补全 ===== */
+.id-lookup { position: relative; }
+.id-lookup-input-wrap { position: relative; }
+.id-lookup-input-wrap svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.id-lookup-input { padding-left: 34px; padding-right: 82px; }
+.id-lookup-source {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 10px;
+  text-decoration: none;
+}
+.id-lookup-source:hover { color: var(--primary-dark); text-decoration: underline; }
+.id-results {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(31,41,55,.16);
+}
+.id-results:empty { display: none; }
+.id-result {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 11px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.id-result:last-child { border-bottom: none; }
+.id-result:hover, .id-result.active { background: var(--primary-light); }
+.id-result-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.id-result-id { color: var(--text-muted); font: 11px var(--mono); }
+.id-result-status { padding: 14px; color: var(--text-muted); font-size: 12px; text-align: center; }
+
 /* ===== 图像字段 ===== */
 .image-field { display: flex; gap: 10px; align-items: flex-start; }
 .image-preview-box {
@@ -618,6 +676,7 @@ body {
 // ============ 全局状态 ============
 const MOJANG_RAW = 'https://raw.githubusercontent.com/Mojang/bedrock-samples/main/resource_pack/';
 const MOJANG_API = 'https://api.github.com/repos/Mojang/bedrock-samples/contents/resource_pack/';
+const MCBEID_DATA_URL = 'https://ca.projectxero.top/idlist/data/beta/vanilla.json';
 
 let shopData = { Buy: [], Sell: [] };       // 当前编辑的数据
 let selectedPath = null;                     // 当前选中节点路径，如 "Sell/0/2"
@@ -626,6 +685,9 @@ let errorMap = new Map();                    // 路径 -> 错误数（树标红�
 let isDirty = false;                         // 是否有未保存修改
 let pickerCallback = null;                   // 图像选择回调
 let onlineCache = {};                        // 在线目录缓存
+let mcbeItems = null;                         // MCBEID 物品索引
+let mcbeLoadPromise = null;
+let mcbeSearchTimer = null;
 
 // ============ 工具函数 ============
 const el = id => document.getElementById(id);
@@ -953,6 +1015,73 @@ function validateItemId(value) {
   return { level: 'error', msg: `物品 ID 格式无效（${reason}要求如 minecraft:diamond）`, fix: fixed };
 }
 
+// ============ MCBEID 物品名称搜索 ============
+async function loadMcbeItems() {
+  if (mcbeItems) return mcbeItems;
+  if (mcbeLoadPromise) return mcbeLoadPromise;
+  mcbeLoadPromise = fetch(MCBEID_DATA_URL)
+    .then(res => {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(data => {
+      const items = data && data.enums && data.enums.item;
+      if (!items || typeof items !== 'object') throw new Error('物品数据格式不兼容');
+      mcbeItems = Object.entries(items).map(([rawId, name]) => {
+        const id = rawId.includes(':') ? rawId : 'minecraft:' + rawId;
+        return { id, name: String(name || rawId), search: (name + ' ' + id + ' ' + rawId).toLowerCase() };
+      });
+      return mcbeItems;
+    })
+    .catch(err => {
+      mcbeLoadPromise = null;
+      throw err;
+    });
+  return mcbeLoadPromise;
+}
+
+function findMcbeItems(query) {
+  const keyword = String(query || '').trim().toLowerCase();
+  if (!keyword || !mcbeItems) return [];
+  return mcbeItems
+    .filter(item => item.search.includes(keyword))
+    .sort((a, b) => {
+      const score = item => item.name.toLowerCase() === keyword ? 0
+        : item.id === keyword || item.id === 'minecraft:' + keyword ? 1
+        : item.name.toLowerCase().startsWith(keyword) ? 2
+        : item.id.startsWith('minecraft:' + keyword) ? 3 : 4;
+      return score(a) - score(b) || a.name.localeCompare(b.name, 'zh-CN');
+    })
+    .slice(0, 12);
+}
+
+function renderMcbeResults(results, status = '') {
+  const list = el('editorContainer').querySelector('[data-id-results]');
+  if (!list) return;
+  if (status) {
+    list.innerHTML = `<div class="id-result-status">${esc(status)}</div>`;
+    return;
+  }
+  list.innerHTML = results.map((item, index) => `
+    <button type="button" class="id-result${index === 0 ? ' active' : ''}" data-action="select-mcbeid"
+      data-id="${esc(item.id)}" data-name="${esc(item.name)}" role="option" aria-selected="${index === 0}">
+      <span class="id-result-name">${esc(item.name)}</span>
+      <span class="id-result-id">${esc(item.id)}</span>
+    </button>`).join('') || '<div class="id-result-status">没有匹配的物品</div>';
+}
+
+async function searchMcbeItems(input) {
+  const query = input.value.trim();
+  if (!query) { renderMcbeResults([]); return; }
+  if (!mcbeItems) renderMcbeResults([], '正在加载 MCBEID 物品表...');
+  try {
+    await loadMcbeItems();
+    if (input.isConnected && input.value.trim() === query) renderMcbeResults(findMcbeItems(query));
+  } catch (err) {
+    renderMcbeResults([], 'MCBEID 物品表加载失败：' + err.message);
+  }
+}
+
 // ============ SNBT 语法验证器（递归下降解析） ============
 function validateSNBT(src) {
   if (src === undefined || src === null || String(src).trim() === '') {
@@ -1211,6 +1340,16 @@ function renderEditor() {
     } else {
       const typeRes = validateItemId(d.type);
       html += `
+      <div class="form-group id-lookup">
+        <div class="form-label">MCBEID 物品搜索 <span class="hint">输入中文名称或 ID，选择后自动填写 type</span></div>
+        <div class="id-lookup-input-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" class="form-input id-lookup-input" data-id-search autocomplete="off"
+            role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="例如：钻石、下界合金剑、diamond">
+          <a class="id-lookup-source" href="https://ca.projectxero.top/idlist/" target="_blank" rel="noopener noreferrer">数据源</a>
+        </div>
+        <div class="id-results" data-id-results role="listbox"></div>
+      </div>
       <div class="form-row">
         <div class="form-group">
           <div class="form-label">物品 ID（type） <span class="req">*</span> <span class="hint">如 minecraft:diamond</span></div>
@@ -1246,6 +1385,11 @@ function validateMoney(v) {
 
 // ============ 编辑器事件（委托） ============
 el('editorContainer').addEventListener('input', e => {
+  if (e.target.matches('[data-id-search]')) {
+    clearTimeout(mcbeSearchTimer);
+    mcbeSearchTimer = setTimeout(() => searchMcbeItems(e.target), 120);
+    return;
+  }
   const f = e.target.dataset.f;
   if (!f) return;
   const node = getNodeByPath(selectedPath);
@@ -1305,6 +1449,14 @@ el('editorContainer').addEventListener('click', e => {
   const node = getNodeByPath(selectedPath);
 
   switch (action) {
+    case 'select-mcbeid':
+      if (node && node.data) {
+        node.data.type = actEl.dataset.id;
+        markDirty();
+        renderEditor();
+        toast(`已填写 ${actEl.dataset.name}：${actEl.dataset.id}`, 'success');
+      }
+      break;
     case 'browse-image':
       openImagePicker(path => {
         if (!node) return;
@@ -1369,6 +1521,29 @@ el('editorContainer').addEventListener('click', e => {
       handleNodeOp('del', selectedPath);
       break;
   }
+});
+
+el('editorContainer').addEventListener('focusin', e => {
+  if (e.target.matches('[data-id-search]') && e.target.value.trim()) searchMcbeItems(e.target);
+});
+
+el('editorContainer').addEventListener('keydown', e => {
+  if (!e.target.matches('[data-id-search]')) return;
+  const results = [...el('editorContainer').querySelectorAll('.id-result')];
+  if (!results.length) return;
+  const current = Math.max(0, results.findIndex(item => item.classList.contains('active')));
+  let next = current;
+  if (e.key === 'ArrowDown') next = (current + 1) % results.length;
+  else if (e.key === 'ArrowUp') next = (current - 1 + results.length) % results.length;
+  else if (e.key === 'Enter') { e.preventDefault(); results[current].click(); return; }
+  else if (e.key === 'Escape') { renderMcbeResults([]); return; }
+  else return;
+  e.preventDefault();
+  results.forEach((item, index) => {
+    item.classList.toggle('active', index === next);
+    item.setAttribute('aria-selected', String(index === next));
+  });
+  results[next].scrollIntoView({ block: 'nearest' });
 });
 
 // 面包屑跳转
