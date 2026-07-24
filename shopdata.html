@@ -676,7 +676,7 @@ body {
 // ============ 全局状态 ============
 const MOJANG_RAW = 'https://raw.githubusercontent.com/Mojang/bedrock-samples/main/resource_pack/';
 const MOJANG_API = 'https://api.github.com/repos/Mojang/bedrock-samples/contents/resource_pack/';
-const MCBEID_DATA_URL = 'https://ca.projectxero.top/idlist/data/beta/vanilla.json';
+const MCBEID_DATA_URL = './mcbeid-vanilla.json';
 
 let shopData = { Buy: [], Sell: [] };       // 当前编辑的数据
 let selectedPath = null;                     // 当前选中节点路径，如 "Sell/0/2"
@@ -1021,7 +1021,7 @@ async function loadMcbeItems() {
   if (mcbeLoadPromise) return mcbeLoadPromise;
   mcbeLoadPromise = fetch(MCBEID_DATA_URL)
     .then(res => {
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (!res.ok) throw new Error(`本地物品表加载失败（HTTP ${res.status}）`);
       return res.json();
     })
     .then(data => {
@@ -1078,7 +1078,7 @@ async function searchMcbeItems(input) {
     await loadMcbeItems();
     if (input.isConnected && input.value.trim() === query) renderMcbeResults(findMcbeItems(query));
   } catch (err) {
-    renderMcbeResults([], 'MCBEID 物品表加载失败：' + err.message);
+    renderMcbeResults([], 'MCBEID 物品表加载失败：' + err.message + '。请确认 mcbeid-vanilla.json 与本页面位于同一目录。');
   }
 }
 
