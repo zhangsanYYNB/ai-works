@@ -18,8 +18,6 @@
 - `SteelRuler.html` — 钢尺工具
 - `slz.html` — 数值分析工具
 - `mcbeid-vanilla.json` — 配置文件
-- `browser_test.py` — 本地浏览器测试脚本（本地提交）
-- `test.png` — 测试截图（本地提交）
 - `README.md` — 项目说明文档
 
 ## Git 状态约定
