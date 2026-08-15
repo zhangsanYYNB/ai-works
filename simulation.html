@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>双环连杆机构运动仿真 (互相垂直的杆)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #2c3e50; }
+        .controls { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; padding: 15px; background: #eef2f7; border-radius: 6px; }
+        .control-group { display: flex; flex-direction: column; align-items: center; }
+        label { font-size: 0.9em; margin-bottom: 5px; font-weight: bold; }
+        input { padding: 5px; border: 1px solid #ccc; border-radius: 4px; width: 80px; }
+        button { padding: 8px 20px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; transition: background 0.3s; align-self: flex-end; }
+        button:hover { background-color: #2980b9; }
+        button.reset { background-color: #e74c3c; }
+        button.reset:hover { background-color: #c0392b; }
+        
+        .visualization-area { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+        .canvas-container { position: relative; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; background: #fff; }
+        canvas { display: block; }
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; width: 100%; margin-top: 20px; }
+        .chart-box { border: 1px solid #eee; padding: 10px; border-radius: 4px; background: #fafafa; }
+        .chart-title { font-size: 0.9em; text-align: center; margin-bottom: 5px; color: #555; font-weight: bold; }
+        
+        .info-panel { margin-top: 20px; padding: 15px; background: #e8f4fd; border-left: 5px solid #3498db; border-radius: 4px; }
+        .equation { font-family: 'Courier New', monospace; background: #fff; padding: 2px 5px; border-radius: 3px; }
+        
+        /* Tooltip style */
+        .tooltip { position: absolute; background: rgba(0,0,0,0.8); color: #fff; padding: 5px 10px; border-radius: 4px; font-size: 12px; pointer-events: none; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>双环连杆机构运动仿真</h1>
+    <p style="text-align: center; color: #666; font-size: 0.9em;">
+        模型说明：假设两根杆互相垂直（一根水平，一根竖直），忽略摩擦。<br>
+        环A在竖直杆运动，环B在水平杆运动，轻杆连接两环。
+    </p>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="initAngle">初始角度 θ (度)</label>
+            <input type="number" id="initAngle" value="60" min="1" max="89">
+        </div>
+        <div class="control-group">
+            <label for="rodLength">杆长 l (米)</label>
+            <input type="number" id="rodLength" value="2" step="0.1" min="0.1">
+        </div>
+        <div class="control-group">
+            <label for="gravity">重力加速度 g</label>
+            <input type="number" id="gravity" value="9.8" step="0.1">
+        </div>
+        <div class="control-group">
+            <label for="mass">质量 m (kg)</label>
+            <input type="number" id="mass" value="1" disabled title="质量在方程中消去，不影响运动学结果">
+        </div>
+        <button onclick="startSimulation()">开始 / 重置</button>
+    </div>
+
+    <div class="visualization-area">
+        <!-- Motion Canvas -->
+        <div class="canvas-container">
+            <canvas id="motionCanvas" width="400" height="400"></canvas>
+            <div id="motionTooltip" class="tooltip"></div>
+        </div>
+        
+        <!-- Real-time Stats -->
+        <div style="flex: 1; min-width: 300px; display: flex; flex-direction: column; justify-content: center;">
+            <div class="info-panel">
+                <h3>实时数据</h3>
+                <p>时间 t: <span id="val-time" class="equation">0.00</span> s</p>
+                <p>角度 θ: <span id="val-angle" class="equation">0.00</span> °</p>
+                <p>角速度 ω: <span id="val-omega" class="equation">0.00</span> rad/s</p>
+                <p>角加速度 α: <span id="val-alpha" class="equation">0.00</span> rad/s²</p>
+                <hr>
+                <p>竖直环位移 y: <span id="val-y" class="equation">0.00</span> m</p>
+                <p>竖直环速度 vy: <span id="val-vy" class="equation">0.00</span> m/s</p>
+                <p>竖直环加速度 ay: <span id="val-ay" class="equation">0.00</span> m/s²</p>
+                <hr>
+                <p>水平环位移 x: <span id="val-x" class="equation">0.00</span> m</p>
+                <p>水平环速度 vx: <span id="val-vx" class="equation">0.00</span> m/s</p>
+                <p>水平环加速度 ax: <span id="val-ax" class="equation">0.00</span> m/s²</p>
+            </div>
+            <div style="margin-top: 15px; font-size: 0.85em; color: #555;">
+                <strong>物理原理:</strong><br>
+                利用拉格朗日方程或牛顿第二定律结合几何约束求解。<br>
+                约束: \( x = l \cos\theta, y = l \sin\theta \)<br>
+                能量守恒: \( mgy + \frac{1}{2}m(\dot{x}^2 + \dot{y}^2) = E_0 \)
+            </div>
+        </div>
+    </div>
+
+    <h2>运动图像分析</h2>
+    <div class="chart-grid">
+        <div class="chart-box">
+            <div class="chart-title">角度 θ - 时间 t</div>
+            <canvas id="chartAngle" width="300" height="200"></canvas>
+        </div>
+        <div class="chart-box">
+            <div class="chart-title">角速度 ω - 时间 t</div>
+            <canvas id="chartOmega" width="300" height="200"></canvas>
+        </div>
+        <div class="chart-box">
+            <div class="chart-title">角加速度 α - 时间 t</div>
+            <canvas id="chartAlpha" width="300" height="200"></canvas>
+        </div>
+        <div class="chart-box">
+            <div class="chart-title">线加速度 (ay, ax) - 时间 t</div>
+            <canvas id="chartAccel" width="300" height="200"></canvas>
+        </div>
+        <div class="chart-box">
+            <div class="chart-title">位移 (x, y) - 时间 t</div>
+            <canvas id="chartPos" width="300" height="200"></canvas>
+        </div>
+        <div class="chart-box">
+            <div class="chart-title">速度 (vx, vy) - 时间 t</div>
+            <canvas id="chartVel" width="300" height="200"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Simulation State
+    let simRunning = false;
+    let animationId = null;
+    let t = 0;
+    let theta = 0; // radians
+    let omega = 0; // rad/s
+    let alpha = 0; // rad/s^2
+    
+    // History for charts
+    const history = {
+        t: [],
+        theta: [],
+        omega: [],
+        alpha: [],
+        x: [], y: [],
+        vx: [], vy: [],
+        ax: [], ay: []
+    };
+
+    const MAX_TIME = 5.0; // Simulate up to 5 seconds or until hit ground
+    const DT = 0.005; // Time step
+
+    // Canvas Contexts
+    const ctxMotion = document.getElementById('motionCanvas').getContext('2d');
+    const charts = {
+        angle: document.getElementById('chartAngle').getContext('2d'),
+        omega: document.getElementById('chartOmega').getContext('2d'),
+        alpha: document.getElementById('chartAlpha').getContext('2d'),
+        accel: document.getElementById('chartAccel').getContext('2d'),
+        pos: document.getElementById('chartPos').getContext('2d'),
+        vel: document.getElementById('chartVel').getContext('2d')
+    };
+
+    function toRad(deg) { return deg * Math.PI / 180; }
+    function toDeg(rad) { return rad * 180 / Math.PI; }
+
+    // Physics Derivation (Brief):
+    // x = L cos(theta), y = L sin(theta)
+    // vx = -L sin(theta) omega, vy = L cos(theta) omega
+    // ax = -L sin(theta) alpha - L cos(theta) omega^2
+    // ay = L cos(theta) alpha - L sin(theta) omega^2
+    // Forces: Tension T along rod. Gravity mg on vertical ring (y).
+    // Eq for vertical ring (y): mg - T sin(theta) = m ay
+    // Eq for horizontal ring (x): T cos(theta) = m ax  (No gravity on x-axis motion)
+    // Substitute T: T = m ax / cos(theta)
+    // mg - (m ax / cos(theta)) sin(theta) = m ay
+    // g - ax tan(theta) = ay
+    // Substitute ax, ay expressions in terms of theta, omega, alpha:
+    // g - (-L sin theta alpha - L cos theta omega^2) tan theta = (L cos theta alpha - L sin theta omega^2)
+    // Solve for alpha:
+    // g + L sin^2 theta/cos theta alpha + L sin theta omega^2 = L cos theta alpha - L sin theta omega^2
+    // g + 2 L sin theta omega^2 = L alpha (cos theta - sin^2 theta / cos theta)
+    // g + 2 L sin theta omega^2 = L alpha ( (cos^2 theta - sin^2 theta) / cos theta )
+    // g + 2 L sin theta omega^2 = L alpha ( cos(2theta) / cos theta )
+    // alpha = (g + 2 L sin theta omega^2) * cos theta / (L cos(2theta))
+    // Note: Singularity at theta = 45 degrees? 
+    // Let's re-evaluate the denominator: cos^2 - sin^2 = cos(2theta). Yes.
+    // Wait, if theta starts at 60 and falls to 0. cos(2theta) goes from cos(120)=-0.5 to cos(0)=1. It crosses 0 at 45 deg.
+    // This implies infinite acceleration at 45 degrees? 
+    // Let's check the constraint force logic again.
+    // Actually, usually one ring is heavy, one light, or specific setup. Here masses are equal.
+    // If masses are equal, does it pass 45 degrees smoothly?
+    // Energy: m g L sin(theta) + 0.5 m (vx^2 + vy^2) = Const
+    // m g L sin(theta) + 0.5 m L^2 omega^2 (sin^2 + cos^2) = Const
+    // g L sin(theta) + 0.5 L^2 omega^2 = C
+    // Differentiate wrt t:
+    // g L cos(theta) omega + L^2 omega alpha = 0
+    // omega (g L cos(theta) + L^2 alpha) = 0
+    // Since omega != 0 generally: alpha = - (g/L) cos(theta).
+    // WAIT. This simple derivation assumes something wrong.
+    // Kinetic Energy: T = 0.5 m (vx^2 + vy^2).
+    // vx = -L sin theta omega, vy = L cos theta omega.
+    // v^2 = L^2 omega^2 (sin^2 + cos^2) = L^2 omega^2.
+    // Potential Energy: V = m g y = m g L sin theta. (Assuming y is height of vertical ring).
+    // Lagrangian L = T - V = 0.5 m L^2 omega^2 - m g L sin theta.
+    // d/dt (dL/domega) - dL/dtheta = 0
+    // d/dt (m L^2 omega) - (- m g L cos theta) = 0
+    // m L^2 alpha + m g L cos theta = 0
+    // alpha = - (g/L) cos theta.
+    // This is remarkably simple! Why did the force method look complicated?
+    // Force method check:
+    // Vertical: mg - T sin theta = m ay
+    // Horizontal: T cos theta = m ax
+    // ay = L cos theta alpha - L sin theta omega^2
+    // ax = -L sin theta alpha - L cos theta omega^2
+    // From Horz: T = -m L (sin theta alpha + cos theta omega^2) / cos theta
+    // Sub into Vert: mg - [-m L (sin theta alpha + cos theta omega^2) / cos theta] * sin theta = m (L cos theta alpha - L sin theta omega^2)
+    // Divide by m: g + L tan theta (sin theta alpha + cos theta omega^2) = L cos theta alpha - L sin theta omega^2
+    // g + L (sin^2/cos) alpha + L sin theta omega^2 = L cos theta alpha - L sin theta omega^2
+    // g + 2 L sin theta omega^2 = L alpha (cos theta - sin^2/cos theta) = L alpha ( (cos^2-sin^2)/cos ) = L alpha cos(2theta)/cos theta
+    // So alpha = (g + 2 L sin theta omega^2) cos theta / (L cos(2theta)).
+    // Why the discrepancy?
+    // Ah, Potential Energy reference. If y = L sin theta, then as theta decreases (falls), y decreases.
+    // But wait, if one ring is on X axis and one on Y axis.
+    // Center of mass motion?
+    // Let's re-verify the KE.
+    // Ring 1 (vertical): y1 = L sin theta. v1 = L cos theta omega.
+    // Ring 2 (horizontal): x2 = L cos theta. v2 = -L sin theta omega.
+    // Total KE = 0.5 m (L cos theta omega)^2 + 0.5 m (-L sin theta omega)^2
+    // = 0.5 m L^2 omega^2 (cos^2 + sin^2) = 0.5 m L^2 omega^2.
+    // PE = m g y1 = m g L sin theta.
+    // Conservation: 0.5 m L^2 omega^2 + m g L sin theta = Constant.
+    // Diff: m L^2 omega alpha + m g L cos theta omega = 0.
+    // alpha = - (g/L) cos theta.
+    // The force method must have an algebra error or sign error.
+    // Let's trust the Lagrangian/Energy method. It is robust for conservative systems.
+    // Result: alpha = -(g/L) cos(theta).
+    // This means the angular acceleration depends only on theta, not omega!
+    // This simplifies the simulation greatly.
+
+    function calculateAlpha(th, om, L, g) {
+        // Based on Energy conservation derivation: alpha = -(g/L) * cos(theta)
+        // Sign convention: theta is angle with horizontal. Gravity pulls vertical ring down.
+        // As ring falls, theta decreases. So alpha should be negative.
+        // cos(theta) is positive in 0-90. So -(g/L)cos(theta) is negative. Correct.
+        return -(g / L) * Math.cos(th);
+    }
+
+    function startSimulation() {
+        if (animationId) cancelAnimationFrame(animationId);
+        
+        const L = parseFloat(document.getElementById('rodLength').value);
+        const g = parseFloat(document.getElementById('gravity').value);
+        const initThetaDeg = parseFloat(document.getElementById('initAngle').value);
+        
+        theta = toRad(initThetaDeg);
+        omega = 0;
+        t = 0;
+        alpha = calculateAlpha(theta, omega, L, g);
+        
+        // Reset history
+        Object.keys(history).forEach(k => history[k] = []);
+        
+        simRunning = true;
+        simulateStep(L, g);
+    }
+
+    function simulateStep(L, g) {
+        if (!simRunning) return;
+        
+        // Record data
+        const currentData = {
+            t: t,
+            theta: theta,
+            omega: omega,
+            alpha: alpha,
+            x: L * Math.cos(theta),
+            y: L * Math.sin(theta),
+            vx: -L * Math.sin(theta) * omega,
+            vy: L * Math.cos(theta) * omega,
+            ax: -L * Math.sin(theta) * alpha - L * Math.cos(theta) * omega * omega,
+            ay: L * Math.cos(theta) * alpha - L * Math.sin(theta) * omega * omega
+        };
+
+        Object.keys(history).forEach(k => history[k].push(currentData[k]));
+
+        // Update UI Text
+        document.getElementById('val-time').textContent = t.toFixed(2);
+        document.getElementById('val-angle').textContent = toDeg(theta).toFixed(2);
+        document.getElementById('val-omega').textContent = omega.toFixed(2);
+        document.getElementById('val-alpha').textContent = alpha.toFixed(2);
+        document.getElementById('val-y').textContent = currentData.y.toFixed(3);
+        document.getElementById('val-vy').textContent = currentData.vy.toFixed(3);
+        document.getElementById('val-ay').textContent = currentData.ay.toFixed(3);
+        document.getElementById('val-x').textContent = currentData.x.toFixed(3);
+        document.getElementById('val-vx').textContent = currentData.vx.toFixed(3);
+        document.getElementById('val-ax').textContent = currentData.ax.toFixed(3);
+
+        // Draw Motion
+        drawMotion(L, currentData.x, currentData.y);
+
+        // Draw Charts (throttled or every frame? Every frame for smoothness, but limit points if too long)
+        if (t % 0.05 < DT) { // Update charts less frequently than physics if needed, but here DT is small
+             drawCharts();
+        }
+
+        // Physics Integration (Runge-Kutta 4 or simple Euler? Euler is okay for visualization if DT small)
+        // Using semi-implicit Euler for better energy stability
+        // omega_new = omega + alpha * dt
+        // theta_new = theta + omega_new * dt
+        
+        // Recalculate alpha for new theta? No, standard integration:
+        // a(t), v(t) -> v(t+dt), x(t+dt)
+        
+        const dt = DT;
+        omega += alpha * dt;
+        theta += omega * dt;
+        t += dt;
+        
+        alpha = calculateAlpha(theta, omega, L, g);
+
+        // Stop condition: theta <= 0 (hit ground) or t too large
+        if (theta <= 0.01 || t > 10) {
+            simRunning = false;
+            // Final draw
+            drawCharts();
+            return;
+        }
+
+        animationId = requestAnimationFrame(() => simulateStep(L, g));
+    }
+
+    function drawMotion(L, x, y) {
+        const cvs = document.getElementById('motionCanvas');
+        const ctx = ctxMotion;
+        const w = cvs.width;
+        const h = cvs.height;
+        
+        ctx.clearRect(0, 0, w, h);
+        
+        // Scale
+        const scale = Math.min(w, h) / (L * 1.2);
+        const originX = 50; // Left wall
+        const originY = h - 50; // Floor
+        
+        // Draw Rods (Axes)
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        // Vertical rod (y-axis)
+        ctx.moveTo(originX, originY);
+        ctx.lineTo(originX, 10);
+        // Horizontal rod (x-axis)
+        ctx.moveTo(originX, originY);
+        ctx.lineTo(w - 10, originY);
+        ctx.stroke();
+        
+        // Calculate positions in pixels
+        // Vertical ring at (0, y) -> (originX, originY - y*scale)
+        // Horizontal ring at (x, 0) -> (originX + x*scale, originY)
+        
+        const px1 = originX;
+        const py1 = originY - y * scale;
+        
+        const px2 = originX + x * scale;
+        const py2 = originY;
+        
+        // Draw Connecting Rod
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(px1, py1);
+        ctx.lineTo(px2, py2);
+        ctx.stroke();
+        
+        // Draw Rings
+        ctx.fillStyle = '#3498db';
+        // Ring 1 (Vertical)
+        ctx.beginPath();
+        ctx.arc(px1, py1, 8, 0, Math.PI*2);
+        ctx.fill();
+        // Ring 2 (Horizontal)
+        ctx.beginPath();
+        ctx.arc(px2, py2, 8, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Labels
+        ctx.fillStyle = '#333';
+        ctx.font = '12px Arial';
+        ctx.fillText("竖直环 (m)", px1 - 40, py1);
+        ctx.fillText("水平环 (m)", px2, py2 + 20);
+        ctx.fillText(`θ = ${toDeg(theta).toFixed(1)}°`, originX + 20, originY - 20);
+    }
+
+    function drawCharts() {
+        drawSingleChart(charts.angle, history.t, history.theta, 'Angle (rad)', '#3498db', toDeg);
+        drawSingleChart(charts.omega, history.t, history.omega, 'Omega (rad/s)', '#2ecc71');
+        drawSingleChart(charts.alpha, history.t, history.alpha, 'Alpha (rad/s²)', '#e74c3c');
+        drawMultiChart(charts.accel, history.t, [history.ay, history.ax], ['ay (vert)', 'ax (horz)'], ['#e74c3c', '#3498db']);
+        drawMultiChart(charts.pos, history.t, [history.y, history.x], ['y (vert)', 'x (horz)'], ['#e74c3c', '#3498db']);
+        drawMultiChart(charts.vel, history.t, [history.vy, history.vx], ['vy (vert)', 'vx (horz)'], ['#e74c3c', '#3498db']);
+    }
+
+    function drawSingleChart(ctx, xData, yData, label, color, transformFn = null) {
+        const w = ctx.canvas.width;
+        const h = ctx.canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        
+        if (xData.length < 2) return;
+        
+        const minX = 0;
+        const maxX = Math.max(...xData);
+        const minY = Math.min(...yData);
+        const maxY = Math.max(...yData);
+        const rangeY = maxY - minY || 1;
+        
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        xData.forEach((x, i) => {
+            const px = (x / maxX) * (w - 40) + 30;
+            const val = transformFn ? transformFn(yData[i]) : yData[i];
+            // Auto scale if transformed
+            // Re-calc min/max for transformed if needed, but for simplicity assume linear mapping of raw data indices
+            // Better: Map based on current view. Here we just map full range.
+            const currentVal = transformFn ? transformFn(yData[i]) : yData[i];
+            // We need min/max of transformed values if transform exists. 
+            // For simplicity in this demo, we assume the transform doesn't flip order drastically or we just plot raw indices scaled.
+            // Let's do a quick min/max scan for the plotted values
+        });
+        
+        // Robust Min/Max
+        const plottedValues = transformFn ? yData.map(transformFn) : yData;
+        const pMinY = Math.min(...plottedValues);
+        const pMaxY = Math.max(...plottedValues);
+        const pRangeY = pMaxY - pMinY || 1;
+        
+        ctx.beginPath();
+        xData.forEach((x, i) => {
+            const px = (x / maxX) * (w - 40) + 30;
+            const py = h - 20 - ((plottedValues[i] - pMinY) / pRangeY) * (h - 40);
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        });
+        ctx.stroke();
+        
+        // Axes
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(30, h-20); ctx.lineTo(w-10, h-20); // X
+        ctx.moveTo(30, h-20); ctx.lineTo(30, 10);     // Y
+        ctx.stroke();
+        
+        ctx.fillStyle = '#555';
+        ctx.font = '10px Arial';
+        ctx.fillText(label, w/2 - 20, 10);
+    }
+
+    function drawMultiChart(ctx, xData, yDatas, labels, colors) {
+        const w = ctx.canvas.width;
+        const h = ctx.canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        
+        if (xData.length < 2) return;
+        
+        const maxX = Math.max(...xData);
+        
+        // Find global min/max for scaling
+        let allVals = [];
+        yDatas.forEach(arr => allVals = allVals.concat(arr));
+        const minY = Math.min(...allVals);
+        const maxY = Math.max(...allVals);
+        const rangeY = maxY - minY || 1;
+        
+        yDatas.forEach((yData, idx) => {
+            ctx.strokeStyle = colors[idx];
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            xData.forEach((x, i) => {
+                const px = (x / maxX) * (w - 40) + 30;
+                const py = h - 20 - ((yData[i] - minY) / rangeY) * (h - 40);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
+        });
+        
+        // Axes
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(30, h-20); ctx.lineTo(w-10, h-20);
+        ctx.moveTo(30, h-20); ctx.lineTo(30, 10);
+        ctx.stroke();
+        
+        // Legend
+        ctx.font = '10px Arial';
+        labels.forEach((lab, i) => {
+            ctx.fillStyle = colors[i];
+            ctx.fillRect(w - 80, 10 + i*12, 8, 8);
+            ctx.fillStyle = '#333';
+            ctx.fillText(lab, w - 70, 17 + i*12);
+        });
+    }
+
+    // Initialize
+    window.onload = () => {
+        startSimulation();
+    };
+
+</script>
+</body>
+</html>

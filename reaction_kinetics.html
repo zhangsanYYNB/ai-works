@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SO₂催化氧化反应动力学仿真</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+        }
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1em;
+        }
+        .reaction-equation {
+            text-align: center;
+            font-size: 1.5em;
+            color: #764ba2;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .control-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        .control-group input {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        .control-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        button {
+            padding: 12px 30px;
+            font-size: 1em;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-start {
+            background: #28a745;
+            color: white;
+        }
+        .btn-start:hover {
+            background: #218838;
+        }
+        .btn-reset {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-reset:hover {
+            background: #c82333;
+        }
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+        @media (max-width: 900px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        .chart-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .chart-title {
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .info-box h3 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+        }
+        .info-box p {
+            margin: 5px 0;
+            line-height: 1.6;
+        }
+        .equation-display {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        @media (max-width: 700px) {
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 SO₂催化氧化反应动力学仿真</h1>
+        <p class="subtitle">基于常微分方程数值积分的化学反应动力学模拟</p>
+        
+        <div class="reaction-equation">
+            2 SO₂ + O₂ ⇌ 2 SO₃
+        </div>
+
+        <div class="info-box">
+            <h3>📘 模型说明</h3>
+            <p><strong>正反应速率：</strong> r_f = k_f · [SO₂]² · [O₂]</p>
+            <p><strong>逆反应速率：</strong> r_r = k_r · [SO₃]²</p>
+            <p><strong>净反应速率：</strong> r_net = r_f - r_r</p>
+            <p><strong>微分方程：</strong> dx/dt = 2 · [k_f · (c_A0-x)² · (c_B0-x/2) - k_r · (c_C0+x)²]</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="kf">正反应速率常数 k_f (L²/mol²/s)</label>
+                <input type="number" id="kf" value="0.8" step="0.1" min="0">
+            </div>
+            <div class="control-group">
+                <label for="kr">逆反应速率常数 k_r (L/mol/s)</label>
+                <input type="number" id="kr" value="0.05" step="0.01" min="0">
+            </div>
+            <div class="control-group">
+                <label for="cA0">初始 [SO₂] (mol/L)</label>
+                <input type="number" id="cA0" value="1.0" step="0.1" min="0">
+            </div>
+            <div class="control-group">
+                <label for="cB0">初始 [O₂] (mol/L)</label>
+                <input type="number" id="cB0" value="0.6" step="0.1" min="0">
+            </div>
+            <div class="control-group">
+                <label for="cC0">初始 [SO₃] (mol/L)</label>
+                <input type="number" id="cC0" value="0.0" step="0.1" min="0">
+            </div>
+            <div class="control-group">
+                <label for="simTime">模拟时间 (s)</label>
+                <input type="number" id="simTime" value="10" step="1" min="1">
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-start" onclick="runSimulation()">▶️ 开始仿真</button>
+            <button class="btn-reset" onclick="resetSimulation()">🔄 重置</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="eqX">-</div>
+                <div class="stat-label">平衡反应进度 x_eq</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="eqSO2">-</div>
+                <div class="stat-label">平衡 [SO₂]</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="eqO2">-</div>
+                <div class="stat-label">平衡 [O₂]</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="eqSO3">-</div>
+                <div class="stat-label">平衡 [SO₃]</div>
+            </div>
+        </div>
+
+        <div class="charts-container">
+            <div class="chart-box">
+                <div class="chart-title">📈 净反应速率 vs 时间</div>
+                <canvas id="rateChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <div class="chart-title">🧪 各组分浓度 vs 时间</div>
+                <canvas id="concentrationChart"></canvas>
+            </div>
+        </div>
+
+        <div class="equation-display">
+            <strong>📐 控制方程：</strong><br>
+            dx/dt = 2 · [k_f · (c_A0 - x)² · (c_B0 - x/2) - k_r · (c_C0 + x)²]<br><br>
+            <strong>浓度还原公式：</strong><br>
+            [SO₂] = c_A0 - x<br>
+            [O₂] = c_B0 - x/2<br>
+            [SO₃] = c_C0 + x
+        </div>
+    </div>
+
+    <script>
+        let rateChart = null;
+        let concentrationChart = null;
+        let simulationRunning = false;
+
+        // 龙格 - 库塔 4 阶方法求解 ODE
+        function rk4(f, t0, y0, tf, n) {
+            const h = (tf - t0) / n;
+            const t = new Array(n + 1);
+            const y = new Array(n + 1);
+            
+            t[0] = t0;
+            y[0] = y0;
+            
+            for (let i = 0; i < n; i++) {
+                const k1 = f(t[i], y[i]);
+                const k2 = f(t[i] + h/2, y[i] + h*k1/2);
+                const k3 = f(t[i] + h/2, y[i] + h*k2/2);
+                const k4 = f(t[i] + h, y[i] + h*k3);
+                
+                y[i+1] = y[i] + (h/6) * (k1 + 2*k2 + 2*k3 + k4);
+                t[i+1] = t[i] + h;
+            }
+            
+            return { t, y };
+        }
+
+        function runSimulation() {
+            if (simulationRunning) return;
+            simulationRunning = true;
+
+            // 获取参数
+            const kf = parseFloat(document.getElementById('kf').value);
+            const kr = parseFloat(document.getElementById('kr').value);
+            const cA0 = parseFloat(document.getElementById('cA0').value);
+            const cB0 = parseFloat(document.getElementById('cB0').value);
+            const cC0 = parseFloat(document.getElementById('cC0').value);
+            const simTime = parseFloat(document.getElementById('simTime').value);
+
+            // 定义 ODE: dx/dt = 2 * [kf * (cA0-x)^2 * (cB0-x/2) - kr * (cC0+x)^2]
+            function dxdt(t, x) {
+                const cA = cA0 - x;
+                const cB = cB0 - x/2;
+                const cC = cC0 + x;
+                
+                // 防止负浓度
+                if (cA < 0 || cB < 0) return 0;
+                
+                const rf = kf * cA * cA * cB;
+                const rr = kr * cC * cC;
+                return 2 * (rf - rr);
+            }
+
+            // 使用 RK4 求解
+            const n = 500;
+            const result = rk4(dxdt, 0, 0, simTime, n);
+            
+            // 计算各变量
+            const t = result.t;
+            const x = result.y;
+            const cA = x.map(xi => Math.max(0, cA0 - xi));
+            const cB = x.map(xi => Math.max(0, cB0 - xi/2));
+            const cC = x.map(xi => cC0 + xi);
+            
+            // 计算净反应速率
+            const rNet = x.map((xi, i) => {
+                const cAi = cA0 - xi;
+                const cBi = cB0 - xi/2;
+                const cCi = cC0 + xi;
+                if (cAi < 0 || cBi < 0) return 0;
+                const rf = kf * cAi * cAi * cBi;
+                const rr = kr * cCi * cCi;
+                return 2 * (rf - rr);
+            });
+
+            // 计算平衡状态（最后一点）
+            const xEq = x[x.length - 1];
+            document.getElementById('eqX').textContent = xEq.toFixed(4);
+            document.getElementById('eqSO2').textContent = cA[cA.length - 1].toFixed(4);
+            document.getElementById('eqO2').textContent = cB[cB.length - 1].toFixed(4);
+            document.getElementById('eqSO3').textContent = cC[cC.length - 1].toFixed(4);
+
+            // 绘制净反应速率图
+            const rateCtx = document.getElementById('rateChart').getContext('2d');
+            if (rateChart) rateChart.destroy();
+            
+            rateChart = new Chart(rateCtx, {
+                type: 'line',
+                data: {
+                    labels: t.map(ti => ti.toFixed(2)),
+                    datasets: [{
+                        label: '净反应速率 r_net (mol/L/s)',
+                        data: rNet,
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '时间 t (s)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '净反应速率 (mol/L/s)'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // 绘制浓度图
+            const concCtx = document.getElementById('concentrationChart').getContext('2d');
+            if (concentrationChart) concentrationChart.destroy();
+            
+            concentrationChart = new Chart(concCtx, {
+                type: 'line',
+                data: {
+                    labels: t.map(ti => ti.toFixed(2)),
+                    datasets: [
+                        {
+                            label: '[SO₂] (mol/L)',
+                            data: cA,
+                            borderColor: '#ffc107',
+                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0
+                        },
+                        {
+                            label: '[O₂] (mol/L)',
+                            data: cB,
+                            borderColor: '#17a2b8',
+                            backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0
+                        },
+                        {
+                            label: '[SO₃] (mol/L)',
+                            data: cC,
+                            borderColor: '#28a745',
+                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '时间 t (s)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '浓度 (mol/L)'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            simulationRunning = false;
+        }
+
+        function resetSimulation() {
+            document.getElementById('kf').value = '0.8';
+            document.getElementById('kr').value = '0.05';
+            document.getElementById('cA0').value = '1.0';
+            document.getElementById('cB0').value = '0.6';
+            document.getElementById('cC0').value = '0.0';
+            document.getElementById('simTime').value = '10';
+            
+            document.getElementById('eqX').textContent = '-';
+            document.getElementById('eqSO2').textContent = '-';
+            document.getElementById('eqO2').textContent = '-';
+            document.getElementById('eqSO3').textContent = '-';
+            
+            if (rateChart) {
+                rateChart.data.labels = [];
+                rateChart.data.datasets.forEach(d => d.data = []);
+                rateChart.update();
+            }
+            if (concentrationChart) {
+                concentrationChart.data.labels = [];
+                concentrationChart.data.datasets.forEach(d => d.data = []);
+                concentrationChart.update();
+            }
+        }
+
+        // 页面加载时自动运行一次仿真
+        window.addEventListener('load', runSimulation);
+    </script>
+</body>
+</html>

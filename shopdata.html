@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShopData 商店配置编辑器</title>
+<style>
+:root {
+  --primary: #4a7c59;
+  --primary-dark: #3a6347;
+  --primary-light: #e8f3ec;
+  --accent: #d97706;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --warning: #d97706;
+  --warning-light: #fffbeb;
+  --success: #16a34a;
+  --success-light: #f0fdf4;
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --border: #e2e5ea;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  --mono: "Cascadia Code", Consolas, "Courier New", monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+/* ===== 顶部工具栏 ===== */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  flex-wrap: wrap;
+  z-index: 20;
+}
+.brand {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+.brand svg { width: 24px; height: 24px; }
+.toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary-dark); }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn.primary:hover { background: var(--primary-dark); }
+.btn.danger:hover { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
+.btn.small { padding: 4px 10px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+.stats-bar {
+  margin-left: auto;
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+  align-items: center;
+}
+.stats-bar b { color: var(--primary-dark); }
+.dirty-dot { color: var(--accent); font-weight: 700; }
+
+/* ===== 主区域布局 ===== */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  min-height: 0;
+}
+.tree-panel {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.tree-toolbar {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.tree-search {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  outline: none;
+}
+.tree-search:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+.tree-container {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+}
+.tree-empty { color: var(--text-muted); text-align: center; padding: 40px 10px; font-size: 13px; }
+
+/* ===== 树节点 ===== */
+.tree-root-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--primary-dark);
+  background: var(--primary-light);
+  border-radius: var(--radius);
+  margin-bottom: 4px;
+  user-select: none;
+}
+.tree-root-label .badge { margin-left: auto; }
+.tree-root-label .root-actions { display: flex; gap: 2px; }
+.tree-node { user-select: none; }
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  min-height: 30px;
+}
+.tree-row:hover { background: #f1f5f3; }
+.tree-row.selected { background: var(--primary-light); outline: 1px solid var(--primary); }
+.tree-row.has-error { background: var(--danger-light); }
+.tree-row.has-error.selected { outline-color: var(--danger); }
+.tree-toggle {
+  width: 18px; height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: transform .15s;
+}
+.tree-toggle.open { transform: rotate(90deg); }
+.tree-toggle.leaf { visibility: hidden; }
+.tree-icon { width: 18px; height: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+.tree-icon img { width: 18px; height: 18px; image-rendering: pixelated; }
+.tree-icon svg { width: 16px; height: 16px; }
+.tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.badge.group { background: #dbeafe; color: #1d4ed8; }
+.badge.exam { background: #fef3c7; color: #b45309; }
+.badge.err { background: var(--danger); color: #fff; }
+.tree-ops { display: none; gap: 2px; flex-shrink: 0; }
+.tree-row:hover .tree-ops { display: inline-flex; }
+.op-btn {
+  width: 22px; height: 22px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+.op-btn:hover { background: #e2e5ea; color: var(--text); }
+.op-btn.danger:hover { background: var(--danger-light); color: var(--danger); }
+.tree-children { margin-left: 16px; border-left: 1px dashed var(--border); padding-left: 6px; }
+.tree-children.collapsed { display: none; }
+
+/* ===== 编辑器面板 ===== */
+.editor-panel {
+  overflow: auto;
+  padding: 20px 24px;
+  min-width: 0;
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.breadcrumb .crumb { cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+.breadcrumb .crumb:hover { background: var(--primary-light); color: var(--primary-dark); }
+.breadcrumb .sep { color: #c2c8d0; }
+.editor-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  max-width: 760px;
+}
+.editor-card h2 { font-size: 16px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+.editor-subtitle { color: var(--text-muted); font-size: 12px; margin-bottom: 18px; }
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.form-label .req { color: var(--danger); }
+.form-label .hint { font-weight: 400; color: var(--text-muted); font-size: 11px; }
+.form-input, .form-textarea, .form-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color .15s, box-shadow .15s;
+}
+.form-input:focus, .form-textarea:focus, .form-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+.form-input.invalid, .form-textarea.invalid { border-color: var(--danger); background: var(--danger-light); }
+.form-input.mono, .form-textarea.mono { font-family: var(--mono); font-size: 12px; }
+.form-textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+.field-msg { font-size: 12px; margin-top: 5px; display: flex; align-items: flex-start; gap: 5px; line-height: 1.5; }
+.field-msg.error { color: var(--danger); }
+.field-msg.warning { color: var(--warning); }
+.field-msg.ok { color: var(--success); }
+.field-msg .fix-btn {
+  margin-left: 6px;
+  padding: 1px 8px;
+  font-size: 11px;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.field-msg .fix-btn:hover { opacity: .8; background: rgba(0,0,0,.05); }
+.editor-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.empty-editor {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 80px 20px;
+}
+.empty-editor .big { font-size: 40px; margin-bottom: 12px; }
+.mode-switch {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.mode-switch button {
+  padding: 7px 16px;
+  border: none;
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.mode-switch button.active { background: var(--primary); color: #fff; }
+
+/* ===== MCBEID 物品补全 ===== */
+.id-lookup { position: relative; }
+.id-lookup-input-wrap { position: relative; }
+.id-lookup-input-wrap svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.id-lookup-input { padding-left: 34px; padding-right: 82px; }
+.id-lookup-source {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 10px;
+  text-decoration: none;
+}
+.id-lookup-source:hover { color: var(--primary-dark); text-decoration: underline; }
+.id-results {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(31,41,55,.16);
+}
+.id-results:empty { display: none; }
+.id-result {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 11px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.id-result:last-child { border-bottom: none; }
+.id-result:hover, .id-result.active { background: var(--primary-light); }
+.id-result-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.id-result-id { color: var(--text-muted); font: 11px var(--mono); }
+.id-result-status { padding: 14px; color: var(--text-muted); font-size: 12px; text-align: center; }
+
+/* ===== 图像字段 ===== */
+.image-field { display: flex; gap: 10px; align-items: flex-start; }
+.image-preview-box {
+  width: 64px; height: 64px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background:
+    repeating-conic-gradient(#e8eaed 0% 25%, #fff 0% 50%) 50% / 16px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+.image-preview-box img { width: 48px; height: 48px; image-rendering: pixelated; }
+.image-preview-box .no-img { font-size: 20px; color: #b6bcc6; }
+.image-input-col { flex: 1; }
+.image-btn-row { display: flex; gap: 8px; margin-top: 6px; }
+
+/* ===== 验证抽屉 ===== */
+.validation-drawer {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 380px;
+  max-width: 92vw;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 16px rgba(0,0,0,.1);
+  transform: translateX(105%);
+  transition: transform .25s;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+}
+.validation-drawer.open { transform: translateX(0); }
+.drawer-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+}
+.drawer-body { flex: 1; overflow: auto; padding: 10px; }
+.validation-item {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.validation-item:hover { background: var(--bg); }
+.validation-item.error { border-left: 3px solid var(--danger); }
+.validation-item.warning { border-left: 3px solid var(--warning); }
+.validation-item .vpath { font-weight: 700; color: var(--primary-dark); margin-bottom: 2px; }
+.validation-item .vmsg { color: var(--text); }
+.validation-item .vsug { color: var(--text-muted); margin-top: 2px; }
+.validation-ok { text-align: center; color: var(--success); padding: 40px 20px; font-weight: 600; }
+
+/* ===== 模态框 ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--panel);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  width: 860px;
+  max-width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 15px;
+}
+.modal-close { border: none; background: none; font-size: 18px; cursor: pointer; color: var(--text-muted); width: 30px; height: 30px; border-radius: 6px; }
+.modal-close:hover { background: var(--bg); color: var(--text); }
+.modal-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+
+/* ===== 图像选择器 ===== */
+.picker-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.picker-tabs button {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+}
+.picker-tabs button.active { color: var(--primary-dark); border-bottom-color: var(--primary); }
+.picker-toolbar { padding: 12px 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.picker-toolbar select, .picker-toolbar input {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  outline: none;
+}
+.picker-toolbar input { flex: 1; min-width: 140px; }
+.picker-grid-wrap { flex: 1; overflow: auto; padding: 12px 20px; min-height: 280px; }
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 10px;
+}
+.picker-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 4px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .12s;
+}
+.picker-item:hover { border-color: var(--primary); background: var(--primary-light); transform: translateY(-1px); }
+.picker-item img {
+  width: 40px; height: 40px;
+  image-rendering: pixelated;
+  background: repeating-conic-gradient(#eceef1 0% 25%, #fff 0% 50%) 50% / 12px 12px;
+  border-radius: 4px;
+}
+.picker-item .pname { font-size: 10px; color: var(--text-muted); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-status { text-align: center; color: var(--text-muted); padding: 40px; font-size: 13px; grid-column: 1 / -1; }
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: #1f2937;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  opacity: 0;
+  transition: all .25s;
+  z-index: 200;
+  pointer-events: none;
+  max-width: 80vw;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.success { background: var(--success); }
+.toast.error { background: var(--danger); }
+.toast.warning { background: var(--warning); }
+
+/* ===== 确认对话框 ===== */
+.confirm-modal { width: 420px; padding: 24px; }
+.confirm-modal h3 { font-size: 15px; margin-bottom: 10px; }
+.confirm-modal p { color: var(--text-muted); font-size: 13px; line-height: 1.6; margin-bottom: 20px; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ===== 响应式 ===== */
+@media (max-width: 860px) {
+  .main { grid-template-columns: 1fr; grid-template-rows: 45% 1fr; }
+  .tree-panel { border-right: none; border-bottom: 1px solid var(--border); }
+  .editor-panel { padding: 14px; }
+  .form-row, .form-row.three { grid-template-columns: 1fr; }
+  .stats-bar { width: 100%; margin-left: 0; }
+  .validation-drawer { width: 100vw; max-width: 100vw; }
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #cbd2da; border-radius: 6px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: #aab3bd; }
+::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+
+<!-- 顶部工具栏 -->
+<header class="toolbar">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+    ShopData 商店配置编辑器
+  </div>
+  <div class="toolbar-actions">
+    <button class="btn" id="btnUpload" title="从本地上传 shopdata.json">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      打开 JSON
+    </button>
+    <button class="btn primary" id="btnDownload" title="下载编辑后的 shopdata.json">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      下载 JSON
+    </button>
+    <button class="btn" id="btnNew" title="新建空项目">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      新建项目
+    </button>
+    <button class="btn danger" id="btnClear" title="清空当前所有数据">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      清空数据
+    </button>
+    <button class="btn" id="btnValidateAll" title="验证全部数据">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      全部验证
+    </button>
+  </div>
+  <div class="stats-bar" id="statsBar"></div>
+</header>
+<input type="file" id="fileInput" accept=".json,application/json" hidden>
+
+<!-- 主区域 -->
+<div class="main">
+  <aside class="tree-panel">
+    <div class="tree-toolbar">
+      <input type="text" class="tree-search" id="treeSearch" placeholder="搜索节点名称...">
+      <button class="btn small" id="btnExpandAll" title="全部展开">展开</button>
+      <button class="btn small" id="btnCollapseAll" title="全部折叠">折叠</button>
+    </div>
+    <div class="tree-container" id="treeContainer"></div>
+  </aside>
+  <section class="editor-panel">
+    <div class="breadcrumb" id="breadcrumb"></div>
+    <div id="editorContainer"></div>
+  </section>
+</div>
+
+<!-- 验证结果抽屉 -->
+<div class="validation-drawer" id="validationDrawer">
+  <div class="drawer-header">
+    <span id="drawerTitle">验证结果</span>
+    <button class="modal-close" id="drawerClose">✕</button>
+  </div>
+  <div class="drawer-body" id="validationList"></div>
+</div>
+
+<!-- 图像选择器模态框 -->
+<div class="modal-overlay" id="imagePickerOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span>选择图像资源（Mojang 官方资源包）</span>
+      <button class="modal-close" id="pickerClose">✕</button>
+    </div>
+    <div class="picker-tabs">
+      <button class="active" data-tab="builtin">内置常用资源</button>
+      <button data-tab="online">在线浏览资源包</button>
+    </div>
+    <div class="modal-body">
+      <div class="picker-toolbar">
+        <select id="pickerCategory">
+          <option value="textures/items">items（物品）</option>
+          <option value="textures/blocks">blocks（方块）</option>
+          <option value="textures/entity">entity（实体）</option>
+          <option value="textures/particle">particle（粒子）</option>
+          <option value="textures/gui">gui（界面）</option>
+        </select>
+        <input type="text" id="pickerSearch" placeholder="搜索图像名称...">
+      </div>
+      <div class="picker-grid-wrap">
+        <div class="picker-grid" id="pickerGrid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 通用确认对话框 -->
+<div class="modal-overlay" id="confirmOverlay">
+  <div class="modal confirm-modal">
+    <h3 id="confirmTitle">确认操作</h3>
+    <p id="confirmText"></p>
+    <div class="confirm-actions">
+      <button class="btn" id="confirmCancel">取消</button>
+      <button class="btn primary" id="confirmOk" style="background:var(--danger);border-color:var(--danger)">确认</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* =========================================================
+ *  ShopData 商店配置编辑器
+ *  数据结构: { Buy: [...], Sell: [...] }
+ *  节点: { name, type: "group"|"exam", image, data }
+ *   - group: data 为子节点数组
+ *   - exam:  data 为 { type, aux, remark, money } 或 { snbt, money }
+ * ========================================================= */
+
+// ============ 全局状态 ============
+const MOJANG_RAW = 'https://raw.githubusercontent.com/Mojang/bedrock-samples/main/resource_pack/';
+const MOJANG_API = 'https://api.github.com/repos/Mojang/bedrock-samples/contents/resource_pack/';
+const MCBEID_DATA_URL = './mcbeid-vanilla.json';
+
+let shopData = { Buy: [], Sell: [] };       // 当前编辑的数据
+let selectedPath = null;                     // 当前选中节点路径，如 "Sell/0/2"
+let collapsedSet = new Set();                // 折叠的节点路径集合
+let errorMap = new Map();                    // 路径 -> 错误数（树标红）
+let isDirty = false;                         // 是否有未保存修改
+let pickerCallback = null;                   // 图像选择回调
+let onlineCache = {};                        // 在线目录缓存
+let mcbeItems = null;                         // MCBEID 物品索引
+let mcbeLoadPromise = null;
+let mcbeSearchTimer = null;
+
+// ============ 工具函数 ============
+const el = id => document.getElementById(id);
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer = null;
+function toast(msg, type = '') {
+  const t = el('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = 'toast', 2600);
+}
+
+function confirmDialog(title, text, onOk) {
+  el('confirmTitle').textContent = title;
+  el('confirmText').textContent = text;
+  el('confirmOverlay').classList.add('open');
+  el('confirmOk').onclick = () => { el('confirmOverlay').classList.remove('open'); onOk(); };
+  el('confirmCancel').onclick = () => el('confirmOverlay').classList.remove('open');
+}
+
+function markDirty() {
+  isDirty = true;
+  updateStats();
+}
+
+// ============ 数据访问（路径解析） ============
+// 路径格式: "Buy/0/2" —— 顶层键/数组下标 链
+function getNodeByPath(path) {
+  if (!path) return null;
+  const parts = path.split('/');
+  let node = shopData[parts[0]];
+  for (let i = 1; i < parts.length; i++) {
+    if (!node) return null;
+    if (i === 1) node = node[+parts[i]];
+    else node = node.data && node.data[+parts[i]];
+  }
+  return node || null;
+}
+
+function getParentArray(path) {
+  // 返回 { arr, index } 便于删除/移动
+  const parts = path.split('/');
+  const idx = +parts[parts.length - 1];
+  if (parts.length === 2) {
+    return { arr: shopData[parts[0]], index: idx };
+  }
+  const parentPath = parts.slice(0, -1).join('/');
+  const parent = getNodeByPath(parentPath);
+  return { arr: parent ? parent.data : null, index: idx };
+}
+
+function getNodeDisplayPath(path) {
+  const parts = path.split('/');
+  const names = [parts[0]];
+  let node = shopData[parts[0]];
+  for (let i = 1; i < parts.length; i++) {
+    if (i === 1) node = node[+parts[i]];
+    else node = node.data[+parts[i]];
+    if (node) names.push(node.name || '(未命名)');
+  }
+  return names;
+}
+
+// ============ 统计 ============
+function countItems(arr) {
+  let groups = 0, exams = 0;
+  (arr || []).forEach(n => {
+    if (n.type === 'group') { groups++; const r = countItems(n.data); groups += r.groups; exams += r.exams; }
+    else if (n.type === 'exam') exams++;
+  });
+  return { groups, exams };
+}
+
+function updateStats() {
+  const b = countItems(shopData.Buy), s = countItems(shopData.Sell);
+  el('statsBar').innerHTML =
+    `<span>购买: <b>${b.groups}</b> 分类 / <b>${b.exams}</b> 物品</span>` +
+    `<span>出售: <b>${s.groups}</b> 分类 / <b>${s.exams}</b> 物品</span>` +
+    (isDirty ? '<span class="dirty-dot">● 未保存</span>' : '<span>已保存</span>');
+}
+
+// ============ 树渲染 ============
+const ICON_GROUP = '<svg viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+const ICON_EXAM  = '<svg viewBox="0 0 24 24" fill="none" stroke="#4a7c59" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>';
+
+function renderIcon(node) {
+  if (node.image && typeof node.image === 'string' && node.image.trim()) {
+    const src = node.image.startsWith('http') ? node.image : MOJANG_RAW + node.image;
+    return `<span class="tree-icon"><img src="${esc(src)}" alt="" loading="lazy" onerror="this.style.display='none'"></span>`;
+  }
+  return `<span class="tree-icon">${node.type === 'group' ? ICON_GROUP : ICON_EXAM}</span>`;
+}
+
+function nodeMatches(node, kw) {
+  if ((node.name || '').toLowerCase().includes(kw)) return true;
+  if (node.type === 'exam' && node.data) {
+    if ((node.data.type || '').toLowerCase().includes(kw)) return true;
+    if ((node.data.remark || '').toLowerCase().includes(kw)) return true;
+  }
+  if (node.type === 'group' && Array.isArray(node.data)) {
+    return node.data.some(c => nodeMatches(c, kw));
+  }
+  return false;
+}
+
+function renderTreeNodes(arr, basePath, kw) {
+  let html = '';
+  (arr || []).forEach((node, i) => {
+    const path = basePath + '/' + i;
+    if (kw && !nodeMatches(node, kw)) return;
+    const isGroup = node.type === 'group';
+    const hasChildren = isGroup && Array.isArray(node.data) && node.data.length > 0;
+    const collapsed = collapsedSet.has(path) && !kw;
+    const errCount = errorMap.get(path) || 0;
+    const selected = selectedPath === path ? ' selected' : '';
+    const hasErr = errCount > 0 ? ' has-error' : '';
+    const open = hasChildren && !collapsed;
+
+    html += `<div class="tree-node" data-path="${esc(path)}">`;
+    html += `<div class="tree-row${selected}${hasErr}" data-path="${esc(path)}" title="${esc(node.name)}">`;
+    html += `<span class="tree-toggle ${hasChildren ? (open ? 'open' : '') : 'leaf'}" data-toggle="${esc(path)}">▶</span>`;
+    html += renderIcon(node);
+    html += `<span class="tree-name">${esc(node.name || '(未命名)')}</span>`;
+    if (errCount > 0) html += `<span class="badge err">${errCount}</span>`;
+    html += `<span class="badge ${isGroup ? 'group' : 'exam'}">${isGroup ? '分类' : '物品'}</span>`;
+    html += `<span class="tree-ops">`;
+    if (isGroup) {
+      html += `<button class="op-btn" data-op="add-group" data-path="${esc(path)}" title="添加子分类">+📁</button>`;
+      html += `<button class="op-btn" data-op="add-exam" data-path="${esc(path)}" title="添加物品">+📦</button>`;
+    }
+    html += `<button class="op-btn" data-op="up" data-path="${esc(path)}" title="上移">↑</button>`;
+    html += `<button class="op-btn" data-op="down" data-path="${esc(path)}" title="下移">↓</button>`;
+    html += `<button class="op-btn" data-op="dup" data-path="${esc(path)}" title="复制">⧉</button>`;
+    html += `<button class="op-btn danger" data-op="del" data-path="${esc(path)}" title="删除">✕</button>`;
+    html += `</span></div>`;
+    if (hasChildren) {
+      html += `<div class="tree-children${collapsed ? ' collapsed' : ''}" data-children="${esc(path)}">`;
+      html += renderTreeNodes(node.data, path, kw);
+      html += `</div>`;
+    }
+    html += `</div>`;
+  });
+  return html;
+}
+
+function renderTree() {
+  const kw = el('treeSearch').value.trim().toLowerCase();
+  let html = '';
+  ['Buy', 'Sell'].forEach(root => {
+    const r = countItems(shopData[root]);
+    const rootLabel = root === 'Buy' ? '购买（Buy）' : '出售（Sell）';
+    html += `<div class="tree-root-label">
+      <span>${rootLabel}</span>
+      <span class="badge group">${r.groups} 分类</span>
+      <span class="badge exam">${r.exams} 物品</span>
+      <span class="root-actions">
+        <button class="op-btn" data-op="add-group-root" data-root="${root}" title="添加顶级分类">+📁</button>
+        <button class="op-btn" data-op="add-exam-root" data-root="${root}" title="添加顶级物品">+📦</button>
+      </span>
+    </div>`;
+    const content = renderTreeNodes(shopData[root], root, kw);
+    html += content || (kw ? '' : '<div class="tree-empty" style="padding:12px">（空，点击上方 + 按钮添加）</div>');
+  });
+  el('treeContainer').innerHTML = html || '<div class="tree-empty">没有匹配“' + esc(kw) + '”的节点</div>';
+}
+
+// ============ 树事件 ============
+el('treeContainer').addEventListener('click', e => {
+  const opBtn = e.target.closest('[data-op]');
+  if (opBtn) {
+    e.stopPropagation();
+    handleNodeOp(opBtn.dataset.op, opBtn.dataset.path, opBtn.dataset.root);
+    return;
+  }
+  const toggle = e.target.closest('[data-toggle]');
+  const row = e.target.closest('.tree-row');
+  if (toggle && !toggle.classList.contains('leaf')) {
+    const path = toggle.dataset.toggle;
+    if (collapsedSet.has(path)) collapsedSet.delete(path);
+    else collapsedSet.add(path);
+    renderTree();
+    return;
+  }
+  if (row) {
+    selectedPath = row.dataset.path;
+    renderTree();
+    renderEditor();
+  }
+});
+
+el('treeSearch').addEventListener('input', renderTree);
+el('btnExpandAll').addEventListener('click', () => { collapsedSet.clear(); renderTree(); });
+el('btnCollapseAll').addEventListener('click', () => {
+  collapsedSet.clear();
+  collectGroupPaths(shopData.Buy, 'Buy');
+  collectGroupPaths(shopData.Sell, 'Sell');
+  renderTree();
+});
+function collectGroupPaths(arr, base) {
+  (arr || []).forEach((n, i) => {
+    if (n.type === 'group') {
+      const p = base + '/' + i;
+      collapsedSet.add(p);
+      collectGroupPaths(n.data, p);
+    }
+  });
+}
+
+// ============ 节点操作 ============
+function handleNodeOp(op, path, root) {
+  switch (op) {
+    case 'add-group-root': addNode(shopData[root], 'group', root + '/'); return;
+    case 'add-exam-root':  addNode(shopData[root], 'exam', root + '/'); return;
+    case 'add-group': {
+      const node = getNodeByPath(path);
+      if (!node || !Array.isArray(node.data)) return;
+      collapsedSet.delete(path);
+      addNode(node.data, 'group', path + '/');
+      return;
+    }
+    case 'add-exam': {
+      const node = getNodeByPath(path);
+      if (!node || !Array.isArray(node.data)) return;
+      collapsedSet.delete(path);
+      addNode(node.data, 'exam', path + '/');
+      return;
+    }
+    case 'del': {
+      const node = getNodeByPath(path);
+      const childCount = node && node.type === 'group' && Array.isArray(node.data) ? node.data.length : 0;
+      const msg = childCount > 0
+        ? `确定删除分类“${node.name}”吗？其中包含 ${childCount} 个直接子项，删除后无法恢复。`
+        : `确定删除“${node ? node.name : ''}”吗？删除后无法恢复。`;
+      confirmDialog('确认删除', msg, () => {
+        const { arr, index } = getParentArray(path);
+        if (arr) arr.splice(index, 1);
+        if (selectedPath === path || (selectedPath && selectedPath.startsWith(path + '/'))) selectedPath = null;
+        afterStructureChange();
+        toast('已删除', 'success');
+      });
+      return;
+    }
+    case 'up': case 'down': {
+      const { arr, index } = getParentArray(path);
+      if (!arr) return;
+      const ni = op === 'up' ? index - 1 : index + 1;
+      if (ni < 0 || ni >= arr.length) return;
+      [arr[index], arr[ni]] = [arr[ni], arr[index]];
+      // 同步选中路径
+      if (selectedPath === path) {
+        const parts = path.split('/'); parts[parts.length - 1] = String(ni);
+        selectedPath = parts.join('/');
+      } else if (selectedPath) {
+        const swapped = path.split('/'); swapped[swapped.length - 1] = String(ni);
+        if (selectedPath === swapped.join('/')) selectedPath = path;
+      }
+      afterStructureChange(false);
+      return;
+    }
+    case 'dup': {
+      const node = getNodeByPath(path);
+      const { arr, index } = getParentArray(path);
+      if (!node || !arr) return;
+      const copy = JSON.parse(JSON.stringify(node));
+      copy.name = (copy.name || '') + '（副本）';
+      arr.splice(index + 1, 0, copy);
+      afterStructureChange();
+      toast('已复制节点', 'success');
+      return;
+    }
+  }
+}
+
+function addNode(arr, type, pathPrefix) {
+  const node = type === 'group'
+    ? { name: '新分类', type: 'group', image: '', data: [] }
+    : { name: '新物品', type: 'exam', image: '', data: { type: 'minecraft:stone', aux: 0, remark: '', money: 0 } };
+  arr.push(node);
+  selectedPath = pathPrefix + (arr.length - 1);
+  afterStructureChange();
+  toast('已添加' + (type === 'group' ? '分类' : '物品'), 'success');
+}
+
+function afterStructureChange(rerenderEditor = true) {
+  markDirty();
+  renderTree();
+  if (rerenderEditor) renderEditor();
+  updateStats();
+}
+
+// ============ Minecraft 物品 ID 验证 ============
+const ITEM_ID_RE = /^[a-z0-9_.-]+:[a-z0-9_./-]+$/;
+const NS_RE = /^[a-z0-9_.-]+$/;
+
+function validateItemId(value) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return { level: 'error', msg: '物品 ID 不能为空（使用 SNBT 模式时此项可留空）' };
+  }
+  const v = String(value).trim();
+  if (ITEM_ID_RE.test(v)) {
+    if (!v.startsWith('minecraft:')) {
+      return { level: 'warning', msg: '格式正确。提示：原版物品通常使用 minecraft: 命名空间' };
+    }
+    return { level: 'ok', msg: '格式正确' };
+  }
+  // 生成修正建议
+  let fixed = v.toLowerCase().replace(/[^a-z0-9_./:-]/g, '_').replace(/_{2,}/g, '_').replace(/^[_:]+|[_:]+$/g, '');
+  const parts = fixed.split(':').filter(Boolean);
+  if (parts.length === 0 || (parts.length === 1 && !fixed.includes(':'))) {
+    fixed = 'minecraft:' + (parts[0] || 'item_name');
+  } else if (parts.length >= 2) {
+    fixed = parts[0] + ':' + parts.slice(1).join('_');
+  }
+  if (!NS_RE.test(fixed.split(':')[0])) fixed = 'minecraft:' + fixed.split(':').pop();
+  let reason = '';
+  if (/[A-Z]/.test(v)) reason = '包含大写字母；';
+  else if (/\s/.test(v)) reason = '包含空格；';
+  else if (!v.includes(':')) reason = '缺少命名空间前缀（如 minecraft:）；';
+  else reason = '包含非法字符；';
+  return { level: 'error', msg: `物品 ID 格式无效（${reason}要求如 minecraft:diamond）`, fix: fixed };
+}
+
+// ============ MCBEID 物品名称搜索 ============
+async function loadMcbeItems() {
+  if (mcbeItems) return mcbeItems;
+  if (mcbeLoadPromise) return mcbeLoadPromise;
+  mcbeLoadPromise = fetch(MCBEID_DATA_URL)
+    .then(res => {
+      if (!res.ok) throw new Error(`本地物品表加载失败（HTTP ${res.status}）`);
+      return res.json();
+    })
+    .then(data => {
+      const items = data && data.enums && data.enums.item;
+      if (!items || typeof items !== 'object') throw new Error('物品数据格式不兼容');
+      mcbeItems = Object.entries(items).map(([rawId, name]) => {
+        const id = rawId.includes(':') ? rawId : 'minecraft:' + rawId;
+        return { id, name: String(name || rawId), search: (name + ' ' + id + ' ' + rawId).toLowerCase() };
+      });
+      return mcbeItems;
+    })
+    .catch(err => {
+      mcbeLoadPromise = null;
+      throw err;
+    });
+  return mcbeLoadPromise;
+}
+
+function findMcbeItems(query) {
+  const keyword = String(query || '').trim().toLowerCase();
+  if (!keyword || !mcbeItems) return [];
+  return mcbeItems
+    .filter(item => item.search.includes(keyword))
+    .sort((a, b) => {
+      const score = item => item.name.toLowerCase() === keyword ? 0
+        : item.id === keyword || item.id === 'minecraft:' + keyword ? 1
+        : item.name.toLowerCase().startsWith(keyword) ? 2
+        : item.id.startsWith('minecraft:' + keyword) ? 3 : 4;
+      return score(a) - score(b) || a.name.localeCompare(b.name, 'zh-CN');
+    })
+    .slice(0, 12);
+}
+
+function renderMcbeResults(results, status = '') {
+  const list = el('editorContainer').querySelector('[data-id-results]');
+  if (!list) return;
+  if (status) {
+    list.innerHTML = `<div class="id-result-status">${esc(status)}</div>`;
+    return;
+  }
+  list.innerHTML = results.map((item, index) => `
+    <button type="button" class="id-result${index === 0 ? ' active' : ''}" data-action="select-mcbeid"
+      data-id="${esc(item.id)}" data-name="${esc(item.name)}" role="option" aria-selected="${index === 0}">
+      <span class="id-result-name">${esc(item.name)}</span>
+      <span class="id-result-id">${esc(item.id)}</span>
+    </button>`).join('') || '<div class="id-result-status">没有匹配的物品</div>';
+}
+
+async function searchMcbeItems(input) {
+  const query = input.value.trim();
+  if (!query) { renderMcbeResults([]); return; }
+  if (!mcbeItems) renderMcbeResults([], '正在加载 MCBEID 物品表...');
+  try {
+    await loadMcbeItems();
+    if (input.isConnected && input.value.trim() === query) renderMcbeResults(findMcbeItems(query));
+  } catch (err) {
+    renderMcbeResults([], 'MCBEID 物品表加载失败：' + err.message + '。请确认 mcbeid-vanilla.json 与本页面位于同一目录。');
+  }
+}
+
+// ============ SNBT 语法验证器（递归下降解析） ============
+function validateSNBT(src) {
+  if (src === undefined || src === null || String(src).trim() === '') {
+    return { valid: false, error: 'SNBT 内容为空', pos: 0 };
+  }
+  const s = String(src);
+  let pos = 0;
+
+  const err = (msg, p = pos) => { const e = new Error(msg); e.pos = p; throw e; };
+  const skipWs = () => { while (pos < s.length && /\s/.test(s[pos])) pos++; };
+  const peek = () => s[pos];
+
+  function parseValue() {
+    skipWs();
+    if (pos >= s.length) err('意外结束：缺少值');
+    const c = s[pos];
+    if (c === '{') return parseCompound();
+    if (c === '[') return parseList();
+    if (c === '"' || c === "'") { parseQuotedString(); return; }
+    // 数字或裸字符串
+    parseBareValue();
+  }
+
+  function parseCompound() {
+    pos++; // {
+    skipWs();
+    if (peek() === '}') { pos++; return; }
+    while (true) {
+      skipWs();
+      // 键
+      if (peek() === '"' || peek() === "'") parseQuotedString();
+      else parseBareKey();
+      skipWs();
+      if (peek() !== ':') err(`缺少冒号 ':'，位置 ${pos}`);
+      pos++;
+      parseValue();
+      skipWs();
+      if (peek() === ',') { pos++; continue; }
+      if (peek() === '}') { pos++; return; }
+      err(`缺少逗号 ',' 或结束括号 '}'，位置 ${pos}`);
+    }
+  }
+
+  function parseList() {
+    pos++; // [
+    skipWs();
+    // 类型化数组 [B;...] [I;...] [L;...]
+    if ((peek() === 'B' || peek() === 'I' || peek() === 'L') && s[pos + 1] === ';') {
+      pos += 2;
+      skipWs();
+      if (peek() === ']') { pos++; return; }
+      while (true) {
+        parseValue();
+        skipWs();
+        if (peek() === ',') { pos++; continue; }
+        if (peek() === ']') { pos++; return; }
+        err(`数组元素后缺少 ',' 或 ']'，位置 ${pos}`);
+      }
+    }
+    if (peek() === ']') { pos++; return; }
+    while (true) {
+      parseValue();
+      skipWs();
+      if (peek() === ',') { pos++; continue; }
+      if (peek() === ']') { pos++; return; }
+      err(`列表元素后缺少 ',' 或 ']'，位置 ${pos}`);
+    }
+  }
+
+  function parseQuotedString() {
+    const quote = s[pos];
+    pos++;
+    while (pos < s.length) {
+      const c = s[pos];
+      if (c === '\\') { pos += 2; continue; }
+      if (c === quote) { pos++; return; }
+      pos++;
+    }
+    err(`字符串未闭合（缺少 ${quote}）`, pos);
+  }
+
+  function parseBareKey() {
+    const start = pos;
+    while (pos < s.length && /[A-Za-z0-9._+\-]/.test(s[pos])) pos++;
+    if (pos === start) err(`无效的键名，位置 ${pos}（键只能包含字母数字 . _ + -，或使用引号）`);
+  }
+
+  function parseBareValue() {
+    const start = pos;
+    // 尝试数字：可选符号 + 数字/小数点 + 可选后缀 bBsSlLfFdD
+    const numMatch = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?[bBsSlLfFdD]?/.exec(s.slice(pos));
+    if (numMatch && numMatch[0]) {
+      pos += numMatch[0].length;
+      return;
+    }
+    // 裸字符串
+    while (pos < s.length && /[A-Za-z0-9._+\-]/.test(s[pos])) pos++;
+    if (pos === start) err(`无效的值，位置 ${pos}：字符 "${s[pos] || '(结尾)'}" 无法识别`);
+  }
+
+  try {
+    parseValue();
+    skipWs();
+    if (pos < s.length) return { valid: false, error: `解析完成后仍有多余内容，位置 ${pos}："${s.slice(pos, pos + 12)}…"`, pos };
+    return { valid: true };
+  } catch (e) {
+    return { valid: false, error: e.message, pos: e.pos ?? pos };
+  }
+}
+
+// ============ 图像路径验证 ============
+function validateImagePath(value) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return { level: 'warning', msg: '图像为空，游戏中将不显示图标' };
+  }
+  const v = String(value).trim();
+  if (/^https?:\/\/.+/.test(v)) return { level: 'ok', msg: '外部 URL 图像（游戏中可直接显示）' };
+  if (/^textures\/[\w./-]+\.png$/i.test(v)) return { level: 'ok', msg: '标准资源包路径' };
+  if (/^textures\//.test(v)) {
+    let fix = v.replace(/\.(jpg|jpeg|gif|webp)$/i, '.png');
+    return { level: 'warning', msg: '路径以 textures/ 开头但格式可疑（建议以 .png 结尾，仅含字母数字 / _ . -）', fix: fix !== v ? fix : undefined };
+  }
+  const fix = 'textures/items/' + v.replace(/^\/+/, '').replace(/\.\w+$/, '') + '.png';
+  return { level: 'error', msg: '图像路径无效：应为 textures/... 资源包路径或 http(s):// URL', fix };
+}
+
+// ============ 编辑器渲染 ============
+function fieldMsgHtml(fieldKey, result) {
+  if (!result) return `<div class="field-msg" data-msg="${fieldKey}"></div>`;
+  const cls = result.level === 'error' ? 'error' : (result.level === 'warning' ? 'warning' : 'ok');
+  const icon = result.level === 'error' ? '⛔' : (result.level === 'warning' ? '⚠️' : '✓');
+  let html = `<div class="field-msg ${cls}" data-msg="${fieldKey}">${icon} ${esc(result.msg)}`;
+  if (result.fix) html += `<button type="button" class="fix-btn" data-action="apply-fix" data-field="${fieldKey}" data-fix="${esc(result.fix)}">修复为 ${esc(result.fix)}</button>`;
+  html += `</div>`;
+  return html;
+}
+
+function imageFieldHtml(node) {
+  const img = node.image || '';
+  const res = validateImagePath(img);
+  const src = img.trim() ? (img.startsWith('http') ? img : MOJANG_RAW + img) : '';
+  return `
+  <div class="form-group">
+    <div class="form-label">图像 <span class="hint">Mojang 资源包路径（如 textures/items/diamond.png）或 URL</span></div>
+    <div class="image-field">
+      <div class="image-preview-box" data-action="browse-image" title="点击浏览官方资源包图像">
+        ${src ? `<img id="imagePreview" src="${esc(src)}" alt="" onerror="this.outerHTML='<span class=no-img>✕</span>'">` : '<span class="no-img" id="imagePreviewNone">🖼</span>'}
+      </div>
+      <div class="image-input-col">
+        <input type="text" class="form-input mono ${res.level === 'error' ? 'invalid' : ''}" data-f="image" value="${esc(img)}" placeholder="textures/items/diamond.png">
+        <div class="image-btn-row">
+          <button type="button" class="btn small" data-action="browse-image">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            浏览官方资源
+          </button>
+          <button type="button" class="btn small" data-action="clear-image">清除</button>
+        </div>
+      </div>
+    </div>
+    ${fieldMsgHtml('image', res)}
+  </div>`;
+}
+
+function renderEditor() {
+  const box = el('editorContainer');
+  const crumb = el('breadcrumb');
+  if (!selectedPath || !getNodeByPath(selectedPath)) {
+    crumb.innerHTML = '';
+    box.innerHTML = `<div class="empty-editor"><div class="big">🗂</div>
+      <p>在左侧树中选择一个节点进行编辑</p>
+      <p style="margin-top:8px;font-size:12px">提示：悬停节点可显示添加 / 删除 / 移动 / 复制按钮</p></div>`;
+    return;
+  }
+  const node = getNodeByPath(selectedPath);
+  const isGroup = node.type === 'group';
+
+  // 面包屑
+  const names = getNodeDisplayPath(selectedPath);
+  const parts = selectedPath.split('/');
+  crumb.innerHTML = names.map((n, i) => {
+    const p = parts.slice(0, i + 1).join('/');
+    return (i > 0 ? '<span class="sep">›</span>' : '') +
+      (i === names.length - 1 ? `<span class="crumb" style="font-weight:700;color:var(--text)">${esc(n)}</span>`
+        : `<span class="crumb" data-crumb="${esc(p)}">${esc(n)}</span>`);
+  }).join('');
+
+  const nameRes = (node.name || '').trim() ? null : { level: 'error', msg: '名称不能为空' };
+
+  let html = `<div class="editor-card">
+    <h2>${isGroup ? '📁 编辑分类' : '📦 编辑物品'}
+      <span class="badge ${isGroup ? 'group' : 'exam'}">${isGroup ? 'group（分类）' : 'exam（物品）'}</span></h2>
+    <div class="editor-subtitle">路径：${esc(names.join(' / '))}</div>
+
+    <div class="form-group">
+      <div class="form-label">名称 <span class="req">*</span> <span class="hint">显示在游戏菜单中</span></div>
+      <input type="text" class="form-input ${nameRes ? 'invalid' : ''}" data-f="name" value="${esc(node.name)}" placeholder="输入名称">
+      ${fieldMsgHtml('name', nameRes)}
+    </div>
+
+    ${imageFieldHtml(node)}
+  `;
+
+  if (isGroup) {
+    const childCount = Array.isArray(node.data) ? node.data.length : 0;
+    const r = countItems(node.data);
+    html += `
+    <div class="form-group">
+      <div class="form-label">子项统计</div>
+      <p style="font-size:13px;color:var(--text-muted)">直接子项 ${childCount} 个（含 ${r.groups} 个子分类、${r.exams} 个物品）</p>
+    </div>
+    <div class="editor-actions">
+      <button class="btn" data-action="add-child-group">+ 添加子分类</button>
+      <button class="btn" data-action="add-child-exam">+ 添加物品</button>
+      ${childCount === 0 ? '<button class="btn" data-action="convert-node">转换为物品（exam）</button>' : ''}
+      <button class="btn danger" data-action="delete-node">删除此分类</button>
+    </div>`;
+  } else {
+    // exam 物品表单
+    const d = node.data || {};
+    const useSnbt = !d.type && !!d.snbt;
+    const moneyRes = validateMoney(d.money);
+
+    html += `
+    <div class="form-group">
+      <div class="form-label">物品来源模式 <span class="hint">标准物品 = type + aux；SNBT = 带 NBT 的物品</span></div>
+      <div class="mode-switch">
+        <button type="button" data-action="mode-std" class="${useSnbt ? '' : 'active'}">标准物品</button>
+        <button type="button" data-action="mode-snbt" class="${useSnbt ? 'active' : ''}">SNBT 物品</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">价格 money <span class="req">*</span> <span class="hint">金币，需为正数</span></div>
+        <input type="number" class="form-input ${moneyRes.level === 'error' ? 'invalid' : ''}" data-f="money" value="${esc(d.money ?? '')}" min="0" step="any" placeholder="0">
+        ${fieldMsgHtml('money', moneyRes)}
+      </div>
+      ${useSnbt ? '' : `
+      <div class="form-group">
+        <div class="form-label">特殊值 aux <span class="hint">通常为 0</span></div>
+        <input type="number" class="form-input" data-f="aux" value="${esc(d.aux ?? 0)}" step="1">
+        ${fieldMsgHtml('aux', null)}
+      </div>`}
+    </div>
+    `;
+
+    if (useSnbt) {
+      const snbtRes = validateSNBT(d.snbt);
+      html += `
+      <div class="form-group">
+        <div class="form-label">SNBT <span class="req">*</span> <span class="hint">如 {id:"minecraft:apple",Count:1b,tag:{...}}</span></div>
+        <textarea class="form-textarea mono ${snbtRes.valid ? '' : 'invalid'}" data-f="snbt" spellcheck="false" placeholder='{"id":"minecraft:diamond_sword","Count":1b}'>${esc(d.snbt || '')}</textarea>
+        ${snbtRes.valid
+          ? fieldMsgHtml('snbt', { level: 'ok', msg: 'SNBT 语法正确' })
+          : fieldMsgHtml('snbt', { level: 'error', msg: 'SNBT 语法错误：' + snbtRes.error })}
+      </div>`;
+    } else {
+      const typeRes = validateItemId(d.type);
+      html += `
+      <div class="form-group id-lookup">
+        <div class="form-label">MCBEID 物品搜索 <span class="hint">输入中文名称或 ID，选择后自动填写 type</span></div>
+        <div class="id-lookup-input-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" class="form-input id-lookup-input" data-id-search autocomplete="off"
+            role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="例如：钻石、下界合金剑、diamond">
+          <a class="id-lookup-source" href="https://ca.projectxero.top/idlist/" target="_blank" rel="noopener noreferrer">数据源</a>
+        </div>
+        <div class="id-results" data-id-results role="listbox"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <div class="form-label">物品 ID（type） <span class="req">*</span> <span class="hint">如 minecraft:diamond</span></div>
+          <input type="text" class="form-input mono ${typeRes.level === 'error' ? 'invalid' : ''}" data-f="type" value="${esc(d.type || '')}" placeholder="minecraft:diamond">
+          ${fieldMsgHtml('type', typeRes)}
+        </div>
+        <div class="form-group">
+          <div class="form-label">备注 remark <span class="hint">内部备注，可选</span></div>
+          <input type="text" class="form-input mono" data-f="remark" value="${esc(d.remark || '')}" placeholder="diamond">
+          ${fieldMsgHtml('remark', null)}
+        </div>
+      </div>`;
+    }
+
+    html += `
+    <div class="editor-actions">
+      <button class="btn" data-action="convert-node">转换为分类（group）</button>
+      <button class="btn danger" data-action="delete-node">删除此物品</button>
+    </div>`;
+  }
+
+  html += '</div>';
+  box.innerHTML = html;
+}
+
+function validateMoney(v) {
+  if (v === '' || v === undefined || v === null || isNaN(Number(v))) {
+    return { level: 'error', msg: '价格必须为数字' };
+  }
+  if (Number(v) <= 0) return { level: 'error', msg: '价格必须大于 0', fix: '1' };
+  return { level: 'ok', msg: '有效' };
+}
+
+// ============ 编辑器事件（委托） ============
+el('editorContainer').addEventListener('input', e => {
+  if (e.target.matches('[data-id-search]')) {
+    clearTimeout(mcbeSearchTimer);
+    mcbeSearchTimer = setTimeout(() => searchMcbeItems(e.target), 120);
+    return;
+  }
+  const f = e.target.dataset.f;
+  if (!f) return;
+  const node = getNodeByPath(selectedPath);
+  if (!node) return;
+  const val = e.target.value;
+
+  switch (f) {
+    case 'name': node.name = val; break;
+    case 'image': node.image = val; updateImagePreview(val); break;
+    case 'money': node.data.money = val === '' ? '' : Number(val); break;
+    case 'aux': node.data.aux = Number(val) || 0; break;
+    case 'remark': node.data.remark = val; break;
+    case 'type': node.data.type = val; break;
+    case 'snbt': node.data.snbt = val; break;
+  }
+  markDirty();
+  if (f === 'name' || f === 'image') renderTree();
+  validateFieldLive(f, val, e.target);
+});
+
+// 实时验证单个字段并更新提示
+function validateFieldLive(f, val, inputEl) {
+  const card = el('editorContainer');
+  const msgEl = card.querySelector(`[data-msg="${f}"]`);
+  if (!msgEl) return;
+  let res = null;
+  switch (f) {
+    case 'name': res = val.trim() ? null : { level: 'error', msg: '名称不能为空' }; break;
+    case 'image': res = validateImagePath(val); break;
+    case 'money': res = validateMoney(val); break;
+    case 'type': res = validateItemId(val); break;
+    case 'snbt': {
+      const r = validateSNBT(val);
+      res = r.valid ? { level: 'ok', msg: 'SNBT 语法正确' } : { level: 'error', msg: 'SNBT 语法错误：' + r.error };
+      break;
+    }
+  }
+  const tmp = document.createElement('div');
+  tmp.innerHTML = fieldMsgHtml(f, res);
+  msgEl.replaceWith(tmp.firstChild);
+  if (inputEl) inputEl.classList.toggle('invalid', !!res && res.level === 'error');
+}
+
+function updateImagePreview(val) {
+  const box = el('editorContainer').querySelector('.image-preview-box');
+  if (!box) return;
+  const v = (val || '').trim();
+  if (!v) { box.innerHTML = '<span class="no-img">🖼</span>'; return; }
+  const src = v.startsWith('http') ? v : MOJANG_RAW + v;
+  box.innerHTML = `<img src="${esc(src)}" alt="" onerror="this.outerHTML='<span class=no-img>✕</span>'">`;
+}
+
+el('editorContainer').addEventListener('click', e => {
+  const actEl = e.target.closest('[data-action]');
+  if (!actEl) return;
+  const action = actEl.dataset.action;
+  const node = getNodeByPath(selectedPath);
+
+  switch (action) {
+    case 'select-mcbeid':
+      if (node && node.data) {
+        node.data.type = actEl.dataset.id;
+        markDirty();
+        renderEditor();
+        toast(`已填写 ${actEl.dataset.name}：${actEl.dataset.id}`, 'success');
+      }
+      break;
+    case 'browse-image':
+      openImagePicker(path => {
+        if (!node) return;
+        node.image = path;
+        markDirty();
+        renderEditor();
+        renderTree();
+        toast('已选择图像：' + path, 'success');
+      });
+      break;
+    case 'clear-image':
+      if (node) { node.image = ''; markDirty(); renderEditor(); renderTree(); }
+      break;
+    case 'apply-fix': {
+      const field = actEl.dataset.field, fix = actEl.dataset.fix;
+      if (!node) return;
+      if (field === 'type') node.data.type = fix;
+      else if (field === 'image') node.image = fix;
+      else if (field === 'money') node.data.money = Number(fix);
+      markDirty(); renderEditor(); renderTree();
+      toast('已修复：' + fix, 'success');
+      break;
+    }
+    case 'mode-std':
+      if (node && node.data) {
+        delete node.data.snbt;
+        if (!node.data.type) { node.data.type = 'minecraft:stone'; node.data.aux = node.data.aux ?? 0; node.data.remark = node.data.remark ?? ''; }
+        markDirty(); renderEditor();
+      }
+      break;
+    case 'mode-snbt':
+      if (node && node.data) {
+        delete node.data.type; delete node.data.aux; delete node.data.remark;
+        if (!node.data.snbt) node.data.snbt = '{"id":"minecraft:stone","Count":1b}';
+        markDirty(); renderEditor();
+      }
+      break;
+    case 'add-child-group':
+      if (node && Array.isArray(node.data)) { collapsedSet.delete(selectedPath); addNode(node.data, 'group', selectedPath + '/'); }
+      break;
+    case 'add-child-exam':
+      if (node && Array.isArray(node.data)) { collapsedSet.delete(selectedPath); addNode(node.data, 'exam', selectedPath + '/'); }
+      break;
+    case 'convert-node': {
+      if (!node) return;
+      if (node.type === 'group') {
+        confirmDialog('转换节点类型', '将分类转换为空物品（exam），子项已为空，data 将被重置。是否继续？', () => {
+          node.type = 'exam';
+          node.data = { type: 'minecraft:stone', aux: 0, remark: '', money: 0 };
+          afterStructureChange();
+        });
+      } else {
+        confirmDialog('转换节点类型', '将物品转换为分类（group），物品数据（type/snbt/价格）将丢失。是否继续？', () => {
+          node.type = 'group';
+          node.data = [];
+          afterStructureChange();
+        });
+      }
+      break;
+    }
+    case 'delete-node':
+      handleNodeOp('del', selectedPath);
+      break;
+  }
+});
+
+el('editorContainer').addEventListener('focusin', e => {
+  if (e.target.matches('[data-id-search]') && e.target.value.trim()) searchMcbeItems(e.target);
+});
+
+el('editorContainer').addEventListener('keydown', e => {
+  if (!e.target.matches('[data-id-search]')) return;
+  const results = [...el('editorContainer').querySelectorAll('.id-result')];
+  if (!results.length) return;
+  const current = Math.max(0, results.findIndex(item => item.classList.contains('active')));
+  let next = current;
+  if (e.key === 'ArrowDown') next = (current + 1) % results.length;
+  else if (e.key === 'ArrowUp') next = (current - 1 + results.length) % results.length;
+  else if (e.key === 'Enter') { e.preventDefault(); results[current].click(); return; }
+  else if (e.key === 'Escape') { renderMcbeResults([]); return; }
+  else return;
+  e.preventDefault();
+  results.forEach((item, index) => {
+    item.classList.toggle('active', index === next);
+    item.setAttribute('aria-selected', String(index === next));
+  });
+  results[next].scrollIntoView({ block: 'nearest' });
+});
+
+// 面包屑跳转
+el('breadcrumb').addEventListener('click', e => {
+  const c = e.target.closest('[data-crumb]');
+  if (!c) return;
+  selectedPath = c.dataset.crumb;
+  // 确保展开
+  const parts = selectedPath.split('/');
+  for (let i = 2; i < parts.length; i++) collapsedSet.delete(parts.slice(0, i).join('/'));
+  renderTree();
+  renderEditor();
+});
+
+// ============ 图像选择器 ============
+// 内置常用资源（来自 Mojang bedrock-samples resource_pack）
+const BUILTIN_IMAGES = {
+  'textures/items': [
+    'diamond','iron_ingot','gold_ingot','emerald','coal','redstone_dust','lapis_lazuli','quartz',
+    'netherite_ingot','copper_ingot','amethyst_shard','netherite_scrap','iron_nugget','gold_nugget',
+    'apple','apple_golden','bread','cooked_beef','cooked_porkchop','cooked_chicken','carrot','potato_baked',
+    'iron_sword','diamond_sword','netherite_sword','bow','arrow','crossbow_arrow','trident',
+    'iron_pickaxe','diamond_pickaxe','netherite_pickaxe','iron_axe','diamond_axe','iron_shovel','diamond_shovel',
+    'bucket_empty','bucket_water','bucket_lava','bucket_milk','ender_pearl','ender_eye','blaze_rod','blaze_powder',
+    'ghast_tear','nether_star','totem_of_undying','elytra','fireworks','book_writable','book_enchanted',
+    'paper','map_empty','compass_item','clock_item','name_tag','saddle','experience_bottle','dragon_breath',
+    'prismarine_shard','prismarine_crystals','slimeball','gunpowder','string','feather','leather','bone',
+    'rotten_flesh','spider_eye','egg','sugar','wheat','seeds_wheat','reeds','dye_powder_red'
+  ],
+  'textures/blocks': [
+    'stone','cobblestone','cobbled_deepslate','dirt','grass_side','sand','gravel','clay',
+    'log_oak','log_spruce','log_birch','log_jungle','planks_oak','planks_spruce','leaves_oak','sapling_oak',
+    'glass','bricks','stonebrick','obsidian','bedrock','netherrack','end_stone','soul_sand',
+    'glowstone','sea_lantern','wool_colored_white','wool_colored_red','concrete_white','concrete_black',
+    'flower_dandelion','flower_rose','flower_blue_orchid','flower_allium','flower_tulip_red','flower_tulip_orange',
+    'flower_tulip_white','flower_tulip_pink','flower_oxeye_daisy','flower_cornflower','flower_lily_of_the_valley',
+    'coal_ore','iron_ore','gold_ore','diamond_ore','emerald_ore','redstone_ore','lapis_ore','copper_ore',
+    'coal_block','iron_block','gold_block','diamond_block','emerald_block','redstone_block','lapis_block',
+    'tnt','chest_front','crafting_table_front','furnace_front','anvil_top_damaged_0','enchanting_table_side'
+  ],
+  'textures/entity': ['creeper/creeper','zombie/zombie','skeleton/skeleton','spider/spider','enderman/enderman','pig/pig','cow/cow','sheep/sheep','chicken/chicken','villager2/villager'],
+  'textures/particle': ['particles'],
+  'textures/gui': ['gui','icons']
+};
+
+let pickerTab = 'builtin';
+
+function openImagePicker(cb) {
+  pickerCallback = cb;
+  el('imagePickerOverlay').classList.add('open');
+  el('pickerSearch').value = '';
+  renderPickerGrid();
+}
+
+function pickerPathsForCurrent() {
+  const cat = el('pickerCategory').value;
+  if (pickerTab === 'builtin') {
+    return (BUILTIN_IMAGES[cat] || []).map(n => cat + '/' + n + '.png');
+  }
+  return onlineCache[cat] || [];
+}
+
+function renderPickerGrid() {
+  const grid = el('pickerGrid');
+  const kw = el('pickerSearch').value.trim().toLowerCase();
+  const paths = pickerPathsForCurrent().filter(p => !kw || p.toLowerCase().includes(kw));
+  if (pickerTab === 'online' && !onlineCache[el('pickerCategory').value]) {
+    grid.innerHTML = '<div class="picker-status">点击分类下拉框重新选择或等待加载…</div>';
+    loadOnlineDir(el('pickerCategory').value);
+    return;
+  }
+  if (paths.length === 0) {
+    grid.innerHTML = '<div class="picker-status">没有匹配的图像</div>';
+    return;
+  }
+  grid.innerHTML = paths.slice(0, 400).map(p => {
+    const name = p.split('/').pop().replace('.png', '');
+    return `<div class="picker-item" data-path="${esc(p)}" title="${esc(p)}">
+      <img src="${MOJANG_RAW}${esc(p)}" alt="" loading="lazy" onerror="this.parentElement.style.display='none'">
+      <div class="pname">${esc(name)}</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadOnlineDir(cat) {
+  const grid = el('pickerGrid');
+  grid.innerHTML = '<div class="picker-status">正在从 GitHub 加载 Mojang bedrock-samples 目录…</div>';
+  try {
+    const res = await fetch(MOJANG_API + encodeURIComponent(cat) + '?ref=main');
+    if (!res.ok) throw new Error('HTTP ' + res.status + '（GitHub API 未认证限制为每小时 60 次请求）');
+    const list = await res.json();
+    onlineCache[cat] = list
+      .filter(f => f.type === 'file' && f.name.endsWith('.png'))
+      .map(f => f.path.replace('resource_pack/', ''));
+    renderPickerGrid();
+  } catch (err) {
+    grid.innerHTML = `<div class="picker-status">⚠️ 在线加载失败：${esc(err.message)}<br><br>
+      <button class="btn small" onclick="loadOnlineDir('${esc(cat)}')">重试</button>
+      <button class="btn small" onclick="switchPickerTab('builtin')">使用内置常用资源</button></div>`;
+  }
+}
+
+function switchPickerTab(tab) {
+  pickerTab = tab;
+  document.querySelectorAll('.picker-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  if (tab === 'online' && !onlineCache[el('pickerCategory').value]) {
+    loadOnlineDir(el('pickerCategory').value);
+  } else {
+    renderPickerGrid();
+  }
+}
+
+document.querySelectorAll('.picker-tabs button').forEach(b =>
+  b.addEventListener('click', () => switchPickerTab(b.dataset.tab)));
+el('pickerCategory').addEventListener('change', () => {
+  if (pickerTab === 'online' && !onlineCache[el('pickerCategory').value]) loadOnlineDir(el('pickerCategory').value);
+  else renderPickerGrid();
+});
+el('pickerSearch').addEventListener('input', renderPickerGrid);
+el('pickerGrid').addEventListener('click', e => {
+  const item = e.target.closest('.picker-item');
+  if (!item || !pickerCallback) return;
+  const cb = pickerCallback;
+  pickerCallback = null;
+  el('imagePickerOverlay').classList.remove('open');
+  cb(item.dataset.path);
+});
+el('pickerClose').addEventListener('click', () => { el('imagePickerOverlay').classList.remove('open'); pickerCallback = null; });
+el('imagePickerOverlay').addEventListener('click', e => {
+  if (e.target === el('imagePickerOverlay')) { el('imagePickerOverlay').classList.remove('open'); pickerCallback = null; }
+});
+
+// ============ 全部验证 ============
+function validateAll() {
+  const issues = [];
+  errorMap.clear();
+
+  const addIssue = (path, level, msg, sug) => {
+    issues.push({ path, level, msg, sug });
+    if (level === 'error') errorMap.set(path, (errorMap.get(path) || 0) + 1);
+  };
+
+  function checkSiblings(arr, basePath) {
+    // 同级重复名称检测
+    const seen = new Map();
+    (arr || []).forEach((n, i) => {
+      const key = (n.name || '').trim();
+      if (key && seen.has(key)) {
+        addIssue(basePath + '/' + i, 'warning', `同级中存在重复名称“${key}”（另见第 ${seen.get(key) + 1} 项），可能导致玩家混淆`);
+      } else if (key) seen.set(key, i);
+    });
+  }
+
+  function walk(arr, basePath) {
+    if (!Array.isArray(arr)) return;
+    checkSiblings(arr, basePath);
+    arr.forEach((node, i) => {
+      const path = basePath + '/' + i;
+      // 名称
+      if (!node.name || !String(node.name).trim()) addIssue(path, 'error', '名称不能为空');
+      // type 字段必须是 group / exam
+      if (node.type !== 'group' && node.type !== 'exam') {
+        addIssue(path, 'error', `节点 type 必须是 "group" 或 "exam"，当前为 "${node.type}"`);
+        return;
+      }
+      // 图像
+      const imgRes = validateImagePath(node.image);
+      if (imgRes.level === 'error') addIssue(path, 'error', 'image：' + imgRes.msg, imgRes.fix ? '建议：' + imgRes.fix : undefined);
+      else if (imgRes.level === 'warning' && node.image) addIssue(path, 'warning', 'image：' + imgRes.msg, imgRes.fix ? '建议：' + imgRes.fix : undefined);
+
+      if (node.type === 'group') {
+        if (!Array.isArray(node.data)) addIssue(path, 'error', 'group 的 data 必须是数组');
+        else walk(node.data, path);
+      } else {
+        const d = node.data;
+        if (!d || typeof d !== 'object' || Array.isArray(d)) {
+          addIssue(path, 'error', 'exam 的 data 必须是对象 {type,aux,remark,money} 或 {snbt,money}');
+          return;
+        }
+        const hasType = !!(d.type && String(d.type).trim());
+        const hasSnbt = !!(d.snbt && String(d.snbt).trim());
+        if (!hasType && !hasSnbt) {
+          addIssue(path, 'error', '物品必须提供 data.type（标准物品）或 data.snbt（NBT 物品）之一');
+        }
+        if (hasType) {
+          const r = validateItemId(d.type);
+          if (r.level === 'error') addIssue(path, 'error', 'type：' + r.msg, r.fix ? '建议修复为：' + r.fix : undefined);
+          else if (r.level === 'warning') addIssue(path, 'warning', 'type：' + r.msg);
+        }
+        if (hasSnbt) {
+          const r = validateSNBT(d.snbt);
+          if (!r.valid) addIssue(path, 'error', 'snbt 语法错误：' + r.error);
+        }
+        if (hasType && hasSnbt) addIssue(path, 'warning', 'type 与 snbt 同时存在，插件将优先使用 snbt');
+        const m = validateMoney(d.money);
+        if (m.level === 'error') addIssue(path, 'error', 'money：' + m.msg);
+        if (d.aux !== undefined && (!Number.isInteger(Number(d.aux)) || Number(d.aux) < 0)) {
+          addIssue(path, 'warning', 'aux 应为非负整数');
+        }
+      }
+    });
+  }
+
+  walk(shopData.Buy, 'Buy');
+  walk(shopData.Sell, 'Sell');
+  renderTree();
+  showValidationDrawer(issues);
+  return issues;
+}
+
+function showValidationDrawer(issues) {
+  const list = el('validationList');
+  el('drawerTitle').textContent = `验证结果（${issues.filter(i => i.level === 'error').length} 错误 / ${issues.filter(i => i.level === 'warning').length} 警告）`;
+  if (issues.length === 0) {
+    list.innerHTML = '<div class="validation-ok">✓ 全部通过，没有发现问题</div>';
+  } else {
+    list.innerHTML = issues.map(it => {
+      const names = getNodeDisplayPath(it.path).join(' / ');
+      return `<div class="validation-item ${it.level}" data-vpath="${esc(it.path)}">
+        <div class="vpath">${esc(names)}</div>
+        <div class="vmsg">${it.level === 'error' ? '⛔' : '⚠️'} ${esc(it.msg)}</div>
+        ${it.sug ? `<div class="vsug">💡 ${esc(it.sug)}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+  el('validationDrawer').classList.add('open');
+}
+
+el('validationList').addEventListener('click', e => {
+  const item = e.target.closest('[data-vpath]');
+  if (!item) return;
+  selectedPath = item.dataset.vpath;
+  // 展开祖先节点
+  const parts = selectedPath.split('/');
+  for (let i = 2; i < parts.length; i++) collapsedSet.delete(parts.slice(0, i).join('/'));
+  renderTree();
+  renderEditor();
+  // 跳转到编辑后自动关闭抽屉，避免遮挡编辑器
+  el('validationDrawer').classList.remove('open');
+});
+el('drawerClose').addEventListener('click', () => el('validationDrawer').classList.remove('open'));
+
+// ============ 文件管理 ============
+el('btnUpload').addEventListener('click', () => el('fileInput').click());
+el('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      loadShopData(data);
+      toast('已加载：' + file.name, 'success');
+    } catch (err) {
+      toast('JSON 解析失败：' + err.message, 'error');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file, 'utf-8');
+});
+
+function loadShopData(data) {
+  if (!data || typeof data !== 'object') throw new Error('根节点必须是对象');
+  const normalized = { Buy: [], Sell: [] };
+  ['Buy', 'Sell'].forEach(k => {
+    if (data[k] !== undefined) {
+      if (!Array.isArray(data[k])) throw new Error(k + ' 必须是数组');
+      normalized[k] = data[k];
+    }
+  });
+  shopData = normalized;
+  selectedPath = null;
+  collapsedSet.clear();
+  errorMap.clear();
+  isDirty = false;
+  renderTree();
+  renderEditor();
+  updateStats();
+  // 加载后自动验证一次
+  const issues = validateAll();
+  if (issues.filter(i => i.level === 'error').length > 0) {
+    toast('加载完成，发现 ' + issues.filter(i => i.level === 'error').length + ' 个错误，请查看验证面板', 'warning');
+  }
+}
+
+el('btnDownload').addEventListener('click', () => {
+  const issues = validateAll();
+  const errCount = issues.filter(i => i.level === 'error').length;
+  const doDownload = () => {
+    const blob = new Blob([JSON.stringify(shopData, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'shopdata.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    isDirty = false;
+    updateStats();
+    toast('已下载 shopdata.json', 'success');
+  };
+  if (errCount > 0) {
+    confirmDialog('存在验证错误', `当前数据有 ${errCount} 个错误，可能导致商店插件运行异常。仍要下载吗？（建议先在验证面板中修复）`, doDownload);
+  } else {
+    doDownload();
+  }
+});
+
+el('btnNew').addEventListener('click', () => {
+  const doNew = () => {
+    shopData = {
+      Buy: [{
+        name: '示例分类', type: 'group', image: '',
+        data: [{ name: '示例物品', type: 'exam', image: 'textures/items/diamond.png',
+          data: { type: 'minecraft:diamond', aux: 0, remark: 'diamond', money: 2000 } }]
+      }],
+      Sell: []
+    };
+    selectedPath = null; collapsedSet.clear(); errorMap.clear(); isDirty = false;
+    renderTree(); renderEditor(); updateStats();
+    toast('已新建项目', 'success');
+  };
+  if (isDirty) confirmDialog('新建项目', '当前数据有未保存的修改，新建将丢弃这些修改。是否继续？', doNew);
+  else doNew();
+});
+
+el('btnClear').addEventListener('click', () => {
+  confirmDialog('清空数据', '将清空 Buy 和 Sell 下的所有分类与物品，此操作无法撤销。是否继续？', () => {
+    shopData = { Buy: [], Sell: [] };
+    selectedPath = null; collapsedSet.clear(); errorMap.clear(); isDirty = true;
+    renderTree(); renderEditor(); updateStats();
+    toast('已清空全部数据', 'success');
+  });
+});
+
+el('btnValidateAll').addEventListener('click', () => {
+  const issues = validateAll();
+  const errs = issues.filter(i => i.level === 'error').length;
+  if (errs === 0) toast(issues.length === 0 ? '验证通过，没有任何问题' : `验证通过（${issues.length} 条警告）`, 'success');
+  else toast(`发现 ${errs} 个错误，请查看验证面板`, 'error');
+});
+
+// 离开页面前提示未保存
+window.addEventListener('beforeunload', e => {
+  if (isDirty) { e.preventDefault(); e.returnValue = ''; }
+});
+
+// ============ 初始化：尝试加载同目录 shopdata.json，失败则用示例 ============
+(async function init() {
+  updateStats();
+  renderTree();
+  renderEditor();
+  try {
+    const res = await fetch('shopdata.json');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    loadShopData(data);
+    toast('已自动加载同目录下的 shopdata.json', 'success');
+  } catch (_) {
+    // file:// 或文件不存在时使用示例数据
+    shopData = {
+      Buy: [{
+        name: '示例分类', type: 'group', image: '',
+        data: [{ name: '示例物品', type: 'exam', image: 'textures/items/diamond.png',
+          data: { type: 'minecraft:diamond', aux: 0, remark: 'diamond', money: 2000 } }]
+      }],
+      Sell: []
+    };
+    renderTree();
+    renderEditor();
+    updateStats();
+  }
+})();
+</script>
+</body>
+</html>
