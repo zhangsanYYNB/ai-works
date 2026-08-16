@@ -61,6 +61,28 @@
 - **技术栈**: HTML5 Canvas, JavaScript
 - **访问**: 直接在浏览器中打开 `reaction_kinetics.html`
 
+### 7. 商店配置编辑器 (shopdata.html)
+- **描述**: ShopData 商店配置的可视化树形 JSON 编辑器
+- **功能**:
+  - 树形结构浏览与编辑（分组 / 物品）
+  - 上传 / 下载 / 新建 / 清空 JSON 数据
+  - 添加、复制、上移、下移、删除节点
+  - 全量数据校验与错误定位
+  - 物品图片选择器、搜索、展开 / 折叠
+- **技术栈**: HTML5, CSS3, JavaScript
+- **访问**: 直接在浏览器中打开 `shopdata.html`
+
+### 8. 钢尺弯曲与振动 3D 物理仿真 (SteelRuler.html)
+- **描述**: 钢尺弯曲与振动的 3D 物理仿真（带阻尼动力学版）
+- **功能**:
+  - Three.js 3D 渲染 + OrbitControls 视角控制
+  - 悬臂梁弯曲与多阶模态振动仿真
+  - 可调力学参数（长度、截面、质量、阶数等）
+  - 阻尼比 ζ 控制与振动衰减动力学
+  - KaTeX 渲染物理公式说明
+- **技术栈**: Three.js, KaTeX, HTML5, JavaScript
+- **访问**: 直接在浏览器中打开 `SteelRuler.html`
+
 ## 🚀 快速开始
 
 1. 克隆本仓库
@@ -83,6 +105,9 @@ cd <repository-directory>
 ├── collision_simulation.html   # 碰撞仿真
 ├── electric_field_3d.html      # 3D 电场可视化
 ├── reaction_kinetics.html      # 反应动力学仿真
+├── shopdata.html               # 商店配置编辑器
+├── SteelRuler.html             # 钢尺弯曲与振动 3D 物理仿真
+├── mcbeid-vanilla.json         # 配置文件
 ├── LICENSE                     # 许可证文件
 └── README.md                   # 项目说明文档
 ```
