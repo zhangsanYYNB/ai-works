@@ -6,7 +6,7 @@
 - **默认分支**: main（已跟踪 origin/main）
 - **本地工作目录**: /data/data/com.termux/files/home/pi-cwd-20260815
 - **Git 身份**: zhangsanYYNB <liz589015@outlook.com>
-- **推送认证**: 需 GitHub Personal Access Token（未配置 credential helper）
+- **推送认证**: 已配置 `credential.helper store`，凭据保存在本机 `~/.git-credentials`（不写入仓库），直接 `git push` 即可，无需再手动输入 token
 
 ## 仓库结构
 - `index.html` — 项目导航主页，卡片式展示所有 HTML 项目
