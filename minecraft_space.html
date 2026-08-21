@@ -29,7 +29,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 .hotbar-slot.active{border-color:#fff;background:rgba(255,255,255,0.2);transform:scale(1.08);box-shadow:0 0 12px rgba(255,255,255,0.4)}
 .hotbar-slot .count{position:absolute;bottom:1px;right:3px;font-size:10px;font-weight:bold;text-shadow:1px 1px 0 #000}
 .touch-controls{display:none;position:absolute;inset:0;pointer-events:none;z-index:8}
+.touch-controls.on{display:block}
 @media(hover:none)and(pointer:coarse){.touch-controls{display:block}.hotbar{bottom:190px;transform:translateX(-50%) scale(0.85)}}
+.hotbar.raised{bottom:190px;transform:translateX(-50%) scale(.85)}
+.hotbar-slot .block-icon{width:24px;height:24px;border-radius:4px;border:1px solid rgba(255,255,255,.45);box-shadow:inset 2px 2px 0 rgba(255,255,255,.35),inset -2px -2px 0 rgba(0,0,0,.4);display:inline-block;vertical-align:middle}
 .joystick{position:absolute;bottom:90px;left:24px;width:120px;height:120px;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.2);border-radius:50%;pointer-events:auto;touch-action:none}
 .joystick-stick{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:46px;height:46px;background:rgba(255,255,255,0.3);border:2px solid rgba(255,255,255,0.5);border-radius:50%;transition:none}
 .look-area{position:absolute;top:0;right:0;width:50%;height:70%;pointer-events:auto;touch-action:none}
@@ -67,7 +70,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 <div class="hud-left">
 <div class="stat-bar health"><span class="icon">❤️</span><div class="bar"><div class="fill" id="healthBar" style="width:100%"></div></div><span id="healthText">20</span></div>
 <div class="stat-bar hunger"><span class="icon">🍖</span><div class="bar"><div class="fill" id="hungerBar" style="width:100%"></div></div><span id="hungerText">20</span></div>
-<div class="stat-bar oxygen"><span class="icon">🫁</span><div class="bar"><div class="fill" id="oxygenBar" style="width:100%"></div></div><span id="oxygenText">∞</span></div>
+<div class="stat-bar oxygen"><span class="icon" style="font-size:12px;font-weight:bold">O₂</span><div class="bar"><div class="fill" id="oxygenBar" style="width:100%"></div></div><span id="oxygenText">∞</span></div>
 </div>
 <div class="hud-right">
 <div class="stat-bar shield"><span class="icon">🛡️</span><div class="bar"><div class="fill" id="shieldBar" style="width:0%"></div></div><span id="shieldText">0</span></div>
@@ -82,7 +85,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 <div class="joystick" id="joystick"><div class="joystick-stick" id="joystickStick"></div></div>
 <div class="look-area" id="lookArea"></div>
 <div class="action-buttons">
-<div class="action-btn planet" id="btnPlanet">🪐</div>
+<div class="action-btn planet" id="btnPlanet">🚀</div>
 <div class="action-btn jump" id="btnJump">⬆</div>
 <div class="action-btn place" id="btnPlace">🧱</div>
 <div class="action-btn break" id="btnBreak">⛏️</div>
@@ -690,7 +693,10 @@ Game.lastCountsKey=key;
 const hb=document.getElementById('hotbar');
 Array.from(hb.children).forEach((el,i)=>{
 el.classList.toggle('active',i===Game.input.selectedSlot);
-el.innerHTML='<span>'+(BICONS[Game.inventory[i]]||'⬜')+'</span><span class="count">'+Game.counts[i]+'</span>';
+const bid=Game.inventory[i];
+const cols=_COLORS[bid];
+const cT=cols?cols[2]:'#888',cS=cols?cols[0]:'#666',cD=cols?cols[3]:'#444';
+el.innerHTML='<div class="block-icon" style="background:linear-gradient(135deg,'+cT+' 0%,'+cS+' 55%,'+cD+' 100%)"></div><span class="count">'+Game.counts[i]+'</span>';
 });
 }
 function updateCamera(){
@@ -797,6 +803,9 @@ Game.input.selectedSlot=(Game.input.selectedSlot+(e.deltaY>0?1:-1)+9)%9;
 // ====== 触摸控制 ======
 function initTouch(){
 if(!IS_MOBILE)return;
+// 强制启用触摸 UI（不依赖媒体查询，兼容更多浏览器）
+document.querySelector('.touch-controls').classList.add('on');
+document.getElementById('hotbar').classList.add('raised');
 const joy=document.getElementById('joystick'),stick=document.getElementById('joystickStick');
 let joyId=null,joyCenter={x:0,y:0};
 joy.addEventListener('touchstart',e=>{e.preventDefault();const t=e.changedTouches[0];joyId=t.identifier;joyCenter={x:t.clientX,y:t.clientY};updateStick(t);},{passive:false});
@@ -902,7 +911,7 @@ document.getElementById('startBtn').addEventListener('click',()=>{
 Game.started=true;
 document.getElementById('startMenu').classList.add('hidden');
 if(!IS_MOBILE)document.getElementById('gameCanvas').requestPointerLock();
-showToast('⛏️ 挖矿 · 🧱 建造 · 🪐 探索星球');
+showToast('⛏️ 挖矿 · 🧱 建造 · 🚀 探索星球');
 });
 document.getElementById('resumeBtn').addEventListener('click',pauseToggle);
 document.getElementById('restartBtn').addEventListener('click',restartGame);
