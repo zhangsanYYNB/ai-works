@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,max-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>星际方块 · 我的世界 + 无人深空</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Segoe UI','Microsoft YaHei',sans-serif;color:#fff;touch-action:none}
+#gameCanvas{display:block;width:100vw;height:100vh}
+.hud{position:absolute;top:0;left:0;right:0;padding:10px 14px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:10;text-shadow:0 2px 4px rgba(0,0,0,0.9)}
+.hud-left,.hud-right{display:flex;flex-direction:column;gap:5px}
+.stat-bar{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.45);padding:4px 10px;border-radius:16px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.1);font-size:13px;font-weight:600}
+.stat-bar .icon{font-size:14px}
+.stat-bar .bar{width:70px;height:6px;background:rgba(255,255,255,0.15);border-radius:3px;overflow:hidden}
+.stat-bar .fill{height:100%;transition:width .2s;border-radius:3px}
+.health .fill{background:linear-gradient(90deg,#ff3b30,#ff6b6b)}
+.hunger .fill{background:linear-gradient(90deg,#ff9500,#ffcc00)}
+.oxygen .fill{background:linear-gradient(90deg,#00d4ff,#5ac8fa)}
+.shield .fill{background:linear-gradient(90deg,#5856d6,#af52de)}
+.crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:5}
+.crosshair::before,.crosshair::after{content:'';position:absolute;background:rgba(255,255,255,0.7);box-shadow:0 0 4px rgba(0,0,0,0.8)}
+.crosshair::before{width:14px;height:2px;top:50%;left:50%;transform:translate(-50%,-50%)}
+.crosshair::after{width:2px;height:14px;top:50%;left:50%;transform:translate(-50%,-50%)}
+.hotbar{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:4px;background:rgba(0,0,0,0.5);padding:6px;border-radius:8px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.15);z-index:10}
+.hotbar-slot{width:52px;height:52px;background:rgba(255,255,255,0.05);border:2px solid rgba(255,255,255,0.2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:26px;position:relative;transition:all .15s}
+@media(max-width:600px){.hotbar-slot{width:40px;height:40px;font-size:20px}}
+.hotbar-slot.active{border-color:#fff;background:rgba(255,255,255,0.2);transform:scale(1.08);box-shadow:0 0 12px rgba(255,255,255,0.4)}
+.hotbar-slot .count{position:absolute;bottom:1px;right:3px;font-size:10px;font-weight:bold;text-shadow:1px 1px 0 #000}
+.touch-controls{display:none;position:absolute;inset:0;pointer-events:none;z-index:8}
+@media(hover:none)and(pointer:coarse){.touch-controls{display:block}.hotbar{bottom:190px;transform:translateX(-50%) scale(0.85)}}
+.joystick{position:absolute;bottom:90px;left:24px;width:120px;height:120px;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.2);border-radius:50%;pointer-events:auto;touch-action:none}
+.joystick-stick{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:46px;height:46px;background:rgba(255,255,255,0.3);border:2px solid rgba(255,255,255,0.5);border-radius:50%;transition:none}
+.look-area{position:absolute;top:0;right:0;width:50%;height:70%;pointer-events:auto;touch-action:none}
+.action-buttons{position:absolute;bottom:100px;right:24px;display:flex;flex-direction:column;gap:12px;pointer-events:auto}
+.action-btn{width:60px;height:60px;border-radius:50%;border:2px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.1);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);touch-action:none}
+.action-btn:active{background:rgba(255,255,255,0.3);transform:scale(0.95)}
+.action-btn.jump{background:rgba(76,175,80,0.25);border-color:rgba(76,175,80,0.6)}
+.action-btn.break{background:rgba(244,67,54,0.25);border-color:rgba(244,67,54,0.6)}
+.action-btn.place{background:rgba(33,150,243,0.25);border-color:rgba(33,150,243,0.6)}
+.action-btn.planet{background:rgba(170,0,255,0.25);border-color:rgba(170,0,255,0.6)}
+.overlay{position:absolute;inset:0;background:rgba(0,0,0,0.75);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.overlay.hidden{display:none}
+.title{font-size:clamp(28px,6vw,56px);font-weight:900;background:linear-gradient(135deg,#00d4ff,#5856d6,#af52de);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;text-align:center;letter-spacing:2px}
+.subtitle{color:#aaa;font-size:clamp(13px,2.5vw,18px);margin-bottom:30px;text-align:center}
+.start-btn{padding:12px 36px;font-size:18px;font-weight:bold;background:linear-gradient(135deg,#00d4ff,#5856d6);color:#fff;border:none;border-radius:30px;cursor:pointer;box-shadow:0 8px 20px rgba(88,86,214,0.5);transition:transform .2s}
+.start-btn:active{transform:scale(0.96)}
+.instructions{margin-top:24px;color:#888;font-size:13px;text-align:center;line-height:1.8;max-width:480px;padding:0 16px}
+.instructions kbd{display:inline-block;padding:2px 7px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:4px;font-family:monospace;font-size:11px}
+.pause-btn{position:absolute;top:10px;right:14px;width:36px;height:36px;border-radius:8px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:16px;cursor:pointer;z-index:11;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.planet-info{position:absolute;top:68px;left:14px;background:rgba(0,0,0,0.5);padding:6px 12px;border-radius:8px;border:1px solid rgba(0,212,255,0.3);font-size:12px;z-index:10;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);pointer-events:auto;cursor:pointer}
+.planet-info .planet-name{color:#00d4ff;font-weight:bold}
+.loading{position:absolute;inset:0;background:radial-gradient(circle at center,#1a1a3e 0%,#000 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+.loading.hidden{display:none}
+.loader{width:50px;height:50px;border:4px solid rgba(0,212,255,0.2);border-top-color:#00d4ff;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{margin-top:16px;color:#00d4ff;letter-spacing:4px;font-size:13px}
+.block-tooltip{position:absolute;background:rgba(0,0,0,0.8);padding:6px 10px;border-radius:6px;font-size:12px;pointer-events:none;z-index:9;display:none;border:1px solid rgba(255,255,255,0.2);white-space:nowrap}
+.event-toast{position:absolute;top:28%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);padding:10px 20px;border-radius:8px;border:1px solid rgba(0,212,255,0.4);color:#fff;font-size:14px;z-index:12;pointer-events:none;opacity:0;transition:opacity .3s}
+.event-toast.show{opacity:1}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div class="hud">
+<div class="hud-left">
+<div class="stat-bar health"><span class="icon">❤️</span><div class="bar"><div class="fill" id="healthBar" style="width:100%"></div></div><span id="healthText">20</span></div>
+<div class="stat-bar hunger"><span class="icon">🍖</span><div class="bar"><div class="fill" id="hungerBar" style="width:100%"></div></div><span id="hungerText">20</span></div>
+<div class="stat-bar oxygen"><span class="icon">🫁</span><div class="bar"><div class="fill" id="oxygenBar" style="width:100%"></div></div><span id="oxygenText">∞</span></div>
+</div>
+<div class="hud-right">
+<div class="stat-bar shield"><span class="icon">🛡️</span><div class="bar"><div class="fill" id="shieldBar" style="width:0%"></div></div><span id="shieldText">0</span></div>
+<div class="stat-bar"><span class="icon">⚡</span><span id="energyText">100</span></div>
+</div>
+</div>
+<div class="crosshair"></div>
+<div class="planet-info" id="planetInfo">📍 <span class="planet-name" id="planetName">地球</span></div>
+<button class="pause-btn" id="pauseBtn">⏸</button>
+<div class="hotbar" id="hotbar"></div>
+<div class="touch-controls">
+<div class="joystick" id="joystick"><div class="joystick-stick" id="joystickStick"></div></div>
+<div class="look-area" id="lookArea"></div>
+<div class="action-buttons">
+<div class="action-btn planet" id="btnPlanet">🪐</div>
+<div class="action-btn jump" id="btnJump">⬆</div>
+<div class="action-btn place" id="btnPlace">🧱</div>
+<div class="action-btn break" id="btnBreak">⛏️</div>
+</div>
+</div>
+<div class="block-tooltip" id="blockTooltip"></div>
+<div class="event-toast" id="eventToast"></div>
+<div class="overlay" id="startMenu">
+<div class="title">🌌 星际方块</div>
+<div class="subtitle">我的世界 × 无人深空</div>
+<button class="start-btn" id="startBtn">🚀 开始探险</button>
+<div class="instructions">
+<kbd>WASD</kbd> 移动 <kbd>空格</kbd> 跳跃 <kbd>Shift</kbd> 潜行/下降<br>
+<kbd>鼠标</kbd> 视角 <kbd>左键</kbd> 破坏 <kbd>右键</kbd> 放置<br>
+<kbd>1-9</kbd>/滚轮 选方块 <kbd>E</kbd> 或点击行星名 → 星际传送<br>
+📱 左摇杆·右视角·跳跃·破坏·放置·传送
+</div>
+</div>
+<div class="overlay hidden" id="pauseMenu">
+<div class="title" style="font-size:clamp(22px,5vw,36px)">⏸ 已暂停</div>
+<div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
+<button class="start-btn" id="resumeBtn">▶ 继续游戏</button>
+<button class="start-btn" id="restartBtn" style="background:linear-gradient(135deg,#ff6b6b,#ff3b30)">🔄 重新开始</button>
+</div>
+</div>
+<div class="loading" id="loadingScreen"><div class="loader"></div><div class="loading-text">正在生成星球...</div></div>
+
+<script type="importmap">
+{
+"imports":{
+"three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+"three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
+}
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// ====== 工具 ======
+const TAU=Math.PI*2;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const rand=(a=0,b=1)=>a+Math.random()*(b-a);
+const hash=(x,y,z)=>{let h=(x*374761393+y*668265263+z*1274126177)|0;h=(h^(h>>>13))*1274126177;return((h^(h>>>16))>>>0)/4294967295;};
+const IS_MOBILE=('ontouchstart'in window)||navigator.maxTouchPoints>0;
+const RENDER_DIST=IS_MOBILE?3:5;
+
+// ====== 方块类型 ======
+const BLOCK={AIR:0,GRASS:1,DIRT:2,STONE:3,SAND:4,WATER:5,WOOD:6,LEAVES:7,SANDSTONE:8,SNOW:9,ICE:10,IRON:11,GOLD:12,DIAMOND:13,LAVA:14,BEDROCK:15,ALIEN_GRASS:16,CRYSTAL:17,OBSIDIAN:18,MARS_ROCK:19,SPACE_DUST:20,GLOW_MOSS:21};
+const BCOL={'#5fa843':'#5fa843','#8b5a3c':'#8b5a3c','#7d7d7d':'#7d7d7d','#e8d590':'#e8d590','#6b4423':'#6b4423','#3a8a2a':'#3a8a2a','#d4b574':'#d4b574','#f0f5fa':'#f0f5fa','#a8d8ff':'#a8d8ff','#c8a878':'#c8a878','#ffd700':'#ffd700','#5ce1e6':'#5ce1e6','#ff5722':'#ff5722','#1a1a1a':'#1a1a1a','#a020f0':'#a020f0','#ff00ff':'#ff00ff','#1a0033':'#1a0033','#c1440e':'#c1440e','#4a3a6a':'#4a3a6a','#00ff88':'#00ff88'};
+const BCOLORS={}; let _BCOLORS_RAW=[]; // filled below
+const BNAMES={[BLOCK.GRASS]:'草地',[BLOCK.DIRT]:'泥土',[BLOCK.STONE]:'石头',[BLOCK.SAND]:'沙子',[BLOCK.WOOD]:'木头',[BLOCK.LEAVES]:'树叶',[BLOCK.SANDSTONE]:'砂岩',[BLOCK.SNOW]:'雪',[BLOCK.ICE]:'冰',[BLOCK.IRON]:'铁矿',[BLOCK.GOLD]:'金矿',[BLOCK.DIAMOND]:'钻石',[BLOCK.LAVA]:'岩浆',[BLOCK.BEDROCK]:'基岩',[BLOCK.ALIEN_GRASS]:'外星草',[BLOCK.CRYSTAL]:'紫水晶',[BLOCK.OBSIDIAN]:'黑曜石',[BLOCK.MARS_ROCK]:'火星岩',[BLOCK.SPACE_DUST]:'星尘',[BLOCK.GLOW_MOSS]:'发光苔'};
+const BICONS={[BLOCK.GRASS]:'🌱',[BLOCK.DIRT]:'🟫',[BLOCK.STONE]:'🪨',[BLOCK.SAND]:'🏜️',[BLOCK.WOOD]:'🪵',[BLOCK.LEAVES]:'🌿',[BLOCK.SANDSTONE]:'🟨',[BLOCK.SNOW]:'❄️',[BLOCK.ICE]:'🧊',[BLOCK.IRON]:'⚙️',[BLOCK.GOLD]:'🥇',[BLOCK.DIAMOND]:'💎',[BLOCK.LAVA]:'🌋',[BLOCK.BEDROCK]:'⬛',[BLOCK.ALIEN_GRASS]:'🟣',[BLOCK.CRYSTAL]:'🔮',[BLOCK.OBSIDIAN]:'⚫',[BLOCK.MARS_ROCK]:'🟧',[BLOCK.SPACE_DUST]:'✨',[BLOCK.GLOW_MOSS]:'🟢'};
+const TRANSPARENT=new Set([BLOCK.AIR,BLOCK.LEAVES,BLOCK.WATER,BLOCK.ICE,BLOCK.CRYSTAL,BLOCK.GLOW_MOSS]);
+const isSolid=id=>id!==BLOCK.AIR&&id!==BLOCK.WATER&&id!==BLOCK.LEAVES;
+
+// 颜色表
+const _COLORS={
+[BLOCK.GRASS]:['#5fa843','#5fa843','#7ec850','#5fa843','#5fa843','#5fa843'],
+[BLOCK.DIRT]:['#8b5a3c','#8b5a3c','#8b5a3c','#8b5a3c','#8b5a3c','#8b5a3c'],
+[BLOCK.STONE]:['#7d7d7d','#7d7d7d','#878787','#7d7d7d','#7d7d7d','#7d7d7d'],
+[BLOCK.SAND]:['#e8d590','#e8d590','#f0dfa0','#e8d590','#e8d590','#e8d590'],
+[BLOCK.WOOD]:['#6b4423','#6b4423','#a87a4a','#a87a4a','#6b4423','#6b4423'],
+[BLOCK.LEAVES]:['#3a8a2a','#3a8a2a','#4ca83a','#3a8a2a','#3a8a2a','#3a8a2a'],
+[BLOCK.SANDSTONE]:['#d4b574','#d4b574','#dec28a','#d4b574','#d4b574','#d4b574'],
+[BLOCK.SNOW]:['#f0f5fa','#f0f5fa','#ffffff','#f0f5fa','#f0f5fa','#f0f5fa'],
+[BLOCK.ICE]:['#a8d8ff','#a8d8ff','#c4e6ff','#a8d8ff','#a8d8ff','#a8d8ff'],
+[BLOCK.IRON]:['#c8a878','#c8a878','#d8b888','#a08858','#c8a878','#c8a878'],
+[BLOCK.GOLD]:['#ffd700','#ffd700','#ffeb3b','#cc9900','#ffd700','#ffd700'],
+[BLOCK.DIAMOND]:['#5ce1e6','#5ce1e6','#88ffff','#3bb5ba','#5ce1e6','#5ce1e6'],
+[BLOCK.LAVA]:['#ff5722','#ff5722','#ffab00','#d84315','#ff5722','#ff5722'],
+[BLOCK.BEDROCK]:['#1a1a1a','#1a1a1a','#2a2a2a','#1a1a1a','#1a1a1a','#1a1a1a'],
+[BLOCK.ALIEN_GRASS]:['#a020f0','#a020f0','#c040ff','#a020f0','#a020f0','#a020f0'],
+[BLOCK.CRYSTAL]:['#ff00ff','#ff00ff','#ff66ff','#cc00cc','#ff00ff','#ff00ff'],
+[BLOCK.OBSIDIAN]:['#1a0033','#1a0033','#2a0044','#1a0033','#1a0033','#1a0033'],
+[BLOCK.MARS_ROCK]:['#c1440e','#c1440e','#d65a25','#a03508','#c1440e','#c1440e'],
+[BLOCK.SPACE_DUST]:['#4a3a6a','#4a3a6a','#6a4a8a','#3a2a5a','#4a3a6a','#4a3a6a'],
+[BLOCK.GLOW_MOSS]:['#00ff88','#00ff88','#66ffaa','#00cc66','#00ff88','#00ff88']
+};
+
+// ====== 噪声 ======
+const _fade=t=>t*t*t*(t*(t*6-15)+10);
+function noise3(x,y,z){
+const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z);
+const xf=x-xi,yf=y-yi,zf=z-zi;
+const u=_fade(xf),v=_fade(yf),w=_fade(zf);
+const c000=hash(xi,yi,zi),c100=hash(xi+1,yi,zi),c010=hash(xi,yi+1,zi),c110=hash(xi+1,yi+1,zi);
+const c001=hash(xi,yi,zi+1),c101=hash(xi+1,yi,zi+1),c011=hash(xi,yi+1,zi+1),c111=hash(xi+1,yi+1,zi+1);
+const x00=lerp(c000,c100,u),x10=lerp(c010,c110,u),x01=lerp(c001,c101,u),x11=lerp(c011,c111,u);
+return lerp(lerp(x00,x10,v),lerp(x01,x11,v),w);
+}
+function fbm(x,y,z,oct=4){let a=1,f=1,s=0,n=0;for(let i=0;i<oct;i++){s+=noise3(x*f,y*f,z*f)*a;n+=a;a*=0.5;f*=2;}return s/n;}
+
+// ====== 游戏状态 ======
+const Game={
+scene:null,renderer:null,camera:null,sun:null,
+world:new Map(),chunks:new Map(),pendingChunks:[],meshDirty:false,lastRebuild:0,
+player:{
+x:0,y:40,z:0,vx:0,vy:0,vz:0,
+yaw:0,pitch:-0.2,onGround:false,
+health:20,hunger:20,oxygen:100,shield:0,energy:100,inSpace:false
+},
+input:{forward:0,right:0,jump:false,sneak:false,mouseDown:false,rightDown:false,selectedSlot:0},
+inventory:[BLOCK.GRASS,BLOCK.DIRT,BLOCK.STONE,BLOCK.WOOD,BLOCK.LEAVES,BLOCK.SAND,BLOCK.IRON,BLOCK.GOLD,BLOCK.DIAMOND],
+counts:[99,99,99,99,99,99,32,16,8],
+paused:false,started:false,lastTime:0,
+planetId:0,planets:[],clouds:[],shootingStars:[],dayTime:0.3,daySpeed:1/600,particles:[],
+lastPCX:null,lastPCZ:null,lastCountsKey:'',achievements:{},
+cleanupTimer:0,planetNameTxt:'地球',
+solidMesh:null,waterMesh:null,leafMesh:null,crystalMesh:null,glowMesh:null,
+skyDome:null,distPlanets:null,moonMesh:null,
+};
+
+// ====== 星球定义 ======
+Game.planets=[
+{id:'earth',name:'地球·Earth',theme:'#4a9eff',bg:['#1a3a6a','#0a1a3a'],gravity:28,hasOxygen:true,
+heightGen:(x,z)=>Math.floor(fbm(x*.02,0,z*.02,5)*12+fbm(x*.008,0,z*.008,3)*18+16),
+surfaceGen:(x,y,z,h)=>{
+if(y===0)return BLOCK.BEDROCK;
+if(y<h-4)return BLOCK.STONE;
+if(y<h-1)return BLOCK.DIRT;
+if(y===h){const t=1-Math.abs(z)/200;if(h>35)return BLOCK.SNOW;if(t<0.3&&h<25)return BLOCK.SAND;return BLOCK.GRASS;}
+return BLOCK.AIR;
+},
+oreGen:(x,y,z,h)=>{if(y>h-6)return BLOCK.AIR;const r=hash(x,y,z);if(r<.005&&y<25)return BLOCK.DIAMOND;if(r<.025&&y<35)return BLOCK.GOLD;if(r<.06)return BLOCK.IRON;return BLOCK.STONE;}},
+{id:'mars',name:'火星·Mars',theme:'#ff6b3d',bg:['#3a1a0a','#1a0a05'],gravity:14,hasOxygen:false,
+heightGen:(x,z)=>Math.floor(fbm(x*.015,0,z*.015,4)*18+22),
+surfaceGen:(x,y,z,h)=>{if(y===0)return BLOCK.BEDROCK;if(y<h-3)return BLOCK.MARS_ROCK;if(y<h-1)return BLOCK.STONE;if(y===h)return hash(x,0,z)<.1?BLOCK.GOLD:BLOCK.MARS_ROCK;return BLOCK.AIR;},
+oreGen:(x,y,z,h)=>{if(y>h-4)return BLOCK.AIR;const r=hash(x,y,z);if(r<.02&&y<30)return BLOCK.GOLD;if(r<.05)return BLOCK.IRON;return BLOCK.MARS_ROCK;}},
+{id:'ice',name:'冰冻星·Cryos',theme:'#a8d8ff',bg:['#1a2a4a','#0a1a3a'],gravity:24,hasOxygen:true,
+heightGen:(x,z)=>Math.floor(fbm(x*.018,0,z*.018,4)*10+18),
+surfaceGen:(x,y,z,h)=>{if(y===0)return BLOCK.BEDROCK;if(y<h-5)return BLOCK.STONE;if(y<h)return BLOCK.ICE;if(y===h)return BLOCK.SNOW;return BLOCK.AIR;},
+oreGen:(x,y,z,h)=>{if(y>h-8)return BLOCK.AIR;const r=hash(x,y,z);if(r<.008)return BLOCK.DIAMOND;return BLOCK.ICE;}},
+{id:'alien',name:'外星绿洲·Xeno',theme:'#a020f0',bg:['#2a0a4a','#1a0033'],gravity:22,hasOxygen:false,
+heightGen:(x,z)=>Math.floor(fbm(x*.022,0,z*.022,5)*14+20),
+surfaceGen:(x,y,z,h)=>{if(y===0)return BLOCK.BEDROCK;if(y<h-4)return BLOCK.STONE;if(y<h)return BLOCK.DIRT;if(y===h){const r=hash(x,0,z);if(r<.15)return BLOCK.GLOW_MOSS;if(r<.05)return BLOCK.CRYSTAL;return BLOCK.ALIEN_GRASS;}return BLOCK.AIR;},
+oreGen:(x,y,z,h)=>{if(y>h-6)return BLOCK.AIR;const r=hash(x,y,z);if(r<.03)return BLOCK.CRYSTAL;if(r<.07)return BLOCK.GOLD;return BLOCK.STONE;}},
+{id:'crystal',name:'水晶世界·Crystalis',theme:'#ff66ff',bg:['#3a0a3a','#1a001a'],gravity:20,hasOxygen:false,
+heightGen:(x,z)=>Math.floor(fbm(x*.02,0,z*.02,4)*20+10),
+surfaceGen:(x,y,z,h)=>{if(y===0)return BLOCK.BEDROCK;if(y<h-2)return BLOCK.STONE;if(y===h){const r=hash(x,0,z);if(r<.3)return BLOCK.CRYSTAL;if(r<.5)return BLOCK.OBSIDIAN;return BLOCK.STONE;}return BLOCK.AIR;},
+oreGen:(x,y,z,h)=>{if(y>h-8)return BLOCK.AIR;const r=hash(x,y,z);if(r<.05)return BLOCK.CRYSTAL;if(r<.1)return BLOCK.DIAMOND;return BLOCK.STONE;}}
+];
+
+// ====== 世界生成 ======
+const CHUNK_SIZE=16;
+function wk(x,y,z){return x+','+y+','+z}
+function setBlock(x,y,z,id,md=true){
+const k=wk(x,y,z);
+if(id===BLOCK.AIR)Game.world.delete(k);else Game.world.set(k,id);
+if(md)Game.meshDirty=true;
+}
+function getBlock(x,y,z){return Game.world.get(wk(x,y,z))||BLOCK.AIR}
+function chunkCoord(v){return Math.floor(v/CHUNK_SIZE)}
+function getTerrainHeight(x,z,planet){return planet.heightGen(x,z)}
+
+function addTree(x,y,z,planet){
+if(planet.id!=='earth')return;
+const h=y;
+for(let yt=h+1;yt<=h+4;yt++)setBlock(x,yt,z,BLOCK.WOOD,false);
+// leaves
+for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){if(Math.abs(dx)===2&&Math.abs(dz)===2)continue;setBlock(x+dx,h+3,z+dz,BLOCK.LEAVES,false);}
+for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){setBlock(x+dx,h+4,z+dz,BLOCK.LEAVES,false);}
+setBlock(x,h+5,z,BLOCK.LEAVES,false);
+}
+function addMarsPillar(x,y,z){
+const h=y,h2=h+randi(2,5);
+for(let yt=h+1;yt<=h2;yt++)setBlock(x,yt,z,BLOCK.MARS_ROCK,false);
+if(hash(x,0,z)<.2)setBlock(x,h2+1,z,BLOCK.GOLD,false);
+}
+function addIceSpike(x,y,z){
+const h=y,h2=h+randi(2,5);
+for(let yt=h+1;yt<=h2;yt++)setBlock(x,yt,z,BLOCK.ICE,false);
+if(hash(x,1,z)<.5)setBlock(x,h2+1,z,BLOCK.SNOW,false);
+}
+function addAlienShroom(x,y,z){
+const h=y,h2=h+randi(2,4);
+for(let yt=h+1;yt<=h2;yt++)setBlock(x,yt,z,BLOCK.OBSIDIAN,false);
+const cap=randi(1,2);
+for(let dx=-cap;dx<=cap;dx++)for(let dz=-cap;dz<=cap;dz++){if(Math.abs(dx)===cap&&Math.abs(dz)===cap)continue;setBlock(x+dx,h2+1,z+dz,BLOCK.CRYSTAL,false);}
+}
+function addCrystalSpike(x,y,z){
+const h=y,h2=h+randi(2,6);
+for(let yt=h+1;yt<=h2;yt++)setBlock(x,yt,z,BLOCK.CRYSTAL,false);
+}
+
+function generateChunk(cx,cz){
+const planet=Game.planets[Game.planetId];
+const x0=cx*CHUNK_SIZE,z0=cz*CHUNK_SIZE;
+for(let dx=0;dx<CHUNK_SIZE;dx++)for(let dz=0;dz<CHUNK_SIZE;dz++){
+const x=x0+dx,z=z0+dz;
+const h=getTerrainHeight(x,z,planet);
+for(let y=0;y<=h+2;y++){
+let b=planet.surfaceGen(x,y,z,h);
+if(b===BLOCK.STONE)b=planet.oreGen(x,y,z,h);
+if(b!==BLOCK.AIR)setBlock(x,y,z,b,false);
+}
+// 装饰
+const g=hash(x,0,z);
+if(planet.id==='earth'&&x%7===0&&z%7===0&&g<.45&&h>12)addTree(x,h,z,planet);
+if(planet.id==='mars'&&x%8===0&&z%8===0&&g<.5&&h>12)addMarsPillar(x,h,z);
+if(planet.id==='ice'&&x%8===0&&z%8===0&&g<.5&&h>12)addIceSpike(x,h,z);
+if(planet.id==='alien'&&x%6===0&&z%6===0&&g<.4&&h>12)addAlienShroom(x,h,z);
+if(planet.id==='crystal'&&x%5===0&&z%5===0&&g<.6&&h>10)addCrystalSpike(x,h,z);
+}
+Game.chunks.set(cx+','+cz,true);
+Game.meshDirty=true;
+}
+
+function requestChunks(){
+const pcx=chunkCoord(Game.player.x),pcz=chunkCoord(Game.player.z);
+const want=[];
+for(let dx=-RENDER_DIST;dx<=RENDER_DIST;dx++)for(let dz=-RENDER_DIST;dz<=RENDER_DIST;dz++){
+const cx=pcx+dx,cz=pcz+dz,k=cx+','+cz;
+if(Game.chunks.get(k)===undefined)want.push([cx,cz,Math.max(Math.abs(dx),Math.abs(dz))]);
+}
+want.sort((a,b)=>a[2]-b[2]);
+Game.pendingChunks=want;
+}
+function streamChunks(budget=4){
+let n=0;
+while(Game.pendingChunks.length&&n<budget){
+const c=Game.pendingChunks.shift();
+generateChunk(c[0],c[1]);n++;
+}
+return n;
+}
+function cleanupWorld(){
+const pcx=chunkCoord(Game.player.x),pcz=chunkCoord(Game.player.z);
+for(const k of Game.chunks.keys()){
+const[kx,kz]=k.split(',').map(Number);
+if(Math.abs(kx-pcx)>RENDER_DIST+2||Math.abs(kz-pcz)>RENDER_DIST+2){
+const x0=kx*16,z0=kz*16;
+for(let xx=x0;xx<x0+16;xx++)for(let zz=z0;zz<z0+16;zz++)for(let y=0;y<60;y++)Game.world.delete(wk(xx,y,zz));
+Game.chunks.delete(k);
+}
+}
+}
+
+// ====== Three.js 初始化 ======
+function initRenderer(){
+Game.renderer=new THREE.WebGLRenderer({canvas:document.getElementById('gameCanvas'),antialias:false,powerPreference:'high-performance'});
+Game.renderer.setPixelRatio(Math.min(window.devicePixelRatio,IS_MOBILE?1.5:2));
+Game.renderer.setSize(window.innerWidth,window.innerHeight);
+Game.renderer.setClearColor(0x000000);
+Game.scene=new THREE.Scene();
+Game.scene.fog=new THREE.Fog(0x000000,IS_MOBILE?40:60,IS_MOBILE?120:180);
+Game.camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,500);
+Game.camera.rotation.order='YXZ';
+window.addEventListener('resize',()=>{Game.camera.aspect=window.innerWidth/window.innerHeight;Game.camera.updateProjectionMatrix();Game.renderer.setSize(window.innerWidth,window.innerHeight);});
+}
+
+// ====== 体素网格 ======
+const MAX_SOLID=IS_MOBILE?150000:250000;
+const MAX_SPECIAL=30000;
+
+function initBlockMeshes(){
+const boxGeo=new THREE.BoxGeometry(1,1,1);
+const matSolid=new THREE.MeshLambertMaterial({color:0xffffff});
+Game.solidMesh=new THREE.InstancedMesh(boxGeo,matSolid,MAX_SOLID);
+Game.solidMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+Game.solidMesh.frustumCulled=false;
+Game.solidMesh.count=0;
+Game.scene.add(Game.solidMesh);
+
+Game.waterMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,.85,1),
+new THREE.MeshLambertMaterial({color:0x4080ff,transparent:true,opacity:.7,depthWrite:false}),MAX_SPECIAL);
+Game.waterMesh.frustumCulled=false;
+Game.waterMesh.count=0;
+Game.scene.add(Game.waterMesh);
+
+Game.leafMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),
+new THREE.MeshLambertMaterial({color:0x4ca83a,transparent:true,opacity:.85,depthWrite:false}),MAX_SPECIAL);
+Game.leafMesh.frustumCulled=false;
+Game.leafMesh.count=0;
+Game.scene.add(Game.leafMesh);
+
+Game.crystalMesh=new THREE.InstancedMesh(new THREE.OctahedronGeometry(.55),
+new THREE.MeshLambertMaterial({color:0xff66ff,transparent:true,opacity:.75,emissive:0xff00ff,emissiveIntensity:.5}),MAX_SPECIAL);
+Game.crystalMesh.frustumCulled=false;
+Game.crystalMesh.count=0;
+Game.scene.add(Game.crystalMesh);
+
+Game.glowMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(.9,.9,.9),
+new THREE.MeshBasicMaterial({color:0x00ff88}),MAX_SPECIAL);
+Game.glowMesh.frustumCulled=false;
+Game.glowMesh.count=0;
+Game.scene.add(Game.glowMesh);
+
+const sun=new THREE.DirectionalLight(0xffffff,1.0);
+sun.position.set(50,100,50);
+Game.scene.add(sun);
+Game.sun=sun;
+Game.scene.add(new THREE.AmbientLight(0x666677,.6));
+}
+
+function rebuildMeshes(){
+const px=Math.floor(Game.player.x),pz=Math.floor(Game.player.z);
+const R=RENDER_DIST*CHUNK_SIZE+8;
+const solid=[]; // {x,y,z,c}
+const water=[],leaf=[],crystal=[],glow=[];
+const dummy=new THREE.Object3D();
+
+Game.world.forEach((id,key)=>{
+const c1=key.indexOf(','),c2=key.indexOf(',',c1+1);
+const x=+key.slice(0,c1),y=+key.slice(c1+1,c2),z=+key.slice(c2+1);
+if(Math.abs(x-px)>R||Math.abs(z-pz)>R)return;
+// 暴露检测
+let exposed=false;
+if(!exposed&&getBlock(x+1,y,z)===BLOCK.AIR)exposed=true;
+if(!exposed&&getBlock(x-1,y,z)===BLOCK.AIR)exposed=true;
+if(!exposed&&getBlock(x,y+1,z)===BLOCK.AIR)exposed=true;
+if(!exposed&&getBlock(x,y-1,z)===BLOCK.AIR)exposed=true;
+if(!exposed&&getBlock(x,y,z+1)===BLOCK.AIR)exposed=true;
+if(!exposed&&getBlock(x,y,z-1)===BLOCK.AIR)exposed=true;
+// 透明旁边的暴露
+if(!exposed){
+if(TRANSPARENT.has(getBlock(x+1,y,z)))exposed=true;
+if(!exposed&&TRANSPARENT.has(getBlock(x-1,y,z)))exposed=true;
+if(!exposed&&TRANSPARENT.has(getBlock(x,y+1,z)))exposed=true;
+if(!exposed&&TRANSPARENT.has(getBlock(x,y-1,z)))exposed=true;
+if(!exposed&&TRANSPARENT.has(getBlock(x,y,z+1)))exposed=true;
+if(!exposed&&TRANSPARENT.has(getBlock(x,y,z-1)))exposed=true;
+}
+if(!exposed)return;
+
+if(id===BLOCK.WATER)water.push(x+.5,y+.5,z+.5);
+else if(id===BLOCK.LEAVES)leaf.push(x+.5,y+.5,z+.5);
+else if(id===BLOCK.CRYSTAL)crystal.push(x+.5,y+.5,z+.5);
+else if(id===BLOCK.GLOW_MOSS)glow.push(x+.5,y+.5,z+.5);
+else{
+const cols=_COLORS[id];
+const c=new THREE.Color(cols?cols[2]:'#888');
+solid.push({x:x+.5,y:y+.5,z:z+.5,c});
+}
+});
+
+// 固体
+const sm=Game.solidMesh;
+const sn=Math.min(solid.length,MAX_SOLID);
+sm.count=sn;
+for(let i=0;i<sn;i++){
+dummy.position.set(solid[i].x,solid[i].y,solid[i].z);dummy.updateMatrix();sm.setMatrixAt(i,dummy.matrix);
+sm.setColorAt(i,solid[i].c);
+}
+sm.instanceMatrix.needsUpdate=true;
+if(sn>0)sm.instanceColor.needsUpdate=true;
+
+[Game.waterMesh,Game.leafMesh,Game.crystalMesh,Game.glowMesh].forEach((m,idx)=>{
+const list=[water,leaf,crystal,glow][idx];
+const n=Math.min(list.length/3,MAX_SPECIAL);
+m.count=n;
+for(let i=0;i<n;i++){
+dummy.position.set(list[i*3],list[i*3+1],list[i*3+2]);dummy.updateMatrix();m.setMatrixAt(i,dummy.matrix);
+}
+m.instanceMatrix.needsUpdate=true;
+});
+Game.meshDirty=false;
+Game.lastRebuild=performance.now();
+}
+
+// ====== 天穹 ======
+function initSky(){
+const starGeo=new THREE.BufferGeometry();
+const N=IS_MOBILE?600:1200;
+const pos=new Float32Array(N*3),col=new Float32Array(N*3);
+for(let i=0;i<N;i++){
+const r=300,theta=rand(0,TAU),phi=Math.acos(rand(-1,1));
+pos[i*3]=r*Math.sin(phi)*Math.cos(theta);
+pos[i*3+1]=r*Math.abs(Math.cos(phi))+30;
+pos[i*3+2]=r*Math.sin(phi)*Math.sin(theta);
+const c=new THREE.Color().setHSL(rand(.5,.7),.5,rand(.7,1));
+col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b;
+}
+starGeo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+starGeo.setAttribute('color',new THREE.BufferAttribute(col,3));
+Game.scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({size:1.2,vertexColors:true,transparent:true,opacity:.9,sizeAttenuation:false})));
+
+Game.skyDome=new THREE.Mesh(new THREE.SphereGeometry(400,32,16),
+new THREE.ShaderMaterial({
+side:THREE.BackSide,fog:false,
+uniforms:{topColor:{value:new THREE.Color('#0a1a3a')},bottomColor:{value:new THREE.Color('#3a1a5a')},horizonColor:{value:new THREE.Color('#ff6b9d')}},
+vertexShader:'varying vec3 vW;void main(){vW=(modelMatrix*vec4(position,1.0)).xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+fragmentShader:'uniform vec3 tC,bC,hC;varying vec3 vW;void main(){float h=normalize(vW).y;vec3 c=mix(hC,bC,smoothstep(-0.1,.3,h));c=mix(c,tC,smoothstep(.3,.9,h));gl_FragColor=vec4(c,1.0);}'
+}));
+Game.scene.add(Game.skyDome);
+
+const pg=new THREE.Group();
+for(let i=0;i<3;i++){
+const p=new THREE.Mesh(new THREE.SphereGeometry(rand(8,18),24,12),
+new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(rand(0,1),.5,.5)}));
+p.position.set(rand(-200,200),rand(50,150),rand(-200,200));
+p.userData.rotSpeed=rand(-.001,.001);
+pg.add(p);
+}
+Game.scene.add(pg);
+Game.distPlanets=pg;
+
+// 月亮
+const moon=new THREE.Mesh(new THREE.SphereGeometry(10,16,12),
+new THREE.MeshLambertMaterial({color:0xcccccc}));
+moon.position.set(-80,30,-120);
+Game.scene.add(moon);
+Game.moonMesh=moon;
+
+// 云
+const cloudMat=new THREE.MeshLambertMaterial({color:0xffffff,transparent:true,opacity:.6});
+for(let i=0;i<(IS_MOBILE?10:20);i++){
+const m=new THREE.Mesh(new THREE.SphereGeometry(rand(6,12),6,5),cloudMat);
+m.position.set(rand(-100,100),rand(70,100),rand(-100,100));
+m.userData.speed=rand(.2,.6);
+Game.scene.add(m);
+Game.clouds.push(m);
+}
+}
+
+function spawnShootingStar(){
+if(Game.shootingStars.length>3)return;
+const m=new THREE.Mesh(new THREE.SphereGeometry(.8,6,4),new THREE.MeshBasicMaterial({color:0xffffff}));
+const angle=rand(0,TAU),dist=200;
+m.position.set(Game.player.x+Math.cos(angle)*dist,rand(80,150),Game.player.z+Math.sin(angle)*dist);
+const dir=new THREE.Vector3(-Math.cos(angle)*rand(30,60),-rand(20,40),-Math.sin(angle)*rand(30,60));
+Game.scene.add(m);
+Game.shootingStars.push({mesh:m,vel:dir,life:2});
+}
+
+// ====== 玩家物理 ======
+function isInWater(x,y,z){
+const b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));
+return b===BLOCK.WATER;
+}
+
+function updatePlayer(dt){
+const p=Game.player;
+const planet=Game.planets[Game.planetId];
+const gravity=p.inSpace?0:planet.gravity;
+const sin=Math.sin(p.yaw),cos=Math.cos(p.yaw);
+let mx=Game.input.forward*cos+Game.input.right*sin;
+let mz=-Game.input.forward*sin+Game.input.right*cos;
+const speed=p.inSpace?18:(Game.input.sneak?4:7);
+const inWater=isInWater(p.x,p.y+.5,p.z);
+
+if(inWater&&Game.input.jump){p.vy=5;Game.input.jump=false;}
+else if(Game.input.jump&&p.onGround&&!p.inSpace){p.vy=10;p.onGround=false;}
+if(Game.input.jump&&p.inSpace){p.vy=8;}
+
+p.vx=lerp(p.vx,mx*speed,.25);
+p.vz=lerp(p.vz,mz*speed,.25);
+if(!p.inSpace){
+if(inWater)p.vy-=.5*gravity*dt;
+else p.vy-=gravity*dt;
+}else{p.vy*=.96;}
+
+p.vy=clamp(p.vy,-40,40);
+
+// 太空：Shift下降
+if(p.inSpace&&Game.input.sneak)p.vy-=8*dt;
+
+// 碰撞
+const nx=p.x+p.vx*dt;
+if(!collidesAt(nx,p.y,p.z))p.x=nx;else p.vx=0;
+const nz=p.z+p.vz*dt;
+if(!collidesAt(p.x,p.y,nz))p.z=nz;else p.vz=0;
+const ny=p.y+p.vy*dt;
+if(!collidesAt(p.x,ny,p.z)){p.y=ny;if(p.vy<0)p.onGround=false;}else{if(p.vy<0)p.onGround=true;p.vy=0;}
+
+if(p.y<-20)respawnPlayer();
+p.inSpace=p.y>80;
+
+// 饥饿
+if(Math.random()<dt*.05&&p.hunger>0)p.hunger=Math.max(0,p.hunger-.1);
+if(p.hunger>15&&p.health<20)p.health=Math.min(20,p.health+dt*.5);
+// 氧气
+if(p.inSpace||!planet.hasOxygen){
+if(p.inSpace)p.oxygen=Math.max(0,p.oxygen-dt*5);
+else p.oxygen=Math.max(0,p.oxygen-dt*2);
+}else{p.oxygen=Math.min(100,p.oxygen+dt*30);}
+if(p.oxygen<=0){p.health=Math.max(0,p.health-dt*4);if(Math.random()<.05)showToast('⚠️ 氧气不足！');}
+if(p.health<=0)respawnPlayer();
+
+// 能量再生
+if(p.energy<100)p.energy=Math.min(100,p.energy+dt*2);
+
+// 成就：太空
+if(p.inSpace&&!Game.achievements.space){Game.achievements.space=true;showToast('🏆 冲出大气层！');}
+}
+
+function collidesAt(x,y,z){
+const checks=[[x-.3,y,z-.3],[x+.3,y,z-.3],[x-.3,y,z+.3],[x+.3,y,z+.3],[x-.3,y+1.7,z-.3],[x+.3,y+1.7,z+.3]];
+for(const[cx,cy,cz]of checks)if(isSolid(getBlock(Math.floor(cx),Math.floor(cy),Math.floor(cz))))return true;
+return false;
+}
+
+function respawnPlayer(){
+const planet=Game.planets[Game.planetId];
+const h=getTerrainHeight(0,0,planet);
+Game.player.x=0;Game.player.y=h+3;Game.player.z=0;
+Game.player.vx=Game.player.vy=Game.player.vz=0;
+Game.player.health=20;Game.player.hunger=20;Game.player.oxygen=100;Game.player.inSpace=false;
+showToast('💫 传送回出生点');
+}
+
+// ====== 交互 ======
+function raycastBlock(maxDist=6){
+const dir=new THREE.Vector3();Game.camera.getWorldDirection(dir);
+const origin=new THREE.Vector3(Game.player.x,Game.player.y+1.6,Game.player.z);
+let prev=null;
+for(let d=0;d<maxDist;d+=.1){
+const p=origin.clone().add(dir.clone().multiplyScalar(d));
+const b=getBlock(Math.floor(p.x),Math.floor(p.y),Math.floor(p.z));
+if(b!==BLOCK.AIR&&b!==BLOCK.WATER)return{block:b,pos:[Math.floor(p.x),Math.floor(p.y),Math.floor(p.z)],prev:prev?[prev.x,prev.y,prev.z]:null,pos3:p};
+prev={x:p.x,y:p.y,z:p.z};
+}
+return null;
+}
+
+function breakBlock(){
+if(!Game.started||Game.paused)return;
+const r=raycastBlock();if(!r)return;
+const[bx,by,bz]=r.pos;
+if(r.block===BLOCK.BEDROCK)return;
+setBlock(bx,by,bz,BLOCK.AIR);
+spawnBreakParticles(bx+.5,by+.5,bz+.5,_COLORS[r.block][2]);
+const inv=Game.inventory.indexOf(r.block);
+if(inv>=0)Game.counts[inv]=Math.min(99,Game.counts[inv]+1);
+if(!Game.achievements.mine){Game.achievements.mine=true;showToast('🏆 破土动工！');}
+rebuildMeshes();
+sfx('break');
+}
+
+function placeBlock(){
+if(!Game.started||Game.paused)return;
+const r=raycastBlock();if(!r||!r.prev)return;
+const[bx,by,bz]=r.prev;
+const px=Game.player.x,py=Game.player.y+1,pz=Game.player.z;
+if(Math.abs(bx+.5-px)<.8&&Math.abs(by+.5-py)<1.8&&Math.abs(bz+.5-pz)<.8)return;
+const slot=Game.input.selectedSlot;
+if(Game.counts[slot]<=0)return;
+const bid=Game.inventory[slot];
+setBlock(bx,by,bz,bid);
+Game.counts[slot]--;
+spawnBreakParticles(bx+.5,by+.5,bz+.5,_COLORS[bid][2],5);
+rebuildMeshes();
+sfx('place');
+}
+
+// ====== 粒子 ======
+function spawnBreakParticles(x,y,z,color,count=12){
+const mat=new THREE.MeshBasicMaterial({color});
+for(let i=0;i<count;i++){
+const m=new THREE.Mesh(new THREE.BoxGeometry(.15,.15,.15),mat);
+m.position.set(x,y,z);
+Game.scene.add(m);
+Game.particles.push({mesh:m,vel:new THREE.Vector3(rand(-3,3),rand(2,5),rand(-3,3)),life:1});
+}
+}
+function updateParticles(dt){
+for(let i=Game.particles.length-1;i>=0;i--){
+const p=Game.particles[i];
+p.vel.y-=15*dt;
+p.mesh.position.add(p.vel.clone().multiplyScalar(dt));
+p.life-=dt;
+p.mesh.scale.setScalar(Math.max(.1,p.life));
+if(p.life<=0){Game.scene.remove(p.mesh);Game.particles.splice(i,1);}
+}
+}
+
+// ====== 音效 ======
+function sfx(type){
+try{
+const ctx=Game.audio||(Game.audio=new(window.AudioContext||window.webkitAudioContext)());
+const o=ctx.createOscillator(),g=ctx.createGain();
+o.connect(g);g.connect(ctx.destination);
+o.type='square';
+o.frequency.value=type==='break'?rand(180,220):rand(300,340);
+g.gain.setValueAtTime(.12,ctx.currentTime);
+g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.12);
+o.start();o.stop(ctx.currentTime+.12);
+}catch(e){}
+}
+
+// ====== HUD ======
+function updateHUD(){
+const p=Game.player;
+document.getElementById('healthBar').style.width=(p.health/20*100)+'%';
+document.getElementById('hungerBar').style.width=(p.hunger/20*100)+'%';
+document.getElementById('oxygenBar').style.width=p.oxygen+'%';
+document.getElementById('shieldBar').style.width=(p.shield/20*100)+'%';
+document.getElementById('healthText').textContent=Math.ceil(p.health);
+document.getElementById('hungerText').textContent=Math.ceil(p.hunger);
+document.getElementById('oxygenText').textContent=p.inSpace?Math.ceil(p.oxygen)+'%':'∞';
+document.getElementById('shieldText').textContent=Math.ceil(p.shield);
+document.getElementById('energyText').textContent=Math.ceil(p.energy);
+const pn=Game.planets[Game.planetId].name.split('·')[0];
+document.getElementById('planetName').textContent=pn;
+const hb=document.getElementById('hotbar');
+if(!hb.children.length){
+hb.innerHTML=Game.inventory.map((_,i)=>'<div class="hotbar-slot" data-i="'+i+'"><span class="count"></span></div>').join('');
+}
+updateHotbar();
+}
+function updateHotbar(){
+const key=Game.input.selectedSlot+':'+Game.counts.join(',');
+if(key===Game.lastCountsKey)return;
+Game.lastCountsKey=key;
+const hb=document.getElementById('hotbar');
+Array.from(hb.children).forEach((el,i)=>{
+el.classList.toggle('active',i===Game.input.selectedSlot);
+el.innerHTML='<span>'+(BICONS[Game.inventory[i]]||'⬜')+'</span><span class="count">'+Game.counts[i]+'</span>';
+});
+}
+function updateCamera(){
+Game.camera.position.set(Game.player.x,Game.player.y+1.6,Game.player.z);
+Game.camera.rotation.set(Game.player.pitch,Game.player.yaw,0,'YXZ');
+}
+
+// ====== 天空更新 ======
+function updateSky(dt){
+Game.dayTime+=Game.daySpeed*dt;
+if(Game.dayTime>1)Game.dayTime-=1;
+const t=Game.dayTime;
+const sunAngle=t*TAU;
+Game.sun.position.set(Math.cos(sunAngle)*100,Math.sin(sunAngle)*100,30);
+// 月亮相反
+Game.moonMesh.position.set(-Math.cos(sunAngle)*90,Math.sin(sunAngle)*30-20,-120);
+
+let topColor,bottomColor,horizonColor,ambient;
+if(t<.25){topColor=new THREE.Color('#4a9eff');bottomColor=new THREE.Color('#87ceeb');horizonColor=new THREE.Color('#ffdf80');ambient=.8;}
+else if(t<.5){topColor=new THREE.Color('#ff6b3d');bottomColor=new THREE.Color('#ff9966');horizonColor=new THREE.Color('#ffcc66');ambient=.5;}
+else if(t<.75){topColor=new THREE.Color('#0a1a3a');bottomColor=new THREE.Color('#1a0a3a');horizonColor=new THREE.Color('#2a1a5a');ambient=.25;}
+else{topColor=new THREE.Color('#5a3a8a');bottomColor=new THREE.Color('#ff8866');horizonColor=new THREE.Color('#ffaaff');ambient=.5;}
+
+// 行星色调
+const tc=new THREE.Color(Game.planets[Game.planetId].theme);
+topColor.lerp(tc,.12);bottomColor.lerp(tc,.08);horizonColor.lerp(tc,.2);
+
+Game.skyDome.material.uniforms.topColor.value=topColor;
+Game.skyDome.material.uniforms.bottomColor.value=bottomColor;
+Game.skyDome.material.uniforms.horizonColor.value=horizonColor;
+Game.sun.intensity=clamp(Math.sin(sunAngle)+.3,0,1.2);
+Game.scene.children.forEach(c=>{if(c.isAmbientLight)c.intensity=ambient;});
+Game.renderer.setClearColor(topColor);
+
+// 流星
+if(Math.random()<dt*.3)spawnShootingStar();
+for(let i=Game.shootingStars.length-1;i>=0;i--){
+const s=Game.shootingStars[i];
+s.mesh.position.add(s.vel.clone().multiplyScalar(dt));
+s.life-=dt;
+if(s.life<=0){Game.scene.remove(s.mesh);Game.shootingStars.splice(i,1);}
+}
+// 云
+Game.clouds.forEach(c=>{c.position.x+=c.userData.speed*dt;if(c.position.x>Game.player.x+150)c.position.x-=300;});
+// 远处行星
+if(Game.distPlanets)Game.distPlanets.children.forEach(p=>p.rotation.y+=p.userData.rotSpeed);
+// 水波
+Game.waterMesh.material.opacity=.6+.1*Math.sin(performance.now()*.001);
+// 水晶旋转
+Game.crystalMesh.rotation.y+=dt*.5;
+}
+
+// ====== 键盘 ======
+function initKeyboard(){
+document.addEventListener('keydown',e=>{
+if(e.code==='Escape'){pauseToggle();e.preventDefault();return;}
+if(!Game.started||Game.paused)return;
+switch(e.code){
+case'KeyW':Game.input.forward=1;break;
+case'KeyS':Game.input.forward=-1;break;
+case'KeyA':Game.input.right=-1;break;
+case'KeyD':Game.input.right=1;break;
+case'Space':Game.input.jump=true;e.preventDefault();break;
+case'ShiftLeft':case'ShiftRight':Game.input.sneak=true;break;
+case'Digit1':Game.input.selectedSlot=0;break;
+case'Digit2':Game.input.selectedSlot=1;break;
+case'Digit3':Game.input.selectedSlot=2;break;
+case'Digit4':Game.input.selectedSlot=3;break;
+case'Digit5':Game.input.selectedSlot=4;break;
+case'Digit6':Game.input.selectedSlot=5;break;
+case'Digit7':Game.input.selectedSlot=6;break;
+case'Digit8':Game.input.selectedSlot=7;break;
+case'Digit9':Game.input.selectedSlot=8;break;
+case'KeyE':switchPlanet();break;
+}
+});
+document.addEventListener('keyup',e=>{
+switch(e.code){
+case'KeyW':case'KeyS':Game.input.forward=0;break;
+case'KeyA':case'KeyD':Game.input.right=0;break;
+case'Space':Game.input.jump=false;break;
+case'ShiftLeft':case'ShiftRight':Game.input.sneak=false;break;
+}
+});
+const canvas=document.getElementById('gameCanvas');
+canvas.addEventListener('mousedown',e=>{
+if(!Game.started||Game.paused)return;
+if(document.pointerLockElement!==canvas){canvas.requestPointerLock();return;}
+if(e.button===0)breakBlock();
+if(e.button===2)placeBlock();
+});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('mousemove',e=>{
+if(!Game.started||Game.paused||document.pointerLockElement!==canvas)return;
+Game.player.yaw-=e.movementX*.002;
+Game.player.pitch=clamp(Game.player.pitch-e.movementY*.002,-Math.PI/2+.1,Math.PI/2-.1);
+});
+canvas.addEventListener('wheel',e=>{
+if(!Game.started)return;
+Game.input.selectedSlot=(Game.input.selectedSlot+(e.deltaY>0?1:-1)+9)%9;
+});
+}
+
+// ====== 触摸控制 ======
+function initTouch(){
+if(!IS_MOBILE)return;
+const joy=document.getElementById('joystick'),stick=document.getElementById('joystickStick');
+let joyId=null,joyCenter={x:0,y:0};
+joy.addEventListener('touchstart',e=>{e.preventDefault();const t=e.changedTouches[0];joyId=t.identifier;joyCenter={x:t.clientX,y:t.clientY};updateStick(t);},{passive:false});
+joy.addEventListener('touchmove',e=>{e.preventDefault();for(const t of e.changedTouches)if(t.identifier===joyId)updateStick(t);},{passive:false});
+joy.addEventListener('touchend',e=>{e.preventDefault();for(const t of e.changedTouches)if(t.identifier===joyId){joyId=null;Game.input.forward=0;Game.input.right=0;stick.style.transform='translate(-50%,-50%)';}},{passive:false});
+function updateStick(t){
+let dx=t.clientX-joyCenter.x,dy=t.clientY-joyCenter.y;
+const max=45,len=Math.sqrt(dx*dx+dy*dy);
+if(len>max){dx=dx/len*max;dy=dy/len*max;}
+if(len<8){dx=0;dy=0;}
+stick.style.transform='translate(calc(-50% + '+dx+'px),calc(-50% + '+dy+'px))';
+Game.input.right=dx/max;Game.input.forward=-dy/max;
+}
+const look=document.getElementById('lookArea');
+let lastX=0,lastY=0;
+look.addEventListener('touchstart',e=>{e.preventDefault();const t=e.changedTouches[0];lastX=t.clientX;lastY=t.clientY;},{passive:false});
+look.addEventListener('touchmove',e=>{e.preventDefault();const t=e.changedTouches[0];const dx=t.clientX-lastX,dy=t.clientY-lastY;lastX=t.clientX;lastY=t.clientY;Game.player.yaw-=dx*.005;Game.player.pitch=clamp(Game.player.pitch-dy*.005,-Math.PI/2+.1,Math.PI/2-.1);},{passive:false});
+const jb=document.getElementById('btnJump');jb.addEventListener('touchstart',e=>{e.preventDefault();Game.input.jump=true;},{passive:false});jb.addEventListener('touchend',e=>{e.preventDefault();Game.input.jump=false;},{passive:false});
+document.getElementById('btnBreak').addEventListener('touchstart',e=>{e.preventDefault();breakBlock();},{passive:false});
+document.getElementById('btnPlace').addEventListener('touchstart',e=>{e.preventDefault();placeBlock();},{passive:false});
+document.getElementById('btnPlanet').addEventListener('touchstart',e=>{e.preventDefault();switchPlanet();},{passive:false});
+document.getElementById('hotbar').addEventListener('click',e=>{const s=e.target.closest('.hotbar-slot');if(s)Game.input.selectedSlot=+s.dataset.i;});
+}
+
+// ====== Toast / 提示 ======
+let toastTimer=null;
+function showToast(msg){
+const el=document.getElementById('eventToast');
+el.textContent=msg;el.classList.add('show');
+clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+function updateBlockTooltip(){
+const el=document.getElementById('blockTooltip');
+const r=raycastBlock(8);
+if(r&&r.block!==BLOCK.AIR&&r.block!==BLOCK.WATER){
+el.textContent=BNAMES[r.block]||'未知';
+el.style.display='block';
+const rect=document.getElementById('gameCanvas').getBoundingClientRect();
+// 使用3D位置投影到屏幕
+const v3=new THREE.Vector3(r.pos3.x+.5,r.pos3.y+.5,r.pos3.z+.5);
+v3.project(Game.camera);
+const x=(v3.x*.5+.5)*rect.width,y=(-v3.y*.5+.5)*rect.height;
+el.style.left=clamp(x-30,10,rect.width-80)+'px';
+el.style.top=clamp(y-40,10,rect.height-40)+'px';
+}else{el.style.display='none';}
+}
+
+// ====== 星球切换 ======
+function switchPlanet(){
+Game.planetId=(Game.planetId+1)%Game.planets.length;
+Game.world.clear();Game.chunks.clear();
+Game.lastPCX=null;Game.lastPCZ=null;
+Game.solidMesh.count=0;Game.waterMesh.count=0;Game.leafMesh.count=0;Game.crystalMesh.count=0;Game.glowMesh.count=0;
+Game.player.x=0;Game.player.z=0;Game.player.inSpace=false;
+respawnPlayer();
+const loading=document.getElementById('loadingScreen');
+loading.classList.remove('hidden');
+requestChunks();
+const id=setInterval(()=>{
+streamChunks(6);
+if(!Game.pendingChunks.length){clearInterval(id);rebuildMeshes();loading.classList.add('hidden');}
+},16);
+if(!Game.achievements.travel){Game.achievements.travel=true;showToast('🏆 星际旅行家！');}
+showToast('🚀 '+
+Game.planets[Game.planetId].name);
+}
+
+const randi=(a,b)=>Math.floor(rand(a,b));
+
+function pauseToggle(){
+if(!Game.started)return;
+Game.paused=!Game.paused;
+document.getElementById('pauseMenu').classList.toggle('hidden',!Game.paused);
+const canvas=document.getElementById('gameCanvas');
+if(Game.paused){if(document.pointerLockElement===canvas)document.exitPointerLock();}
+else if(!IS_MOBILE)canvas.requestPointerLock();
+}
+
+function restartGame(){
+Game.planetId=0;
+Game.world.clear();Game.chunks.clear();
+Game.lastPCX=null;Game.lastPCZ=null;
+Game.player={x:0,y:40,z:0,vx:0,vy:0,vz:0,yaw:0,pitch:-0.2,onGround:false,health:20,hunger:20,oxygen:100,shield:0,energy:100,inSpace:false};
+Game.input={forward:0,right:0,jump:false,sneak:false,mouseDown:false,rightDown:false,selectedSlot:0};
+Game.counts=[99,99,99,99,99,99,32,16,8];
+Game.dayTime=.3;
+Game.achievements={};
+Game.solidMesh.count=0;Game.waterMesh.count=0;Game.leafMesh.count=0;Game.crystalMesh.count=0;Game.glowMesh.count=0;
+Game.paused=false;
+document.getElementById('pauseMenu').classList.add('hidden');
+const loading=document.getElementById('loadingScreen');
+loading.classList.remove('hidden');
+requestChunks();
+const id=setInterval(()=>{
+streamChunks(6);
+if(!Game.pendingChunks.length){clearInterval(id);rebuildMeshes();loading.classList.add('hidden');showToast('🌍 新世界生成完毕！');}
+},16);
+}
+
+function initUI(){
+document.getElementById('startBtn').addEventListener('click',()=>{
+Game.started=true;
+document.getElementById('startMenu').classList.add('hidden');
+if(!IS_MOBILE)document.getElementById('gameCanvas').requestPointerLock();
+showToast('⛏️ 挖矿 · 🧱 建造 · 🪐 探索星球');
+});
+document.getElementById('resumeBtn').addEventListener('click',pauseToggle);
+document.getElementById('restartBtn').addEventListener('click',restartGame);
+document.getElementById('pauseBtn').addEventListener('click',pauseToggle);
+document.getElementById('planetInfo').addEventListener('click',switchPlanet);
+document.getElementById('hotbar').addEventListener('click',e=>{const s=e.target.closest('.hotbar-slot');if(s)Game.input.selectedSlot=+s.dataset.i;});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&Game.started&&!Game.paused)pauseToggle();});
+}
+
+// ====== 主循环 ======
+function animate(time){
+requestAnimationFrame(animate);
+const dt=Math.min(.05,(time-Game.lastTime)/1000||.016);
+Game.lastTime=time;
+
+if(Game.started){
+const pcx=chunkCoord(Game.player.x),pcz=chunkCoord(Game.player.z);
+if(pcx!==Game.lastPCX||pcz!==Game.lastPCZ){
+Game.lastPCX=pcx;Game.lastPCZ=pcz;
+}
+if(!Game.paused){
+streamChunks(3);
+requestChunks();
+updatePlayer(dt);
+updateCamera();
+updateSky(dt);
+updateParticles(dt);
+updateHUD();
+updateBlockTooltip();
+Game.cleanupTimer+=dt;
+if(Game.cleanupTimer>5){Game.cleanupTimer=0;cleanupWorld();}
+if(Game.meshDirty&&time-Game.lastRebuild>400)rebuildMeshes();
+}else{
+updateHUD();
+}
+Game.renderer.render(Game.scene,Game.camera);
+}else{
+Game.renderer.render(Game.scene,Game.camera);
+}
+}
+
+// ====== 启动 ======
+initRenderer();
+initBlockMeshes();
+initSky();
+initKeyboard();
+initTouch();
+initUI();
+respawnPlayer();
+requestChunks();
+const initTimer=setInterval(()=>{
+streamChunks(6);
+if(!Game.pendingChunks.length){
+clearInterval(initTimer);
+rebuildMeshes();
+document.getElementById('loadingScreen').classList.add('hidden');
+Game.ready=true;
+}
+},16);
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
