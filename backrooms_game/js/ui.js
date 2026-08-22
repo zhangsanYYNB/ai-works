@@ -66,6 +66,22 @@ const UI = {
       Store.set('inverty', invy.checked);
       if (window.GAME) window.GAME.player.invertY = invy.checked;
     });
+    const ch = $('set-crosshair');
+    ch.checked = Store.get('crosshair', true);
+    ch.addEventListener('change', () => {
+      Store.set('crosshair', ch.checked);
+      this.applyCrosshair();
+    });
+
+    /* 难度选择 */
+    document.querySelectorAll('.diff-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.diff === this.getDifficulty());
+      b.addEventListener('click', () => {
+        Store.set('difficulty', b.dataset.diff);
+        document.querySelectorAll('.diff-btn').forEach(x => x.classList.toggle('active', x === b));
+        Sound.keypadClick();
+      });
+    });
 
     /* 横屏提示 */
     $('btn-rotate-skip').addEventListener('click', () => {
@@ -109,6 +125,23 @@ const UI = {
     });
   },
   refreshLevelSelect() { this._buildLevelSelect(); },
+
+  /* ---- 难度 / 纪录 ---- */
+  getDifficulty() { return Store.get('difficulty', 'normal'); },
+  applyCrosshair() {
+    const el = document.getElementById('crosshair');
+    el.style.display = (Store.get('crosshair', true) && !IS_TOUCH) ? '' : 'none';
+  },
+  refreshMenuStats() {
+    const escapes = Store.get('escapes', 0);
+    const bests = Store.get('bestTimes', {});
+    let txt = escapes > 0 ? `🏆 已成功逃脱 ${escapes} 次` : '';
+    if (Object.keys(bests).length) {
+      const parts = Object.entries(bests).sort(([a], [b]) => a - b).map(([lv, t]) => `L${+lv + 1} ${t.toFixed(1)}s`);
+      txt += (txt ? ' · ' : '') + '最快：' + parts.join(' / ');
+    }
+    document.getElementById('menu-stats').innerHTML = txt ? txt + '<br>' : '';
+  },
 
   /* ---- HUD ---- */
   setHUDVisible(v) {

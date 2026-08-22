@@ -19,6 +19,7 @@ const LEVEL_CFGS = [
     pointLights: 5,
     dark: false,
     props: {},           // 黄色迷宫保持空旷（原作氛围）
+    shadowEvent: true,   // 偶尔远处闪现黑影（彩蛋）
     entity: null,        // 本层无实体
     objectiveFlow: [
       '目标：探索迷宫，找到 <b>门禁卡 🔑</b>',
@@ -377,6 +378,20 @@ class Level {
 
     /* 场景道具（家具/杂物，带碰撞） */
     if (cfg.props) this._placeProps(group, empties);
+
+    /* 黑影剪影（隐藏，由游戏逻辑触发显隐） */
+    if (cfg.shadowEvent) {
+      const sm = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.82, depthWrite: false });
+      const sg = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.24, 1.45, 8), sm); body.position.y = 0.95;
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), sm); head.position.y = 1.82;
+      sg.add(body, head);
+      sg.visible = false;
+      group.add(sg);
+      this.shadowFigure = sg;
+      this.shadowTimer = 20 + this.rng.next() * 30;
+      this.shadowActiveT = 0;
+    }
 
     /* ---- 灯光 ---- */
     scene.add(new THREE.AmbientLight(0xffffff, cfg.dark ? 0.16 : 0.34));

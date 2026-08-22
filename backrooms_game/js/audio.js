@@ -71,7 +71,61 @@ const Sound = {
   },
 
   /* ---- 具体音效 ---- */
-  step(running) { this._burst(running ? 900 : 650, 0.09, running ? 0.16 : 0.09); },
+  step(running) {
+    // 随机音高与音量，避免重复感
+    const base = running ? 880 : 620;
+    const f = base * (0.88 + Math.random() * 0.26);
+    this._burst(f, 0.09, (running ? 0.16 : 0.09) * (0.85 + Math.random() * 0.3));
+  },
+
+  /* ---- 实体呼吸声（距离衰减，随层级持续存在） ---- */
+  _breathNodes: null,
+  startBreath() {
+    if (!this.ctx || this._breathNodes) return;
+    const ctx = this.ctx;
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 0.7;
+    // 呼吸节律 LFO（吸气/呼气）
+    const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.55;
+    const lg = ctx.createGain(); lg.gain.value = 0;   // 深度随音量同步设置
+    lfo.connect(lg);
+    const vol = ctx.createGain(); vol.gain.value = 0;
+    lg.connect(vol.gain);          // 增益 = 基准 ± 深度 → 呼吸脉动
+    src.connect(lp); lp.connect(vol); vol.connect(this.master);
+    src.start(); lfo.start();
+    this._breathNodes = { stop() { try { src.stop(); lfo.stop(); } catch (e) {} }, vol, lg };
+  },
+  setBreathVolume(v) {
+    if (!this._breathNodes) return;
+    v = U.clamp(v, 0, 0.5);
+    const t = this.ctx.currentTime;
+    this._breathNodes.vol.gain.setTargetAtTime(v * 0.6, t, 0.15);
+    this._breathNodes.lg.gain.setTargetAtTime(v * 0.4, t, 0.15);
+  },
+  stopBreath() {
+    if (this._breathNodes) { this._breathNodes.stop(); this._breathNodes = null; }
+  },
+
+  /* ---- 嘶吼（发现玩家瞬间） ---- */
+  growl() {
+    if (!this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(180, t);
+    o.frequency.exponentialRampToValueAtTime(70, t + 0.55);
+    const o2 = ctx.createOscillator(); o2.type = 'square';
+    o2.frequency.setValueAtTime(95, t);
+    o2.frequency.exponentialRampToValueAtTime(48, t + 0.5);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.3, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+    o.connect(g); o2.connect(g); g.connect(this.master);
+    o.start(t); o2.start(t); o.stop(t + 0.65); o2.stop(t + 0.65);
+  },
   pickup() { this._tone(880, 0.12, 0.2, 'triangle'); setTimeout(() => this._tone(1320, 0.18, 0.18, 'triangle'), 90); },
   noteOpen() { this._burst(3200, 0.25, 0.1, 'highpass'); },
   doorOpen() { this._burst(300, 0.7, 0.3); this._tone(90, 0.6, 0.15, 'sawtooth', 60); },

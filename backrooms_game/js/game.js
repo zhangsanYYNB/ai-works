@@ -73,6 +73,7 @@ class Game {
   startLevel(idx) {
     Sound.init(); Sound.resume();
     Sound.setEnabled(Store.get('sound', true));
+    Sound.stopBreath();
     this.levelIdx = idx;
     const cfg = LEVEL_CFGS[idx];
     this.state = 'loading';
@@ -100,20 +101,36 @@ class Game {
         this.scene.add(this.camera);   // 手电筒是相机子对象，必须把相机加入场景
         UI.setLoading(0.7);
 
-        // 玩家复位
+        // 玩家复位（面向迷宫中心，避免出生即面对墙角）
         this.player.pos.set(this.level.playerStart[0], EYE_H, this.level.playerStart[1]);
-        this.player.yaw = Math.PI * 0.25;
+        const midX = this.level.W * CELL / 2, midZ = this.level.H * CELL / 2;
+        this.player.yaw = Math.atan2(-(midX - this.player.pos.x), -(midZ - this.player.pos.z));
         this.player.pitch = 0;
         this.player.stamina = 100;
       if (this.player.flashlightOn && cfg.dark) this.player.toggleFlashlight(); // 黑暗层默认关灯，玩家可自行开启
 
-        // 实体
+        // 实体（按难度调整参数，克隆避免污染配置）
         this.entity = null;
         if (cfg.entity) {
-          this.entity = new Entity(this.level, cfg.entity);
+          const DIFFS = {
+            easy:   { speed: 0.82, sight: 0.75, stamina: 0.7 },
+            normal: { speed: 1,    sight: 1,    stamina: 1 },
+            hard:   { speed: 1.15, sight: 1.3,  stamina: 1.2 },
+          };
+          const f = DIFFS[UI.getDifficulty()] || DIFFS.normal;
+          const eCfg = Object.assign({}, cfg.entity);
+          eCfg.speedChase = (eCfg.speedChase || 3) * f.speed;
+          eCfg.speedPatrol = (eCfg.speedPatrol || 2) * f.speed;
+          if (!eCfg.alwaysChase) {
+            eCfg.sightRange = (eCfg.sightRange || 14) * f.sight;
+            eCfg.hearingRange = (eCfg.hearingRange || 10) * f.sight;
+          }
+          this.player.staminaDrainMul = f.stamina;
+          this.entity = new Entity(this.level, eCfg);
           this.entity.addTo(this.scene);
         } else {
           Sound.setChase(false);
+          this.player.staminaDrainMul = 1;
         }
 
         // 进度状态
@@ -136,8 +153,10 @@ class Game {
           UI.showOnly(null);
           UI.setHUDVisible(true);
           UI.setLevelTag(cfg.name);
+          UI.applyCrosshair();
           this._refreshObjective();
-          UI.showToast(cfg.introText, 5200);
+          const diffName = { easy: '🌿 轻松', normal: '⚔ 普通', hard: '💀 哥梦' }[UI.getDifficulty()] || '普通';
+          UI.showToast(cfg.introText + '<br><span style="opacity:.75">难度：' + diffName + '</span>', 5200);
           UI.fadeIn();
           this.state = 'playing';
           Sound.startAmbient(cfg.id);
@@ -148,21 +167,21 @@ class Game {
         console.error(err);
         alert('关卡加载失败：' + err.message);
         this.quitToMenu();
-      }
-    }, 60);
+      }    }, 60);
   }
 
-  restartLevel() { Sound.setChase(false); this.startLevel(this.levelIdx); }
-  nextLevel() {
+  restartLevel() { Sound.setChase(false); this.startLevel(this.levelIdx); }  nextLevel() {
     if (this.levelIdx + 1 < LEVEL_CFGS.length) this.startLevel(this.levelIdx + 1);
     else this.quitToMenu();
   }
   quitToMenu() {
-    Sound.setChase(false); Sound.stopAmbient();
+    Sound.setChase(false); Sound.stopAmbient(); Sound.stopBreath();
+    UI.els.damage.style.opacity = 0;
     this.state = 'menu';
     UI.setHUDVisible(false);
     UI.showOnly('menu');
     UI.refreshLevelSelect();
+    UI.refreshMenuStats();
     if (document.pointerLockElement) document.exitPointerLock();
   }
 
@@ -371,6 +390,7 @@ class Game {
     Sound.setChase(false);
     Sound.death();
     Sound.stopAmbient();
+    setTimeout(() => Sound.stopBreath(), 900); // 呼吸声渐停
     UI.damageFlash();
     UI.prompt(null);
     setTimeout(() => {
@@ -395,9 +415,17 @@ class Game {
     Store.set('unlocked', Math.max(unlocked, Math.min(cfg.id + 1, LEVEL_CFGS.length - 1)));
     if (isLast) Store.set('unlocked', LEVEL_CFGS.length - 1);
     if (document.pointerLockElement) document.exitPointerLock();
+    // 最佳纪录与逃脱次数
+    const bests = Store.get('bestTimes', {});
+    const prevBest = bests[cfg.id];
+    const isRecord = !prevBest || this.elapsed < prevBest;
+    if (isRecord) { bests[cfg.id] = this.elapsed; Store.set('bestTimes', bests); }
+    Sound.stopBreath();
+    UI.els.damage.style.opacity = 0;
     setTimeout(() => {
       UI.setHUDVisible(false);
       if (isLast) {
+        Store.set('escapes', Store.get('escapes', 0) + 1);
         UI.els.winTitle.textContent = '🌅 你逃出来了';
         UI.els.winText.innerHTML = '穿过白光的瞬间，你闻到了雨后泥土的味道。<br>天空是真的天空。而你永远不会忘记那嗡嗡作响的黄色房间。';
         document.getElementById('btn-next-level').classList.add('hidden');
@@ -408,7 +436,8 @@ class Game {
         document.getElementById('btn-next-level').classList.remove('hidden');
       }
       UI.els.winStats.innerHTML =
-        `⏱ 用时 ${fmtTime(this.elapsed)}　·　📄 纸条 ${this.notesRead} 张　·　📦 物品 ${this.itemsGot} 件`;
+        `⏱ 用时 ${fmtTime(this.elapsed)}${isRecord ? '　🏆 新纪录！' : ''}　·　📄 纸条 ${this.notesRead} 张　·　📦 物品 ${this.itemsGot} 件` +
+        (prevBest && !isRecord ? `<br><span style="opacity:.65">本层最佳 ${fmtTime(prevBest)}</span>` : '');
       UI.showOnly('win');
     }, 700);
   }
@@ -470,8 +499,51 @@ class Game {
       // 音效氛围
       if (this.entity) {
         const d = this.entity.distanceTo(this.player.pos);
-        const near = U.clamp(1 - d / (this.entity.cfg.sightRange > 100 ? 30 : this.entity.cfg.sightRange * 1.5), 0, 1);
+        const range = this.entity.cfg.sightRange > 100 ? 30 : this.entity.cfg.sightRange * 1.5;
+        const near = U.clamp(1 - d / range, 0, 1);
         Sound.heartbeat(dt, this.entity.state === 'chase' ? Math.max(near, 0.55) : near * 0.6);
+        // 呼吸声（距离衰减）
+        Sound.startBreath();
+        Sound.setBreathVolume(Math.pow(near, 2.2) * (this.entity.state === 'chase' ? 0.5 : 0.3));
+        // 发现玩家瞬间：嘶吼 + 危险渐晕
+        if (this.entity.state === 'chase' && this._lastEntityState !== 'chase') Sound.growl();
+        this._lastEntityState = this.entity.state;
+        const danger = U.clamp(near * (this.entity.state === 'chase' ? 1 : 0.55), 0, 1);
+        UI.els.damage.style.opacity = (danger * danger * 0.5).toFixed(2);
+      } else {
+        UI.els.damage.style.opacity = 0;
+      }
+
+      // LEVEL 0 黑影彩蛋：远处走廊闪现一瞬
+      const sf = this.level.shadowFigure;
+      if (sf) {
+        this.level.shadowTimer -= dt;
+        if (this.level.shadowActiveT > 0) {
+          this.level.shadowActiveT -= dt;
+          if (this.level.shadowActiveT <= 0) sf.visible = false;
+        } else if (this.level.shadowTimer <= 0) {
+          // 先在视线锥形范围内（±40°）找，找不到则放宽到全向（转身才能瞥见的黑影更渗人）
+          const sfL = this.level;
+          for (let attempt = 0; attempt < 60; attempt++) {
+            const ang = attempt < 30
+              ? this.player.yaw + (Math.random() - 0.5) * 1.4
+              : Math.random() * Math.PI * 2;
+            const fx = -Math.sin(ang), fz = -Math.cos(ang);
+            const dist = 9 + Math.random() * 5;
+            const gx = this.player.pos.x + fx * dist, gz = this.player.pos.z + fz * dist;
+            const cx = Math.floor(gx / CELL), cy = Math.floor(gz / CELL);
+            if (!sfL.isSolidCell(cx, cy) &&
+                sfL.losClear(this.player.pos.x, this.player.pos.z, (cx + 0.5) * CELL, (cy + 0.5) * CELL)) {
+              sf.position.set((cx + 0.5) * CELL, 0, (cy + 0.5) * CELL);
+              sf.lookAt(this.player.pos.x, 0, this.player.pos.z);
+              sf.visible = true;
+              this.level.shadowActiveT = 1.4 + Math.random() * 0.8;
+              Sound._tone(52, 1.2, 0.06, 'sine', 40); // 极低频嗡鸣
+              break;
+            }
+          }
+          this.level.shadowTimer = 45 + Math.random() * 50;   // 下次触发间隔
+        }
       }
 
       // 追逐层：接近出口时更新目标提示

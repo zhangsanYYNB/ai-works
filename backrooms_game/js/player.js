@@ -182,8 +182,18 @@ class Player {
     // 奔跑与体力
     const wantRun = this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.touchSprint;
     this.running = wantRun && this.moving && this.stamina > 1;
-    if (this.running) this.stamina = Math.max(0, this.stamina - dt * 22);
+    if (this.running) this.stamina = Math.max(0, this.stamina - dt * 22 * (this.staminaDrainMul || 1));
     else this.stamina = Math.min(100, this.stamina + dt * 13);
+
+    // 动态 FOV：冲刺/肾上腺素时视野扩展，增强速度感
+    const cam = this.camera;
+    if (cam) {
+      const targetFov = this.boostT > 0 ? 82 : (this.running ? 79 : 72);
+      if (Math.abs(cam.fov - targetFov) > 0.05) {
+        cam.fov += (targetFov - cam.fov) * Math.min(1, dt * 5);
+        cam.updateProjectionMatrix();
+      }
+    }
 
     // 世界空间移动
     if (this.moving && !paused) {

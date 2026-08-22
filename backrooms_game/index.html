@@ -21,6 +21,7 @@
 
 <!-- HUD -->
 <div id="hud" class="hidden">
+  <div id="crosshair"></div>
   <div id="objective-box">
     <div id="level-tag">LEVEL 0</div>
     <div id="objective-text">目标：寻找出口</div>
@@ -55,10 +56,16 @@
     <p class="menu-quote">"如果你不小心，在错误的地方从现实中脱离，你就会掉进后室。<br>这里只有陈旧潮湿的地毯、单调发黄的墙纸、以及嗡嗡作响的荧光灯……"<br><span class="quote-tip">—— 而它们，并不都是空的。</span></p>
     <div class="menu-buttons">
       <button id="btn-start" class="menu-btn primary">▶ 开始游戏</button>
+      <div class="difficulty-row">
+        <span class="diff-label">难度</span>
+        <button class="diff-btn" data-diff="easy">轻松</button>
+        <button class="diff-btn active" data-diff="normal">普通</button>
+        <button class="diff-btn" data-diff="hard">噩梦</button>
+      </div>
       <div id="level-select" class="level-select"></div>
       <button id="btn-help" class="menu-btn">❓ 玩法说明</button>
     </div>
-    <div class="menu-footer">建议横屏游玩 · 佩戴耳机体验更佳</div>
+    <div class="menu-footer"><span id="menu-stats"></span>建议横屏游玩 · 佩戴耳机体验更佳</div>
   </div>
 </div>
 
@@ -124,6 +131,7 @@
     <div class="setting-row"><label>视角灵敏度</label><input type="range" id="set-sensitivity" min="0.4" max="2.2" step="0.1" value="1"></div>
     <div class="setting-row"><label>音效</label><input type="checkbox" id="set-sound" checked></div>
     <div class="setting-row"><label>反转Y轴</label><input type="checkbox" id="set-inverty"></div>
+    <div class="setting-row"><label>准星</label><input type="checkbox" id="set-crosshair" checked></div>
     <div class="menu-buttons column">
       <button id="btn-resume" class="menu-btn primary">继续游戏</button>
       <button id="btn-restart-level" class="menu-btn">重新开始本层</button>

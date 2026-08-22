@@ -80,6 +80,12 @@ html, body {
 }
 #stamina-fill { height: 100%; width: 100%; background: #c9b458; border-radius: 3px; transition: width .1s linear; }
 
+#crosshair {
+  position: absolute; left: 50%; top: 50%; width: 5px; height: 5px;
+  margin: -2.5px 0 0 -2.5px; border-radius: 50%;
+  background: rgba(240,235,210,.75); box-shadow: 0 0 4px rgba(0,0,0,.8);
+}
+
 #interact-prompt {
   position: absolute; left: 50%; top: 58%; transform: translateX(-50%);
   background: rgba(8,8,6,.72); color: #f3ecd2; font-size: 14px;
@@ -176,6 +182,14 @@ html, body {
 }
 .menu-btn.primary:hover { box-shadow: 0 0 28px rgba(201,180,88,.5); }
 .level-select { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.difficulty-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.diff-label { color: #8d7f47; font-size: 13px; letter-spacing: 3px; }
+.diff-btn {
+  padding: 7px 18px; border-radius: 16px; cursor: pointer; font-size: 13px; letter-spacing: 2px;
+  background: rgba(20,18,8,.75); border: 1px solid rgba(201,180,88,.35); color: #a89c72;
+  font-family: inherit;
+}
+.diff-btn.active { background: rgba(201,180,88,.22); border-color: #d8bd57; color: #ffe9a8; }
 .level-btn {
   width: 54px; height: 54px; border-radius: 8px; cursor: pointer;
   background: rgba(20,18,8,.75); border: 1px solid rgba(201,180,88,.4); color: #d8cba0;
