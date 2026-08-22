@@ -129,6 +129,7 @@ class Game {
         this.startTime = performance.now();
         this.elapsed = 0;
         this._deathHandled = false;
+        this.player.boostT = 0;
 
         UI.setLoading(1);
         setTimeout(() => {
@@ -239,6 +240,14 @@ class Game {
         UI.showToast(`💾 拾取了软盘（${this.disks}/3）`, 2000);
         if (this.disks >= 3) this._advanceObjective();
         else this._refreshObjective();
+        break;
+      case 'adrenaline':
+        target.taken = true; target.mesh.visible = false;
+        this.player.stamina = 100;
+        this.player.boostT = 8;
+        this.itemsGot++;
+        Sound.pickup();
+        UI.showToast('💉 <b>肾上腺素！</b>体力全满，8 秒爆发加速', 2400);
         break;
       case 'note':
         target.taken = true; target.mesh.visible = false;
@@ -447,6 +456,7 @@ class Game {
               keycard: '🔑 拾取门禁卡',
               fuse: '🔌 拾取保险丝',
               disk: '💾 拾取软盘',
+              adrenaline: '💉 注射肾上腺素',
               note: '📄 阅读纸条',
               notecode: '📄 阅读纸条',
               powerbox: this.hasFuse && !this.fuseUsed ? '💡 安装保险丝' : '⚡ 检查配电箱',
@@ -460,8 +470,14 @@ class Game {
       // 音效氛围
       if (this.entity) {
         const d = this.entity.distanceTo(this.player.pos);
-        const near = U.clamp(1 - d / (this.entity.cfg.sightRange * 1.5), 0, 1);
+        const near = U.clamp(1 - d / (this.entity.cfg.sightRange > 100 ? 30 : this.entity.cfg.sightRange * 1.5), 0, 1);
         Sound.heartbeat(dt, this.entity.state === 'chase' ? Math.max(near, 0.55) : near * 0.6);
+      }
+
+      // 追逐层：接近出口时更新目标提示
+      if (this.level.cfg.alarm && this.objectiveStep === 0 &&
+          U.dist2(this.player.pos.x, this.player.pos.z, this.level.exit.x, this.level.exit.z) < 26 * 26) {
+        this._advanceObjective();
       }
 
       UI.setStamina(this.player.stamina, this.player.running);

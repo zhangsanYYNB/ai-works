@@ -118,7 +118,19 @@ const Sound = {
         if (Math.random() < 0.5) this._tone(this.ctx ? 1400 + Math.random() * 800 : 1500, 0.15, 0.05, 'sine', 500);
       }, 4000);
     }
-    this._humNodes = { stop() { try { o1.stop(); o2.stop(); n.stop(); } catch (e) {} if (dripTimer) clearInterval(dripTimer); g.disconnect(); } };
+    // 警笛（追逐层）
+    let siren = null;
+    if (level === 3) {
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 640;
+      const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.45;
+      const lg = ctx.createGain(); lg.gain.value = 190;
+      lfo.connect(lg); lg.connect(o.frequency);
+      const sg = ctx.createGain(); sg.gain.value = 0.04;
+      o.connect(sg); sg.connect(g);
+      o.start(); lfo.start();
+      siren = { o, lfo };
+    }
+    this._humNodes = { stop() { try { o1.stop(); o2.stop(); n.stop(); } catch (e) {} if (dripTimer) clearInterval(dripTimer); if (siren) { try { siren.o.stop(); siren.lfo.stop(); } catch (e) {} } g.disconnect(); } };
   },
   stopAmbient() {
     if (this._humNodes) { this._humNodes.stop(); this._humNodes = null; }

@@ -33,6 +33,7 @@ class Player {
 
     this._bobT = 0;
     this._stepT = 0;
+    this.boostT = 0;   // 肾上腺素加速剩余时间
 
     this._bindDesktop();
   }
@@ -186,7 +187,8 @@ class Player {
 
     // 世界空间移动
     if (this.moving && !paused) {
-      const speed = (this.running ? this.speedRun : this.speedWalk) * mag;
+      if (this.boostT > 0) this.boostT -= dt;
+      const speed = (this.running ? this.speedRun : this.speedWalk) * mag * (this.boostT > 0 ? 1.22 : 1);
       const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
       // 前方向（yaw=0 时面向 -Z）
       const fx = -sin, fz = -cos;

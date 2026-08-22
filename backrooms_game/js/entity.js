@@ -66,6 +66,7 @@ class Entity {
           k = prev.get(k);
         }
         path.reverse();
+        if (path.length > 1) path.shift(); // 剔除起点格，避免实体被引回本格中心来回震荡
         return path;
       }
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -98,12 +99,17 @@ class Entity {
 
     /* ---- 感知 ---- */
     let sees = false, hears = false;
-    if (distP < this.cfg.sightRange && L.losClear(this.pos.x, this.pos.y, playerPos.x, playerPos.z)) {
-      sees = true;
-      // 黑暗中手电筒会暴露玩家（距离加成），关手电则感知减半
-      if (!flashlightOn && L.cfg.dark && distP > this.cfg.sightRange * 0.45) sees = false;
+    if (this.cfg.alwaysChase) {
+      // 无限追杀模式：永远知道玩家位置
+      sees = distP < 80;
+    } else {
+      if (distP < this.cfg.sightRange && L.losClear(this.pos.x, this.pos.y, playerPos.x, playerPos.z)) {
+        sees = true;
+        // 黑暗中手电筒会暴露玩家（距离加成），关手电则感知减半
+        if (!flashlightOn && L.cfg.dark && distP > this.cfg.sightRange * 0.45) sees = false;
+      }
+      if (playerRunning && distP < (flashlightOn ? this.cfg.hearingRange : this.cfg.hearingRange * 1.25)) hears = true;
     }
-    if (playerRunning && distP < (flashlightOn ? this.cfg.hearingRange : this.cfg.hearingRange * 1.25)) hears = true;
 
     if (sees || hears) {
       if (this.state !== 'chase') {
@@ -158,14 +164,25 @@ class Entity {
         this.dir = U.lerpAngle(this.dir, Math.atan2(dx, dz), dt * 6);
       }
       if (this.state === 'patrol' && this.pathIdx >= this.path.length) this.targetCell = null;
+    } else if ((this.state === 'chase' || this.state === 'search') && this.lastKnown) {
+      // 与目标同格：直线追击
+      const dx = this.lastKnown.x - this.pos.x, dz = this.lastKnown.z - this.pos.y;
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d > 0.05) {
+        const step = Math.min(speed * dt, d);
+        const nx = this.pos.x + dx / d * step;
+        const nz = this.pos.y + dz / d * step;
+        if (!L.circleHitsWall(nx, nz, 0.3)) { this.pos.x = nx; this.pos.y = nz; }
+        this.dir = U.lerpAngle(this.dir, Math.atan2(dx, dz), dt * 6);
+      }
     }
 
     /* ---- 动画 & 同步 ---- */
     this.bob += dt * (this.state === 'chase' ? 11 : 5);
     this.mesh.position.set(this.pos.x, Math.abs(Math.sin(this.bob)) * 0.06, this.pos.y);
     this.mesh.rotation.y = this.dir;
-    // 眼睛：追逐时变红
-    if (this.state === 'chase') this.eyeMat.color.setHex(0xff4444);
+    // 眼睛：追逐时变红；无限追杀模式永远猩红
+    if (this.state === 'chase' || this.cfg.alwaysChase) this.eyeMat.color.setHex(0xff2222);
     else if (this.state === 'search') this.eyeMat.color.setHex(0xffcc66);
     else this.eyeMat.color.setHex(0xdddddd);
 

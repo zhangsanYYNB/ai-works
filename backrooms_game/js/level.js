@@ -15,9 +15,10 @@ const LEVEL_CFGS = [
     ambient: { sky: 0x8a7d55, ground: 0x3a3018, intensity: 0.85 },
     hemiExtra: 0.35,
     textures: { wall: 'wallpaper', floor: 'carpet', ceil: 'ceiling' },
-    lampsEvery: 2,       // 每 N 格一盏灯（空地）
+    lampsEvery: 2,       // 每 N 格一盏灯（空地，黄色迷宫要亮）
     pointLights: 5,
     dark: false,
+    props: {},           // 黄色迷宫保持空旷（原作氛围）
     entity: null,        // 本层无实体
     objectiveFlow: [
       '目标：探索迷宫，找到 <b>门禁卡 🔑</b>',
@@ -37,6 +38,7 @@ const LEVEL_CFGS = [
     lampsEvery: 3,
     pointLights: 4,
     dark: true,          // 供电前几乎全黑
+    props: { barrel: 8, crate: 8 },
     entity: {
       name: '潜行者',
       speedPatrol: 1.7, speedChase: 3.6,
@@ -63,6 +65,7 @@ const LEVEL_CFGS = [
     lampsEvery: 3,
     pointLights: 4,
     dark: false,
+    props: { desk: 6, cabinet: 7, chair: 7 },
     entity: {
       name: '猎手',
       speedPatrol: 2.1, speedChase: 4.3,
@@ -75,6 +78,34 @@ const LEVEL_CFGS = [
       '目标：穿过终端解锁的白光之门 ☀',
     ],
     introText: '最后一层——废弃的办公区。传说收集齐三张软盘、唤醒中央终端，就能撕开一道通往现实的口子。',
+  },
+  {
+    id: 3,
+    name: "LEVEL ! · 红色警报",
+    size: 21,
+    wallH: 2.8,
+    fogColor: 0x1c0606, fogDensity: 0.075,
+    ambient: { sky: 0x661e1a, ground: 0x260908, intensity: 0.4 },
+    hemiExtra: 0.08,
+    textures: { wall: 'concreteWall', floor: 'wetFloor', ceil: 'garageCeil' },
+    lampsEvery: 4, pointLights: 3,
+    dark: false,
+    alarm: true,          // 红色警报灯 + 警笛
+    braid: 0.35,          // 高环路迷宫，方便兜圈子
+    props: { barrel: 6, crate: 6, chair: 4 },
+    adrenaline: 5,        // 肾上腺素数量
+    entity: {
+      name: '暴走者',
+      speedPatrol: 3.0, speedChase: 4.5,
+      sightRange: 999, hearingRange: 999, catchRange: 1.15,
+      alwaysChase: true, nearStart: true,
+      deathText: '它不知疲倦。下一次，用上肾上腺素，别跑直线。',
+    },
+    objectiveFlow: [
+      '目标：<b>跑！</b>不要停下 🏃',
+      '目标：白光之门就在附近 ☀',
+    ],
+    introText: '避难通道的警报响了。整层都醒了——它正在你身后。<b>别停下。</b>白门是唯一的出口。',
   },
 ];
 
@@ -179,6 +210,26 @@ function mergeBoxes(boxes) {
   return g;
 }
 
+/** 合并任意已变换几何（toNonIndexed 后拼接） */
+function mergeGeoms(geos) {
+  const pos = [], nor = [], uv = [];
+  for (const geo of geos) {
+    const g = geo.index ? geo.toNonIndexed() : geo;
+    const p = g.attributes.position.array;
+    const n = g.attributes.normal.array;
+    const u = g.attributes.uv.array;
+    for (let i = 0; i < p.length; i++) pos.push(p[i]);
+    for (let i = 0; i < n.length; i++) nor.push(n[i]);
+    for (let i = 0; i < u.length; i++) uv.push(u[i]);
+    g.dispose();
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  out.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  return out;
+}
+
 /* ================================================================
    Level 类
 ================================================================ */
@@ -191,6 +242,7 @@ class Level {
     this.grid = null;
     this.W = cfg.size; this.H = cfg.size;
     this.items = [];          // 可交互物
+    this.obstacles = [];      // 道具障碍 {x,z,r}
     this.exit = null;
     this.entitySpawn = null;
     this.playerStart = null;
@@ -207,7 +259,7 @@ class Level {
     if (cx < 0 || cy < 0 || cx >= this.W || cy >= this.H) return true;
     return this.grid[cy][cx] === 1;
   }
-  /** 圆形玩家与实心格碰撞检测 */
+  /** 圆形玩家与实心格碰撞检测（含道具障碍物） */
   circleHitsWall(x, z, r) {
     const minCx = Math.floor((x - r) / CELL), maxCx = Math.floor((x + r) / CELL);
     const minCy = Math.floor((z - r) / CELL), maxCy = Math.floor((z + r) / CELL);
@@ -216,6 +268,11 @@ class Level {
       const wx = U.clamp(x, cx * CELL, (cx + 1) * CELL);
       const wz = U.clamp(z, cy * CELL, (cy + 1) * CELL);
       if (U.dist2(x, z, wx, wz) < r * r) return true;
+    }
+    // 场景道具障碍
+    for (const o of this.obstacles) {
+      const rr = r + o.r;
+      if (U.dist2(x, z, o.x, o.z) < rr * rr) return true;
     }
     return false;
   }
@@ -245,9 +302,9 @@ class Level {
     const cfg = this.cfg;
     const rng = this.rng;
     const { grid } = genMap(rng, this.W, this.H, {
-      rooms: cfg.id === 0 ? 4 : 6,
-      braid: cfg.id === 0 ? 0.1 : 0.16,
-      pillars: cfg.id !== 0,
+      rooms: cfg.id === 0 ? 4 : (cfg.id === 3 ? 2 : 6),
+      braid: cfg.braid || (cfg.id === 0 ? 0.1 : 0.16),
+      pillars: cfg.id === 1 || cfg.id === 2,
     });
     this.grid = grid;
 
@@ -304,12 +361,22 @@ class Level {
     const exitCell = empties[0];
     this._buildExit(group, exitCell);
 
-    /* 实体出生点：次远且远离出口 */
-    const entCand = empties[Math.min(6, empties.length - 1)];
-    this.entitySpawn = this.cellToWorld(entCand.x, entCand.y);
+    /* 实体出生点 */
+    if (cfg.entity && cfg.entity.nearStart) {
+      // 追逐层：出生在玩家身后不远处
+      const asc = empties.slice().reverse();
+      const c = asc.find(c => c.d >= 4 && c.d <= 7) || asc[asc.length - 1];
+      this.entitySpawn = this.cellToWorld(c.x, c.y);
+    } else {
+      const entCand = empties[Math.min(6, empties.length - 1)];
+      this.entitySpawn = this.cellToWorld(entCand.x, entCand.y);
+    }
 
     /* 物品放置 */
     this._placeItems(group, empties, field);
+
+    /* 场景道具（家具/杂物，带碰撞） */
+    if (cfg.props) this._placeProps(group, empties);
 
     /* ---- 灯光 ---- */
     scene.add(new THREE.AmbientLight(0xffffff, cfg.dark ? 0.16 : 0.34));
@@ -343,6 +410,19 @@ class Level {
       pl.position.set(s.x, cfg.wallH - 0.5, s.z);
       group.add(pl);
       this.pointLights.push(pl);
+    }
+
+    // 红色警报灯（脉冲）
+    if (cfg.alarm) {
+      this.alarmLights = [];
+      const nAL = Math.min(4, lightSpots.length);
+      for (let i = 0; i < nAL; i++) {
+        const s = lightSpots[Math.floor(i * lightSpots.length / nAL)];
+        const al = new THREE.PointLight(0xff2a1a, 0.8, 22, 1.4);
+        al.position.set(s.x, cfg.wallH - 0.4, s.z);
+        group.add(al);
+        this.alarmLights.push(al);
+      }
     }
 
     /* ---- 尘埃粒子 ---- */
@@ -384,6 +464,14 @@ class Level {
     g.position.set(wx, 0, wz);
     group.add(g);
     this.exit = { x: wx, z: wz, group: g, voidMat, unlocked: false, used: false };
+    // 终章白光之门：直接解锁并自发光
+    if (this.cfg.id === 3) {
+      voidMat.color.setHex(0xffffff);
+      this.exit.unlocked = true;
+      const glow = new THREE.PointLight(0xfff6e0, 1.1, 16, 1.4);
+      glow.position.set(wx, 1.7, wz);
+      group.add(glow);
+    }
   }
 
   _makeItemMesh(type) {
@@ -409,6 +497,17 @@ class Level {
       const lbl = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.08),
         new THREE.MeshBasicMaterial({ color: 0xd8d2b8 }));
       lbl.rotation.x = -Math.PI / 2; lbl.position.y = 0.056; g.add(lbl);
+    } else if (type === 'adrenaline') {
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.16, 8),
+        new THREE.MeshLambertMaterial({ color: 0xd8d2c0, emissive: 0x3a1010 }));
+      body.rotation.z = Math.PI / 2; body.position.y = 0.05;
+      const needle = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.09, 6),
+        new THREE.MeshLambertMaterial({ color: 0xbbbbbb }));
+      needle.rotation.z = Math.PI / 2; needle.position.set(0.12, 0.05, 0);
+      const label = new THREE.Mesh(new THREE.CylinderGeometry(0.047, 0.047, 0.06, 8),
+        new THREE.MeshLambertMaterial({ color: 0xb03a2a, emissive: 0x400a05 }));
+      label.rotation.z = Math.PI / 2; label.position.y = 0.05;
+      g.add(body, needle, label);
     } else if (type === 'note') {
       const t = Tex.toTexture(Tex.paperNote());
       t.encoding = THREE.sRGBEncoding;
@@ -442,9 +541,11 @@ class Level {
     } else if (cfg.id === 1) {
       types.push('fuse', 'notecode');
       types.push('note', 'note');
-    } else {
+    } else if (cfg.id === 2) {
       types.push('disk', 'disk', 'disk');
       types.push('note', 'note', 'note');
+    } else {
+      types.push('note', 'note');
     }
     const spots = this._pickSpots(empties, types.length, 6);
     const noteIdx = { i: 0 };
@@ -491,6 +592,31 @@ class Level {
       group.add(term);
       this.items.push({ type: 'terminal', x: tx, z: tz, mesh: term, taken: false, title: '', body: '' });
     }
+
+    /* 肾上腺素（追逐层）：沿路径按距离比例分布 */
+    if (cfg.adrenaline) {
+      let maxD = 1;
+      for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) if (field[y][x] > maxD) maxD = field[y][x];
+      const fracs = [0.25, 0.4, 0.55, 0.7, 0.85];
+      const usedCells = new Set();
+      for (const f of fracs.slice(0, cfg.adrenaline)) {
+        const targetD = Math.round(maxD * f);
+        let best = null, bestDiff = 1e9;
+        for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) {
+          const d = field[y][x];
+          if (d <= 0 || usedCells.has(y * this.W + x)) continue;
+          const diff = Math.abs(d - targetD);
+          if (diff < bestDiff) { bestDiff = diff; best = { x, y }; }
+        }
+        if (!best) continue;
+        usedCells.add(best.y * this.W + best.x);
+        const [ax, az] = this.cellToWorld(best.x, best.y);
+        const mesh = this._makeItemMesh('adrenaline');
+        mesh.position.set(ax + this.rng.range(-0.8, 0.8), 0, az + this.rng.range(-0.8, 0.8));
+        group.add(mesh);
+        this.items.push({ type: 'adrenaline', x: mesh.position.x, z: mesh.position.z, mesh, taken: false, title: '', body: '' });
+      }
+    }
   }
 
   _makePowerBox() {
@@ -510,6 +636,98 @@ class Level {
     this._pbLamps = { r: lampR.material, g: lampG.material };
     g.add(body, face, lampR, lampG);
     return g;
+  }
+
+  /* ---------------- 场景道具 ---------------- */
+  _placeProps(group, empties) {
+    const cfg = this.cfg;
+    const rng = this.rng;
+    // 按材质分组收集几何
+    const lists = { rust: [], wood: [], metal: [] };
+    const mats = {};
+    const mkMat = (key, texKey) => {
+      const t = Tex.toTexture(Tex[texKey]());
+      t.encoding = THREE.sRGBEncoding;
+      mats[key] = new THREE.MeshLambertMaterial({ map: t });
+    };
+    mkMat('rust', 'rust'); mkMat('wood', 'wood'); mkMat('metal', 'metal');
+
+    const addBox = (list, w, h, d, x, y, z, ry) => {
+      const geo = new THREE.BoxGeometry(w, h, d);
+      if (ry) geo.rotateY(ry);
+      geo.translate(x, y, z);
+      list.push(geo);
+    };
+    const addCyl = (list, r, h, x, y, z) => {
+      const geo = new THREE.CylinderGeometry(r, r, h, 10);
+      geo.translate(x, y, z);
+      list.push(geo);
+    };
+
+    const totalCount = Object.values(cfg.props).reduce((a, b) => a + b, 0);
+    const spots = this._pickSpotsAwayFromImportant(empties, totalCount, 4);
+    let i = 0;
+    for (const [type, count] of Object.entries(cfg.props)) {
+      for (let k = 0; k < count; k++) {
+        if (i >= spots.length) break;
+        const cell = spots[i++];
+        const [cx, cz] = this.cellToWorld(cell.x, cell.y);
+        // 靠墙偏移：找一个相邻实心方向
+        const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => this.isSolidCell(cell.x + dx, cell.y + dy));
+        let px = cx + rng.range(-1.2, 1.2), pz = cz + rng.range(-1.2, 1.2);
+        if (dirs.length) {
+          const [dx, dy] = rng.pick(dirs);
+          px = cx + dx * 1.35 + (dy !== 0 ? rng.range(-1.1, 1.1) : 0);
+          pz = cz + dy * 1.35 + (dx !== 0 ? rng.range(-1.1, 1.1) : 0);
+        }
+        if (type === 'barrel') {
+          addCyl(lists.rust, 0.42, 0.95, px, 0.475, pz);
+          addCyl(lists.metal, 0.44, 0.06, px, 0.72, pz);
+          this.obstacles.push({ x: px, z: pz, r: 0.55 });
+        } else if (type === 'crate') {
+          addBox(lists.wood, 0.85, 0.85, 0.85, px, 0.425, pz, rng.range(0, Math.PI));
+          if (rng.next() < 0.4) addBox(lists.wood, 0.65, 0.65, 0.65, px + rng.range(-0.3, 0.3), 1.17, pz + rng.range(-0.3, 0.3), rng.range(0, Math.PI));
+          this.obstacles.push({ x: px, z: pz, r: 0.62 });
+        } else if (type === 'desk') {
+          const ry = rng.pick([0, Math.PI / 2]);
+          addBox(lists.wood, ry ? 0.7 : 1.5, 0.06, ry ? 1.5 : 0.7, px, 0.75, pz, 0);
+          addBox(lists.metal, ry ? 0.62 : 0.05, 0.72, ry ? 0.05 : 0.62, px + (ry ? 0 : 0.7), 0.36, pz + (ry ? 0.7 : 0), 0);
+          addBox(lists.metal, ry ? 0.62 : 0.05, 0.72, ry ? 0.05 : 0.62, px - (ry ? 0 : 0.7), 0.36, pz - (ry ? 0.7 : 0), 0);
+          this.obstacles.push({ x: px, z: pz, r: 0.8 });
+        } else if (type === 'cabinet') {
+          addBox(lists.metal, 0.55, 1.35, 0.6, px, 0.675, pz, rng.range(-0.15, 0.15));
+          this.obstacles.push({ x: px, z: pz, r: 0.5 });
+        } else if (type === 'chair') {
+          const ry = rng.range(0, Math.PI * 2);
+          addBox(lists.wood, 0.46, 0.07, 0.46, px, 0.12, pz, ry);
+          const bx = px - Math.cos(ry) * 0.2, bz = pz - Math.sin(ry) * 0.2;
+          addBox(lists.wood, 0.46, 0.5, 0.06, bx, 0.3, bz, ry); // 翻倒的椅背
+          this.obstacles.push({ x: px, z: pz, r: 0.45 });
+        }
+      }
+    }
+
+    for (const key of Object.keys(lists)) {
+      if (!lists[key].length) continue;
+      const mesh = new THREE.Mesh(mergeGeoms(lists[key]), mats[key]);
+      group.add(mesh);
+    }
+  }
+
+  /** 避开出生点/出口/物品/实体刷新点的道具选位 */
+  _pickSpotsAwayFromImportant(empties, count, minDistCells) {
+    const imp = [{ x: this.playerStart[0], z: this.playerStart[1] }, { x: this.exit.x, z: this.exit.z }, { x: this.entitySpawn[0], z: this.entitySpawn[1] }]
+      .concat(this.items.map(it => ({ x: it.x, z: it.z })));
+    const spots = [];
+    let guard = 0;
+    while (spots.length < count && guard++ < 800) {
+      const c = empties[this.rng.int(3, empties.length - 1)];
+      const [wx, wz] = this.cellToWorld(c.x, c.y);
+      if (!imp.every(p => U.dist2(wx, wz, p.x, p.z) > 2.4 * 2.4)) continue;
+      if (!spots.every(s => Math.abs(s.x - c.x) + Math.abs(s.y - c.y) >= minDistCells)) continue;
+      spots.push(c);
+    }
+    return spots;
   }
 
   _makeTerminal() {
@@ -556,6 +774,11 @@ class Level {
 
   update(dt) {
     this.time += dt;
+    // 警报红灯脉冲
+    if (this.alarmLights) {
+      const pulse = 0.35 + 0.65 * Math.max(0, Math.sin(this.time * Math.PI / 0.8));
+      for (const al of this.alarmLights) al.intensity = pulse * 1.3;
+    }
     // 灯光闪烁
     const ph = this.time * 13 + this._lampPhase;
     for (const m of this.flickerMats) {
@@ -599,5 +822,9 @@ const NOTE_TEXTS = [
     { t: '员工守则 · 修订版', b: '欢迎来到本公司！\n1. 下班后请勿留在工位。\n2. 听到键盘声而办公室无人时，请勿寻找声源。\n3. 中央终端只接受三张软盘。不要问为什么是三张。' },
     { t: 'IT 部的便签', b: '主机房搬走了，但终端还活着。\n三张软盘散落在办公区，管理员喜欢把它们和文件混在一起。\n\n插齐软盘，终端会为你打开一扇门——\n不是通往大堂的门。是通往"外面"的门。' },
     { t: '最后的报告', b: '我们试过了。\n白光的另一边确实是天空。\n但只有第一个穿过去的人能保证那是真的。\n\n后面的人要自己承担风险。\n—— 第 7 批探索队' },
+  ],
+  [
+    { t: '紧急广播残页', b: '……警报已激活。M.E.G. 提醒所有流浪者：\n不要进入响着警报的楼层。那里的实体处于猎杀状态，且永不疲倦。\n\n如果你已经在里面了——跑。别回头，别停下，别相信安静。' },
+    { t: '针剂使用说明', b: '肾上腺素注射剂（实验批号 09）\n效果：瞬间恢复体能，短时间爆发速度。\n副作用：心悸、手抖、以及一种“背后有东西”的错觉。\n\n注：那不是错觉。' },
   ],
 ];

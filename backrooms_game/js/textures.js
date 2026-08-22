@@ -261,6 +261,74 @@ const Tex = {
     return c;
   },
 
+  /* ---------- 道具纹理 ---------- */
+  rust() {
+    if (this._cache.ru) return this._cache.ru;
+    const S = 128;
+    const c = this._canvas(S, S), ctx = c.getContext('2d');
+    ctx.fillStyle = '#6e452a'; ctx.fillRect(0, 0, S, S);
+    const rng = new RNG(21);
+    this._stains(ctx, S, S, 10, 'rgba(150,80,30,0.4)', rng);
+    this._stains(ctx, S, S, 8, 'rgba(40,20,10,0.45)', rng);
+    // 锈流痕
+    for (let i = 0; i < 14; i++) {
+      const x = rng.range(0, S);
+      ctx.fillStyle = `rgba(${rng.int(90,150)},${rng.int(45,75)},20,0.35)`;
+      ctx.fillRect(x, rng.range(0, S / 2), rng.range(2, 5), rng.range(20, 80));
+    }
+    this._noise(ctx, S, S, 0.12);
+    this._cache.ru = c;
+    return c;
+  },
+
+  wood() {
+    if (this._cache.wd) return this._cache.wd;
+    const S = 128;
+    const c = this._canvas(S, S), ctx = c.getContext('2d');
+    ctx.fillStyle = '#8a6a3e'; ctx.fillRect(0, 0, S, S);
+    const rng = new RNG(66);
+    // 木纹
+    for (let y = 0; y < S; y += 3) {
+      ctx.strokeStyle = `rgba(${rng.int(60,90)},${rng.int(42,60)},${rng.int(20,32)},${rng.range(0.25,0.5)})`;
+      ctx.lineWidth = rng.range(0.5, 1.6);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.bezierCurveTo(S * .3, y + rng.range(-3, 3), S * .7, y + rng.range(-3, 3), S, y);
+      ctx.stroke();
+    }
+    // 板条缝 + 边框
+    ctx.strokeStyle = 'rgba(35,22,8,0.8)'; ctx.lineWidth = 4;
+    ctx.strokeRect(2, 2, S - 4, S - 4);
+    ctx.beginPath(); ctx.moveTo(S / 2, 0); ctx.lineTo(S / 2, S); ctx.stroke();
+    this._noise(ctx, S, S, 0.08);
+    this._cache.wd = c;
+    return c;
+  },
+
+  metal() {
+    if (this._cache.mt) return this._cache.mt;
+    const S = 128;
+    const c = this._canvas(S, S), ctx = c.getContext('2d');
+    ctx.fillStyle = '#8d949a'; ctx.fillRect(0, 0, S, S);
+    const rng = new RNG(77);
+    this._stains(ctx, S, S, 6, 'rgba(60,66,70,0.35)', rng);
+    // 划痕
+    for (let i = 0; i < 10; i++) {
+      ctx.strokeStyle = 'rgba(210,215,220,0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      const x = rng.range(0, S), y = rng.range(0, S);
+      ctx.moveTo(x, y); ctx.lineTo(x + rng.range(-30, 30), y + rng.range(-8, 8));
+      ctx.stroke();
+    }
+    // 抽屉缝
+    ctx.strokeStyle = 'rgba(40,44,48,0.9)'; ctx.lineWidth = 3;
+    for (let y = S / 3; y < S; y += S / 3) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(S, y); ctx.stroke(); }
+    this._noise(ctx, S, S, 0.07);
+    this._cache.mt = c;
+    return c;
+  },
+
   /* ---------- 门 ---------- */
   door(metal) {
     const key = metal ? 'dm' : 'dd';
