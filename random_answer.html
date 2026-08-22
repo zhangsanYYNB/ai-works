@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>随机答案生成器 - ABCD / 七选五</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e8f0f5;
+        }
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            font-size: 1.9em;
+            margin: 10px 0 4px;
+            background: linear-gradient(90deg, #56ccf2, #2f80ed);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            text-align: center;
+            color: #8fa8b8;
+            font-size: 0.95em;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 22px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(6px);
+        }
+
+        /* 模式切换 */
+        .mode-switch {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .mode-btn {
+            flex: 1;
+            min-width: 180px;
+            padding: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: transparent;
+            color: #cfe3ee;
+            border-radius: 12px;
+            font-size: 1.05em;
+            cursor: pointer;
+            transition: all 0.25s;
+            text-align: center;
+        }
+        .mode-btn small {
+            display: block;
+            font-size: 0.75em;
+            color: #8fa8b8;
+            margin-top: 2px;
+        }
+        .mode-btn.active {
+            background: linear-gradient(135deg, #2f80ed, #56ccf2);
+            border-color: transparent;
+            color: #fff;
+            box-shadow: 0 6px 20px rgba(47, 128, 237, 0.4);
+        }
+        .mode-btn.active small {
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        /* 设置区 */
+        .settings {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        label {
+            color: #b9d0dd;
+            font-size: 0.92em;
+        }
+        input[type="number"] {
+            width: 72px;
+            padding: 9px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 1em;
+            text-align: center;
+            outline: none;
+        }
+        input[type="number"]:focus {
+            border-color: #56ccf2;
+        }
+        .preset {
+            display: flex;
+            gap: 6px;
+        }
+        .preset button, .btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.12);
+            color: #e8f0f5;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .preset button:hover, .btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        .hint {
+            font-size: 0.85em;
+            color: #8fa8b8;
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+        .checkbox-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .checkbox-wrap input {
+            accent-color: #2f80ed;
+            width: 16px;
+            height: 16px;
+        }
+
+        /* 主操作按钮 */
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .btn-primary {
+            flex: 1;
+            min-width: 150px;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            background: linear-gradient(135deg, #2f80ed, #56ccf2);
+            color: #fff;
+            box-shadow: 0 6px 20px rgba(47, 128, 237, 0.4);
+            transition: transform 0.15s, box-shadow 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 28px rgba(47, 128, 237, 0.55);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        .btn-ghost {
+            padding: 14px 22px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 12px;
+            background: transparent;
+            color: #e8f0f5;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-ghost:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* 结果区 */
+        .result-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 18px;
+            min-height: 120px;
+            max-height: 50vh;
+            overflow-y: auto;
+            font-family: 'Consolas', 'SF Mono', monospace;
+            line-height: 2;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-size: 1.05em;
+        }
+        .result-box .num {
+            color: #8fa8b8;
+        }
+        .result-box span.ans {
+            display: inline-block;
+            min-width: 26px;
+            padding: 2px 8px;
+            margin: 2px 3px;
+            border-radius: 6px;
+            background: rgba(47, 128, 237, 0.3);
+            color: #fff;
+            font-weight: bold;
+            text-align: center;
+        }
+        .result-line {
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+            padding: 4px 0;
+        }
+        .result-line:last-child {
+            border-bottom: none;
+        }
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 10px 22px;
+            border-radius: 25px;
+            font-size: 0.95em;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s;
+            z-index: 99;
+            border: 1px solid rgba(86, 204, 242, 0.4);
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .stats {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+            font-size: 0.85em;
+            color: #a9c3d4;
+        }
+        .stats span {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+        .stats b {
+            color: #56ccf2;
+        }
+        .footer {
+            text-align: center;
+            color: #5f7a8a;
+            font-size: 0.8em;
+            margin-top: 10px;
+        }
+        @media (max-width: 480px) {
+            h1 { font-size: 1.5em; }
+            .mode-btn { min-width: 140px; padding: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎲 随机答案生成器</h1>
+        <p class="subtitle">随机生成 ABCD 单选题答案 或 七选五答案</p>
+
+        <!-- 模式切换 -->
+        <div class="card">
+            <div class="mode-switch">
+                <button class="mode-btn active" id="modeAbcd" onclick="setMode('abcd')">
+                    🅰️ ABCD 单选题
+                    <small>随机生成 A/B/C/D… 选项数量可选</small>
+                </button>
+                <button class="mode-btn" id="modeGap" onclick="setMode('gap')">
+                    🔤 七选五 (7选5)
+                    <small>从 A-G 中随机选 5 个</small>
+                </button>
+            </div>
+        </div>
+
+        <!-- 设置 -->
+        <div class="card">
+            <div class="settings" id="settingsAbcd">
+                <label for="count">题目数量</label>
+                <input type="number" id="count" min="1" max="200" value="20">
+                <div class="preset">
+                    <button onclick="setCount(10)">10</button>
+                    <button onclick="setCount(20)">20</button>
+                    <button onclick="setCount(25)">25</button>
+                    <button onclick="setCount(30)">30</button>
+                </div>
+            </div>
+
+            <div class="settings" id="settingsOpt" style="margin-top:12px;">
+                <label for="optCount">选项数量</label>
+                <input type="number" id="optCount" min="2" max="8" value="4">
+                <div class="preset">
+                    <button onclick="setOptCount(2)">2</button>
+                    <button onclick="setOptCount(3)">3</button>
+                    <button onclick="setOptCount(4)">4</button>
+                    <button onclick="setOptCount(5)">5</button>
+                    <button onclick="setOptCount(6)">6</button>
+                </div>
+                <span id="optPreview" class="hint" style="margin:0;font-size:0.9em;">A - D</span>
+            </div>
+
+            <div class="settings" id="settingsGap" style="display:none;">
+                <label for="gapCount">题组数量</label>
+                <input type="number" id="gapCount" min="1" max="50" value="5">
+                <div class="preset">
+                    <button onclick="setGapCount(1)">1</button>
+                    <button onclick="setGapCount(5)">5</button>
+                    <button onclick="setGapCount(10)">10</button>
+                </div>
+                <label class="checkbox-wrap" style="margin-left:8px;">
+                    <input type="checkbox" id="allowRepeat"> 允许选项重复
+                </label>
+            </div>
+
+            <p class="hint" id="hintAbcd">每条生成一行答案，例如：<b>1. B</b>　<b>2. A</b>　<b>3. D</b> …</p>
+            <p class="hint" id="hintGap" style="display:none;">每行代表一个题组，从 <b>A-G</b> 中随机选出 5 个不重复的答案，例如：<b>F A C E B</b></p>
+        </div>
+
+        <!-- 操作 -->
+        <div class="card">
+            <div class="actions">
+                <button class="btn-primary" onclick="generate()">🎲 生成答案</button>
+                <button class="btn-ghost" onclick="copyResult()">📋 复制结果</button>
+            </div>
+        </div>
+
+        <!-- 结果 -->
+        <div class="card">
+            <div class="result-box" id="result">
+                点击「生成答案」开始，或按 <b>空格键</b> 快速生成 ✨
+            </div>
+            <div class="stats" id="stats"></div>
+        </div>
+
+        <p class="footer">按空格键可快速重新生成 · 仅供娱乐参考，请勿用于作弊 😉</p>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ====== 状态 ======
+        let currentMode = 'abcd';
+
+        const $ = id => document.getElementById(id);
+
+        // 选项字母表（最多支持到 H）
+        const OPT_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+        // ====== 模式切换 ======
+        function setMode(mode) {
+            currentMode = mode;
+            $('modeAbcd').classList.toggle('active', mode === 'abcd');
+            $('modeGap').classList.toggle('active', mode === 'gap');
+            $('settingsAbcd').style.display = mode === 'abcd' ? 'flex' : 'none';
+            $('settingsOpt').style.display = mode === 'abcd' ? 'flex' : 'none';
+            $('settingsGap').style.display = mode === 'gap' ? 'flex' : 'none';
+            $('hintAbcd').style.display = mode === 'abcd' ? 'block' : 'none';
+            $('hintGap').style.display = mode === 'gap' ? 'block' : 'none';
+            $('result').innerHTML = mode === 'abcd'
+                ? 'ABCD 模式：输入题目数量与选项数量，点击「生成答案」'
+                : '七选五模式：从 A-G 中随机选出 5 个答案';
+            $('stats').innerHTML = '';
+        }
+
+        function setCount(n) { $('count').value = n; }
+        function setGapCount(n) { $('gapCount').value = n; }
+        function setOptCount(n) { $('optCount').value = n; updateOptPreview(); }
+
+        // 更新选项预览 & 监听变化
+        function updateOptPreview() {
+            let n = parseInt($('optCount').value) || 4;
+            n = Math.min(Math.max(n, 2), 8);
+            $('optCount').value = n;
+            $('optPreview').textContent = 'A - ' + 'ABCDEFGH'[n - 1];
+        }
+
+        // ====== 随机工具 ======
+        function randInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // Fisher-Yates 洗牌
+        function shuffle(arr) {
+            const a = arr.slice();
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = randInt(0, i);
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        // 从 A-G 抽 n 个不重复
+        function pickDistinct(n) {
+            return shuffle(['A', 'B', 'C', 'D', 'E', 'F', 'G']).slice(0, n);
+        }
+
+        // ====== 生成 ======
+        function generate() {
+            const box = $('result');
+            let html = '';
+            let statsText = '';
+
+            if (currentMode === 'abcd') {
+                const count = Math.min(Math.max(parseInt($('count').value) || 20, 1), 200);
+                // 自定义选项数量
+                const optCount = Math.min(Math.max(parseInt($('optCount').value) || 4, 2), 8);
+                const names = OPT_LETTERS.slice(0, optCount);
+                const lines = [];
+                for (let i = 0; i < count; i++) {
+                    lines.push(randInt(0, optCount - 1));
+                }
+                // 统计
+                const counts = new Array(optCount).fill(0);
+                lines.forEach(c => counts[c]++);
+
+                html = lines.map((c, i) =>
+                    `<div class="result-line"><span class="num">${i + 1}.</span> <span class="ans">${names[c]}</span></div>`
+                ).join('');
+
+                for (let i = 0; i < optCount; i++) {
+                    const pct = (counts[i] / count * 100).toFixed(1);
+                    statsText += `<span><b>${names[i]}</b> ${counts[i]} 个 (${pct}%)</span>`;
+                }
+                statsText += `<span>合计 <b>${count}</b> 题</span>`;
+            } else {
+                const groups = Math.min(Math.max(parseInt($('gapCount').value) || 5, 1), 50);
+                const allowRepeat = $('allowRepeat').checked;
+
+                const answers = [];
+                for (let g = 0; g < groups; g++) {
+                    answers.push(allowRepeat
+                        ? [0, 1, 2, 3, 4].map(() => 'ABCDEFG'[randInt(0, 6)])
+                        : pickDistinct(5));
+                }
+                html = answers.map((arr, i) =>
+                    `<div class="result-line"><span class="num">第${i + 1}组</span>　` +
+                    arr.map(a => `<span class="ans">${a}</span>`).join('') + `</div>`
+                ).join('');
+
+                statsText = `<span>共 <b>${groups}</b> 个题组</span>` +
+                    `<span>选项 <b>A-G</b></span>` +
+                    (allowRepeat ? `<span style="color:#f0a500;">允许重复</span>` : `<span>不重复</span>`);
+            }
+
+            box.innerHTML = html;
+            $('stats').innerHTML = statsText;
+        }
+
+        // ====== 复制 ======
+        function copyResult() {
+            const box = $('result');
+            // 提取纯文本
+            let text;
+            if (currentMode === 'abcd') {
+                const lines = [];
+                box.querySelectorAll('.result-line').forEach(line => {
+                    const num = line.querySelector('.num').textContent.replace('.', '');
+                    const ans = line.querySelector('.ans').textContent;
+                    lines.push(`${num}. ${ans}`);
+                });
+                text = lines.join('\n');
+            } else {
+                const lines = [];
+                box.querySelectorAll('.result-line').forEach(line => {
+                    const num = line.querySelector('.num').textContent;
+                    const ans = [...line.querySelectorAll('.ans')].map(a => a.textContent).join(' ');
+                    lines.push(`${num}：${ans}`);
+                });
+                text = lines.join('\n');
+            }
+
+            if (!text) {
+                showToast('⚠️ 还没有生成结果');
+                return;
+            }
+
+            // 兼容旧浏览器
+            const done = () => showToast('✅ 已复制到剪贴板');
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done).catch(() => {
+                    fallbackCopy(text);
+                    done();
+                });
+            } else {
+                fallbackCopy(text);
+                done();
+            }
+        }
+
+        function fallbackCopy(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+
+        // ====== Toast ======
+        let toastTimer = null;
+        function showToast(msg) {
+            const t = $('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+        }
+
+        // ====== 空格快捷键 ======
+        document.addEventListener('keydown', (e) => {
+            // 输入框内不触发
+            const tag = e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                generate();
+            }
+        });
+
+        // 选项数量输入变化时更新预览
+        $('optCount').addEventListener('input', updateOptPreview);
+        updateOptPreview();
+
+        // 初始生成一次示例
+        generate();
+    </script>
+</body>
+</html>
