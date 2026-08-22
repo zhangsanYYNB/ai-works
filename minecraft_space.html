@@ -443,6 +443,8 @@ if(getBlock(bx,by,bz)!==BLOCK.AIR&&getBlock(bx,by,bz)!==BLOCK.BEDROCK)setBlock(b
 /* ========== Three.js ========== */
 function initRenderer(){
 Game.renderer=new THREE.WebGLRenderer({canvas:el('gameCanvas'),antialias:false,powerPreference:'high-performance'});
+// r155+ 默认物理光照模式，点光源按 1/d² 衰减几乎不亮；用经典模式保证火把可见
+Game.renderer.useLegacyLights=true;
 Game.renderer.setPixelRatio(Math.min(window.devicePixelRatio,IS_MOBILE?1:1.5));
 Game.renderer.setSize(window.innerWidth,window.innerHeight);
 Game.renderer.setClearColor(0x000000);
@@ -494,9 +496,11 @@ Game.scene.add(new THREE.AmbientLight(0x666677,.6));
 // 火把灯光池（4 个点光源，跟随最近的火把）
 Game.torchLights=[];
 for(let i=0;i<4;i++){
-const l=new THREE.PointLight(0xffaa44,0,14);
+const l=new THREE.PointLight(0xffb066,0,26);
 Game.scene.add(l);Game.torchLights.push(l);
 }
+// 玩家头灯：选中火把时随身照明
+const headlamp=new THREE.PointLight(0xffcc88,0,14);Game.scene.add(headlamp);Game.headlamp=headlamp;
 }
 
 const _dummy=new THREE.Object3D();
@@ -834,10 +838,10 @@ const sa=t*TAU;
 Game.sun.position.set(Math.cos(sa)*100,Math.sin(sa)*100,30);
 Game.moonMesh.position.set(-Math.cos(sa)*90,Math.sin(sa)*30-20,-120);
 let top,bot,hor,amb;
-if(t<.25){top=_skyTop.set('#4a9eff');bot=_skyBot.set('#87ceeb');hor=_skyHor.set('#ffdf80');amb=.8;}
-else if(t<.5){top=_skyTop.set('#ff6b3d');bot=_skyBot.set('#ff9966');hor=_skyHor.set('#ffcc66');amb=.5;}
-else if(t<.75){top=_skyTop.set('#0a1a3a');bot=_skyBot.set('#1a0a3a');hor=_skyHor.set('#2a1a5a');amb=.25;}
-else{top=_skyTop.set('#5a3a8a');bot=_skyBot.set('#ff8866');hor=_skyHor.set('#ffaaff');amb=.5;}
+if(t<.25){top=_skyTop.set('#4a9eff');bot=_skyBot.set('#87ceeb');hor=_skyHor.set('#ffdf80');amb=.55;}
+else if(t<.5){top=_skyTop.set('#ff6b3d');bot=_skyBot.set('#ff9966');hor=_skyHor.set('#ffcc66');amb=.35;}
+else if(t<.75){top=_skyTop.set('#0a1a3a');bot=_skyBot.set('#1a0a3a');hor=_skyHor.set('#2a1a5a');amb=.12;}
+else{top=_skyTop.set('#5a3a8a');bot=_skyBot.set('#ff8866');hor=_skyHor.set('#ffaaff');amb=.35;}
 const tc=new THREE.Color(Game.planets[Game.planetId].theme);
 top.lerp(tc,.12);bot.lerp(tc,.08);hor.lerp(tc,.2);
 Game.skyDome.material.uniforms.top.value=top;Game.skyDome.material.uniforms.bot.value=bot;Game.skyDome.material.uniforms.hor.value=hor;
@@ -854,23 +858,31 @@ Game.waterMesh.material.opacity=.6+.1*Math.sin(performance.now()*.001);
 function updateTorchLights(){
 const px=Game.player.x,py=Game.player.y,pz=Game.player.z;
 const torches=Game.torches;
-if(!torches||torches.size===0){Game.torchLights.forEach(l=>l.intensity=0);return;}
+if(!torches||torches.size===0){Game.torchLights.forEach(l=>l.intensity=0);}else{
 const dists=[];
 for(const k of torches){
 const y=(k%PACK_MUL2)|0,t=(k/PACK_MUL2)|0;
 const z=t%PACK_ZMUL-PACK_OFST,x=(k/PACK_MUL|0)-PACK_OFST;
 const dx=x-px,dy=y-py,dz=z-pz,d=dx*dx+dy*dy+dz*dz;
-if(d<400)dists.push({d,x:x+.5,y:y+.5,z:z+.5});
+if(d<676)dists.push({d,x:x+.5,y:y+.5,z:z+.5});
 }
 dists.sort((a,b)=>a.d-b.d);
 for(let i=0;i<Game.torchLights.length;i++){
-if(i<dists.length&&dists[i].d<400){
+if(i<dists.length&&dists[i].d<676){
 const t=dists[i];
 Game.torchLights[i].position.set(t.x,t.y,t.z);
-Game.torchLights[i].intensity=Math.max(0,1.2-t.d/400);
+const distNorm=Math.sqrt(t.d)/26; // 0~1
+Game.torchLights[i].intensity=Math.max(0,1.6-distNorm*1.4);
 }else{
 Game.torchLights[i].intensity=0;
 }
+}
+}
+// 玩家头灯：快捷栏选中火把时随身照明
+if(Game.headlamp){
+const sel=Game.hotbar[Game.input.selectedSlot];
+if(sel===BLOCK.TORCH){Game.headlamp.intensity=1.2;Game.headlamp.position.set(px,py+1.6,pz);}
+else{Game.headlamp.intensity=0;}
 }
 }
 /* ========== 背包UI ========== */
