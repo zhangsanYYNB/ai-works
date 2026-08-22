@@ -39,8 +39,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 .joystick{position:absolute;bottom:80px;left:20px;width:110px;height:110px;background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.18);border-radius:50%;pointer-events:auto;touch-action:none}
 .joystick-stick{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:42px;height:42px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.4);border-radius:50%;transition:none}
 .look-area{position:absolute;top:0;right:0;width:55%;height:72%;pointer-events:auto;touch-action:none}
-.action-buttons{position:absolute;bottom:90px;right:20px;display:flex;flex-direction:column;gap:10px;pointer-events:auto}
-.action-btn{width:54px;height:54px;border-radius:50%;border:2px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.08);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);touch-action:none}
+.action-buttons{pointer-events:auto}
+.action-btn{width:54px;height:54px;border-radius:50%;border:2px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.08);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);touch-action:none;position:absolute}
 .action-btn:active{background:rgba(255,255,255,0.25);transform:scale(0.93)}
 .action-btn.jump{background:rgba(76,175,80,0.2);border-color:rgba(76,175,80,0.5)}
 .action-btn.break{background:rgba(244,67,54,0.2);border-color:rgba(244,67,54,0.5)}
@@ -71,7 +71,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 .hud-edit-name{color:#00d4ff;font-size:13px;font-weight:bold;min-width:44px}
 .hud-edit-hint{color:#888;font-size:11px}
 .hud-edit-panel label{color:#bbb;font-size:11px}
-.hud-edit-panel input[type=range]{width:80px;accent-color:#00d4ff}
+.hud-edit-panel input[type=range]{width:80px;accent-color:#00d4ff;touch-action:auto}
 .hud-edit-val{color:#00d4ff;font-size:11px;min-width:38px;text-align:right}
 .hud-edit-target{pointer-events:auto!important;cursor:grab;touch-action:none;transition:outline-color .15s}
 .hud-edit-target:active{cursor:grabbing}
@@ -137,11 +137,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 <div class="touch-controls">
 <div class="joystick" id="joystick" data-hud="joystick"><div class="joystick-stick" id="joystickStick"></div></div>
 <div class="look-area" id="lookArea" data-hud="lookArea"></div>
-<div class="action-buttons" data-hud="actionButtons">
-<div class="action-btn inv" id="btnInv">🎒</div>
-<div class="action-btn jump" id="btnJump">⬆</div>
-<div class="action-btn place" id="btnPlace">🧱</div>
-<div class="action-btn break" id="btnBreak">⛏️</div>
+<div class="action-buttons">
+<div class="action-btn inv" id="btnInv" data-hud="btnInv">🎒</div>
+<div class="action-btn jump" id="btnJump" data-hud="btnJump">⬆</div>
+<div class="action-btn place" id="btnPlace" data-hud="btnPlace">🧱</div>
+<div class="action-btn break" id="btnBreak" data-hud="btnBreak">⛏️</div>
 </div>
 </div>
 
@@ -234,8 +234,8 @@ const RENDER_DIST=IS_MOBILE?3:4;
 function el(id){return document.getElementById(id)}
 
 /* ========== 方块定义 ========== */
-const BLOCK={AIR:0,GRASS:1,DIRT:2,STONE:3,SAND:4,WATER:5,WOOD:6,LEAVES:7,SANDSTONE:8,SNOW:9,ICE:10,IRON:11,GOLD:12,DIAMOND:13,LAVA:14,BEDROCK:15,ALIEN_GRASS:16,CRYSTAL:17,OBSIDIAN:18,MARS_ROCK:19,SPACE_DUST:20,GLOW_MOSS:21};
-const BNAMES={[BLOCK.GRASS]:'草方块',[BLOCK.DIRT]:'泥土',[BLOCK.STONE]:'石头',[BLOCK.SAND]:'沙子',[BLOCK.WOOD]:'木头',[BLOCK.LEAVES]:'树叶',[BLOCK.SANDSTONE]:'砂岩',[BLOCK.SNOW]:'雪',[BLOCK.ICE]:'冰',[BLOCK.IRON]:'铁矿',[BLOCK.GOLD]:'金矿',[BLOCK.DIAMOND]:'钻石矿',[BLOCK.LAVA]:'岩浆',[BLOCK.BEDROCK]:'基岩',[BLOCK.ALIEN_GRASS]:'外星草',[BLOCK.CRYSTAL]:'紫水晶',[BLOCK.OBSIDIAN]:'黑曜石',[BLOCK.MARS_ROCK]:'火星岩',[BLOCK.SPACE_DUST]:'星尘',[BLOCK.GLOW_MOSS]:'发光苔'};
+const BLOCK={AIR:0,GRASS:1,DIRT:2,STONE:3,SAND:4,WATER:5,WOOD:6,LEAVES:7,SANDSTONE:8,SNOW:9,ICE:10,IRON:11,GOLD:12,DIAMOND:13,LAVA:14,BEDROCK:15,ALIEN_GRASS:16,CRYSTAL:17,OBSIDIAN:18,MARS_ROCK:19,SPACE_DUST:20,GLOW_MOSS:21,TORCH:22};
+const BNAMES={[BLOCK.GRASS]:'草方块',[BLOCK.DIRT]:'泥土',[BLOCK.STONE]:'石头',[BLOCK.SAND]:'沙子',[BLOCK.WOOD]:'木头',[BLOCK.LEAVES]:'树叶',[BLOCK.SANDSTONE]:'砂岩',[BLOCK.SNOW]:'雪',[BLOCK.ICE]:'冰',[BLOCK.IRON]:'铁矿',[BLOCK.GOLD]:'金矿',[BLOCK.DIAMOND]:'钻石矿',[BLOCK.LAVA]:'岩浆',[BLOCK.BEDROCK]:'基岩',[BLOCK.ALIEN_GRASS]:'外星草',[BLOCK.CRYSTAL]:'紫水晶',[BLOCK.OBSIDIAN]:'黑曜石',[BLOCK.MARS_ROCK]:'火星岩',[BLOCK.SPACE_DUST]:'星尘',[BLOCK.GLOW_MOSS]:'发光苔',[BLOCK.TORCH]:'火把'};
 const COLORS={
 [BLOCK.GRASS]:['#5fa843','#5fa843','#7ec850','#5fa843'],
 [BLOCK.DIRT]:['#8b5a3c','#8b5a3c','#8b5a3c','#8b5a3c'],
@@ -256,10 +256,11 @@ const COLORS={
 [BLOCK.OBSIDIAN]:['#1a0033','#1a0033','#2a0044','#100020'],
 [BLOCK.MARS_ROCK]:['#c1440e','#c1440e','#d65a25','#a03508'],
 [BLOCK.SPACE_DUST]:['#4a3a6a','#4a3a6a','#6a4a8a','#3a2a5a'],
-[BLOCK.GLOW_MOSS]:['#00ff88','#00ff88','#66ffaa','#00cc66']};
+[BLOCK.GLOW_MOSS]:['#00ff88','#00ff88','#66ffaa','#00cc66'],
+[BLOCK.TORCH]:['#ffaa33','#ffaa33','#ffcc44','#dd8800']};
 /* 挖掘硬度（秒） */
-const HARDNESS={[BLOCK.GRASS]:.4,[BLOCK.DIRT]:.4,[BLOCK.SAND]:.4,[BLOCK.SNOW]:.35,[BLOCK.ICE]:.7,[BLOCK.WOOD]:.8,[BLOCK.LEAVES]:.2,[BLOCK.SANDSTONE]:.8,[BLOCK.STONE]:1.4,[BLOCK.IRON]:2.2,[BLOCK.GOLD]:2.0,[BLOCK.DIAMOND]:3.0,[BLOCK.CRYSTAL]:1.8,[BLOCK.OBSIDIAN]:4.0,[BLOCK.MARS_ROCK]:1.2,[BLOCK.BEDROCK]:999,[BLOCK.LAVA]:.1,[BLOCK.ALIEN_GRASS]:.4,[BLOCK.SPACE_DUST]:.5,[BLOCK.GLOW_MOSS]:.4};
-const TRANSPARENT=new Set([BLOCK.AIR,BLOCK.LEAVES,BLOCK.WATER,BLOCK.ICE,BLOCK.CRYSTAL,BLOCK.GLOW_MOSS]);
+const HARDNESS={[BLOCK.GRASS]:.4,[BLOCK.DIRT]:.4,[BLOCK.SAND]:.4,[BLOCK.SNOW]:.35,[BLOCK.ICE]:.7,[BLOCK.WOOD]:.8,[BLOCK.LEAVES]:.2,[BLOCK.SANDSTONE]:.8,[BLOCK.STONE]:1.4,[BLOCK.IRON]:2.2,[BLOCK.GOLD]:2.0,[BLOCK.DIAMOND]:3.0,[BLOCK.CRYSTAL]:1.8,[BLOCK.OBSIDIAN]:4.0,[BLOCK.MARS_ROCK]:1.2,[BLOCK.BEDROCK]:999,[BLOCK.LAVA]:.1,[BLOCK.ALIEN_GRASS]:.4,[BLOCK.SPACE_DUST]:.5,[BLOCK.GLOW_MOSS]:.4,[BLOCK.TORCH]:.3};
+const TRANSPARENT=new Set([BLOCK.AIR,BLOCK.LEAVES,BLOCK.WATER,BLOCK.ICE,BLOCK.CRYSTAL,BLOCK.GLOW_MOSS,BLOCK.TORCH]);
 const isSolid=id=>id!==BLOCK.AIR&&id!==BLOCK.WATER&&id!==BLOCK.LEAVES;
 
 /* ========== 噪声 ========== */
@@ -290,7 +291,8 @@ paused:false,started:false,ready:false,lastTime:0,
 planetId:0,planets:[],clouds:[],shootingStars:[],dayTime:.35,daySpeed:1/300,particles:[],
 loadStartTime:0,lastPCX:null,lastPCZ:null,lastCountsKey:'',achievements:{},
 cleanupTimer:0,
-solidMesh:null,leafMesh:null,waterMesh:null,
+solidMesh:null,leafMesh:null,waterMesh:null,torchMesh:null,
+torchLights:[],torches:new Set(),
 skyDome:null,distPlanets:null,moonMesh:null,
 mining:null, // 当前挖掘目标 {x,y,z,progress,hard,blockId}
 craftedShip:false,shipFuel:false,launching:false,launchTransferStarted:false,maxBlocks:128,
@@ -300,11 +302,11 @@ craftedShip:false,shipFuel:false,launching:false,launchTransferStarted:false,max
 Game.planets=[
 {id:'earth',name:'地球',theme:'#4a9eff',gravity:28,hasOxygen:true,
 heightGen:(x,z)=>Math.floor(fbm(x*.02,0,z*.02,5)*12+fbm(x*.008,0,z*.008,3)*18+16),
-surfaceGen:(x,y,z,h)=>{if(y===0)return BLOCK.BEDROCK;if(y<h-4)return BLOCK.STONE;if(y<h-1)return BLOCK.DIRT;if(y===h){const t=1-Math.abs(z)/200;if(h>35)return BLOCK.SNOW;if(t<.3&&h<25)return BLOCK.SAND;return BLOCK.GRASS;}return BLOCK.AIR;},
+surfaceGen:(x,y,z,h)=>{if(y===0)return BLOCK.BEDROCK;if(y===h){const t=1-Math.abs(z)/200;if(h>35)return BLOCK.SNOW;if(t<.3&&h<25)return BLOCK.SAND;return BLOCK.GRASS;}if(y<h-4)return BLOCK.STONE;if(y<h)return BLOCK.DIRT;return BLOCK.AIR;},
 oreGen:(x,y,z,h)=>{if(y>h-6)return BLOCK.AIR;const r=hash(x,y,z);if(r<.004&&y<22)return BLOCK.DIAMOND;if(r<.02&&y<32)return BLOCK.GOLD;if(r<.055)return BLOCK.IRON;return BLOCK.STONE;}},
 {id:'mars',name:'火星',theme:'#ff6b3d',gravity:14,hasOxygen:false,
 heightGen:(x,z)=>Math.floor(fbm(x*.015,0,z*.015,4)*18+22),
-surfaceGen:(x,y,z,h)=>{if(y===0)return BLOCK.BEDROCK;if(y<h-3)return BLOCK.MARS_ROCK;if(y<h-1)return BLOCK.STONE;if(y===h)return hash(x,0,z)<.1?BLOCK.GOLD:BLOCK.MARS_ROCK;return BLOCK.AIR;},
+surfaceGen:(x,y,z,h)=>{if(y===0)return BLOCK.BEDROCK;if(y===h)return hash(x,0,z)<.1?BLOCK.GOLD:BLOCK.MARS_ROCK;if(y<h-3)return BLOCK.MARS_ROCK;if(y<h)return BLOCK.STONE;return BLOCK.AIR;},
 oreGen:(x,y,z,h)=>{if(y>h-4)return BLOCK.AIR;const r=hash(x,y,z);if(r<.02&&y<30)return BLOCK.GOLD;if(r<.05)return BLOCK.IRON;return BLOCK.MARS_ROCK;}},
 {id:'ice',name:'冰星',theme:'#a8d8ff',gravity:24,hasOxygen:true,
 heightGen:(x,z)=>Math.floor(fbm(x*.018,0,z*.018,4)*10+18),
@@ -316,7 +318,7 @@ surfaceGen:(x,y,z,h)=>{if(y===0)return BLOCK.BEDROCK;if(y<h-4)return BLOCK.STONE
 oreGen:(x,y,z,h)=>{if(y>h-6)return BLOCK.AIR;const r=hash(x,y,z);if(r<.03)return BLOCK.CRYSTAL;if(r<.07)return BLOCK.GOLD;return BLOCK.STONE;}},
 {id:'crystal',name:'水晶星',theme:'#ff66ff',gravity:20,hasOxygen:false,
 heightGen:(x,z)=>Math.floor(fbm(x*.02,0,z*.02,4)*20+10),
-surfaceGen:(x,y,z,h)=>{if(y===0)return BLOCK.BEDROCK;if(y<h-2)return BLOCK.STONE;if(y===h){const r=hash(x,0,z);if(r<.3)return BLOCK.CRYSTAL;if(r<.5)return BLOCK.OBSIDIAN;return BLOCK.STONE;}return BLOCK.AIR;},
+surfaceGen:(x,y,z,h)=>{if(y===0)return BLOCK.BEDROCK;if(y===h){const r=hash(x,0,z);if(r<.3)return BLOCK.CRYSTAL;if(r<.5)return BLOCK.OBSIDIAN;return BLOCK.STONE;}if(y<h-2)return BLOCK.STONE;if(y<h)return hash(x,y,z)<.02?BLOCK.CRYSTAL:BLOCK.STONE;return BLOCK.AIR;},
 oreGen:(x,y,z,h)=>{if(y>h-8)return BLOCK.AIR;const r=hash(x,y,z);if(r<.05)return BLOCK.CRYSTAL;if(r<.1)return BLOCK.DIAMOND;return BLOCK.STONE;}}
 ];
 
@@ -325,6 +327,7 @@ const RECIPES=[
 {name:'🧱 石镐',desc:'更快挖矿',mats:{[BLOCK.STONE]:3,[BLOCK.WOOD]:2},effect:'pickaxe_stone',color:'#7d7d7d'},
 {name:'⚙️ 铁镐',desc:'挖钻石需要',mats:{[BLOCK.IRON]:3,[BLOCK.WOOD]:2},effect:'pickaxe_iron',color:'#c8a878'},
 {name:'🛡️ 氧气面罩',desc:'无氧星球生存',mats:{[BLOCK.IRON]:4,[BLOCK.CRYSTAL]:1},effect:'mask',color:'#00d4ff'},
+{name:'🔥 火把',desc:'照亮地下，随时可做',mats:{[BLOCK.STONE]:1,[BLOCK.WOOD]:1},effect:'torch',color:'#ffaa33'},
 {name:'🚀 飞船核心',desc:'星际旅行的关键',mats:{[BLOCK.DIAMOND]:1,[BLOCK.GOLD]:3,[BLOCK.IRON]:5},effect:'ship',color:'#af52de'},
 {name:'⛽ 曲速燃料',desc:'发射飞船',mats:{[BLOCK.STONE]:10,[BLOCK.IRON]:2},effect:'fuel',color:'#ffcc00'},
 ];
@@ -341,11 +344,13 @@ const old=Game.world.get(k);
 if(old&&old!==id){
 Game.dirtyTypes.add(old);
 const olds=Game.typeBlocks.get(old);if(olds)olds.delete(k);
+if(old===BLOCK.TORCH)Game.torches.delete(k);
 }
 if(id===BLOCK.AIR)Game.world.delete(k);else Game.world.set(k,id);
 Game.dirtyTypes.add(id);
 if(id!==BLOCK.AIR){
 let s=Game.typeBlocks.get(id);if(!s){s=new Set();Game.typeBlocks.set(id,s);}s.add(k);
+if(id===BLOCK.TORCH)Game.torches.add(k);
 }
 }
 function getBlock(x,y,z){if(y<0||y>250)return BLOCK.AIR;return Game.world.get(pk(x,y,z))||BLOCK.AIR}
@@ -458,7 +463,7 @@ const boxGeo=new THREE.BoxGeometry(1,1,1);
 // 固体方块：每种类型一个独立 InstancedMesh
 Object.keys(COLORS).forEach(idStr=>{
 const id=+idStr;
-if(id===BLOCK.LEAVES||id===BLOCK.WATER||id===BLOCK.CRYSTAL)return;
+if(id===BLOCK.LEAVES||id===BLOCK.WATER||id===BLOCK.CRYSTAL||id===BLOCK.TORCH)return;
 let mat=new THREE.MeshLambertMaterial({color:COLORS[id][2]});
 if(id===BLOCK.GLOW_MOSS)mat=new THREE.MeshBasicMaterial({color:COLORS[id][2]});
 const mesh=new THREE.InstancedMesh(boxGeo,mat,MAX_INST);
@@ -479,9 +484,19 @@ Game.waterMesh.frustumCulled=false;Game.waterMesh.count=0;Game.scene.add(Game.wa
 Game.crystalMesh=new THREE.InstancedMesh(new THREE.OctahedronGeometry(.55),
 new THREE.MeshLambertMaterial({color:0xff66ff,transparent:true,opacity:.75,emissive:0xff00ff,emissiveIntensity:.4}),3000);
 Game.crystalMesh.frustumCulled=false;Game.crystalMesh.count=0;Game.scene.add(Game.crystalMesh);
+// 火把（细长自发光）
+Game.torchMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(.3,.7,.3),
+new THREE.MeshBasicMaterial({color:0xffaa33}),2000);
+Game.torchMesh.frustumCulled=false;Game.torchMesh.count=0;Game.scene.add(Game.torchMesh);
 // 光照
 const sun=new THREE.DirectionalLight(0xffffff,1.0);sun.position.set(50,100,50);Game.scene.add(sun);Game.sun=sun;
 Game.scene.add(new THREE.AmbientLight(0x666677,.6));
+// 火把灯光池（4 个点光源，跟随最近的火把）
+Game.torchLights=[];
+for(let i=0;i<4;i++){
+const l=new THREE.PointLight(0xffaa44,0,14);
+Game.scene.add(l);Game.torchLights.push(l);
+}
 }
 
 const _dummy=new THREE.Object3D();
@@ -519,6 +534,7 @@ const R=RENDER_DIST*CHUNK_SIZE+6;
 if(id===BLOCK.LEAVES){applyToMesh(Game.leafMesh,scanTypes([id],px,pz,R)[id]);return;}
 if(id===BLOCK.WATER){applyToMesh(Game.waterMesh,scanTypes([id],px,pz,R)[id]);return;}
 if(id===BLOCK.CRYSTAL){applyToMesh(Game.crystalMesh,scanTypes([id],px,pz,R)[id]);return;}
+if(id===BLOCK.TORCH){applyToMesh(Game.torchMesh,scanTypes([id],px,pz,R)[id]);return;}
 const mesh=BLOCK_MESHES.get(id);
 if(!mesh)return;
 applyToMesh(mesh,scanTypes([id],px,pz,R)[id]);
@@ -537,6 +553,7 @@ BLOCK_MESHES.forEach((mesh,id)=>{if(lists[id])applyToMesh(mesh,lists[id]);});
 if(lists[BLOCK.LEAVES])applyToMesh(Game.leafMesh,lists[BLOCK.LEAVES]);
 if(lists[BLOCK.WATER])applyToMesh(Game.waterMesh,lists[BLOCK.WATER]);
 if(lists[BLOCK.CRYSTAL])applyToMesh(Game.crystalMesh,lists[BLOCK.CRYSTAL]);
+if(lists[BLOCK.TORCH])applyToMesh(Game.torchMesh,lists[BLOCK.TORCH]);
 Game.meshDirty=false;Game.lastRebuild=performance.now();Game.dirtyTypes.clear();
 }/* ========== 天穹 ========== */
 function initSky(){
@@ -598,11 +615,20 @@ p.vx=lerp(p.vx,mx*speed,.22);
 p.vz=lerp(p.vz,mz*speed,.22);
 if(!p.inSpace){if(inWater)p.vy-=.5*gravity*dt;else p.vy-=gravity*dt;}
 else{p.vy*=.95;if(Game.input.sneak)p.vy-=8*dt;}
-p.vy=clamp(p.vy,-38,38);
+p.vy=clamp(p.vy,-33,38);
 
 const nx=p.x+p.vx*dt;if(!collidesAt(nx,p.y,p.z))p.x=nx;else p.vx=0;
 const nz=p.z+p.vz*dt;if(!collidesAt(p.x,p.y,nz))p.z=nz;else p.vz=0;
-const ny=p.y+p.vy*dt;if(!collidesAt(p.x,ny,p.z)){p.y=ny;if(p.vy<0)p.onGround=false;}else{if(p.vy<0)p.onGround=true;p.vy=0;}
+// 垂直运动：分步移动，防止高速坠落穿透地面（每步 ≤0.45 格）
+let vMove=p.vy*dt;
+while(vMove!==0){
+const step=Math.max(-.45,Math.min(.45,vMove));
+const ny=p.y+step;
+if(collidesAt(p.x,ny,p.z)){
+if(p.vy<0){p.onGround=true;}
+p.vy=0;vMove=0;
+}else{p.y=ny;if(p.vy<0)p.onGround=false;vMove-=step;}
+}
 if(p.y<-20)respawnPlayer();
 p.inSpace=p.y>80;
 
@@ -618,7 +644,7 @@ if(p.energy<100)p.energy=Math.min(100,p.energy+dt*1.5);
 }
 
 function collidesAt(x,y,z){
-const checks=[[x-.3,y,z-.3],[x+.3,y,z-.3],[x-.3,y,z+.3],[x+.3,y,z+.3],[x-.3,y+1.7,z-.3],[x+.3,y+1.7,z+.3]];
+const checks=[[x-.3,y,z-.3],[x+.3,y,z-.3],[x-.3,y,z+.3],[x+.3,y,z+.3],[x-.3,y+1.7,z-.3],[x+.3,y+1.7,z-.3],[x-.3,y+1.7,z+.3],[x+.3,y+1.7,z+.3],[x,y,z-.3],[x,y,z+.3],[x-.3,y,z],[x+.3,y,z]];
 for(const[cx,cy,cz]of checks)if(isSolid(getBlock(Math.floor(cx),Math.floor(cy),Math.floor(cz))))return true;
 return false;
 }
@@ -824,6 +850,29 @@ Game.clouds.forEach(c=>{c.position.x+=c.userData.sp*dt;if(c.position.x>Game.play
 if(Game.distPlanets)Game.distPlanets.children.forEach(p=>p.rotation.y+=p.userData.rs);
 Game.waterMesh.material.opacity=.6+.1*Math.sin(performance.now()*.001);
 }
+/* 火把灯光：每帧搜索玩家附近最近的 4 个火把，更新点光源位置 */
+function updateTorchLights(){
+const px=Game.player.x,py=Game.player.y,pz=Game.player.z;
+const torches=Game.torches;
+if(!torches||torches.size===0){Game.torchLights.forEach(l=>l.intensity=0);return;}
+const dists=[];
+for(const k of torches){
+const y=(k%PACK_MUL2)|0,t=(k/PACK_MUL2)|0;
+const z=t%PACK_ZMUL-PACK_OFST,x=(k/PACK_MUL|0)-PACK_OFST;
+const dx=x-px,dy=y-py,dz=z-pz,d=dx*dx+dy*dy+dz*dz;
+if(d<400)dists.push({d,x:x+.5,y:y+.5,z:z+.5});
+}
+dists.sort((a,b)=>a.d-b.d);
+for(let i=0;i<Game.torchLights.length;i++){
+if(i<dists.length&&dists[i].d<400){
+const t=dists[i];
+Game.torchLights[i].position.set(t.x,t.y,t.z);
+Game.torchLights[i].intensity=Math.max(0,1.2-t.d/400);
+}else{
+Game.torchLights[i].intensity=0;
+}
+}
+}
 /* ========== 背包UI ========== */
 function updateInventoryUI(){
 const grid=el('invGrid');
@@ -876,6 +925,7 @@ if(rc.effect==='fuel'){fuelCrafted=true;showToast('⛽ 曲速燃料装填！');}
 if(rc.effect==='mask'){hasMask=true;showToast('🛡️ 氧气面罩装备完成！');}
 if(rc.effect==='pickaxe_stone'){toolLevel=1;showToast('🧱 石镐获得，挖矿速度提升！');}
 if(rc.effect==='pickaxe_iron'){toolLevel=2;showToast('⚙️ 铁镐获得，钻石唾手可得！');}
+if(rc.effect==='torch'){addToInv(BLOCK.TORCH,4);showToast('🔥 获得 4 个火把！放置照亮地下');}
 sfx('place');
 updateInventoryUI();
 };
@@ -931,7 +981,7 @@ Game.world.clear();Game.chunks.clear();Game.pendingChunks=[];
 fuelCrafted=false;
 Game.player.x=0;Game.player.y=0;Game.player.z=0;
 Game.lastPCX=null;Game.lastPCZ=null;
-Game.pendingChunks=[];Game.chunks.clear();Game.world.clear();Game.typeBlocks.clear();Game.dirtyTypes=new Set();
+Game.pendingChunks=[];Game.chunks.clear();Game.world.clear();Game.typeBlocks.clear();Game.dirtyTypes=new Set();Game.torches.clear();
 for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)generateChunk(dx,dz);
 const h=getHeight(0,0,planet);
 Game.player.x=0;Game.player.y=h+4;Game.player.z=0;Game.player.inSpace=false;Game.player.oxygen=100;Game.player.health=Game.player.hunger=20;
@@ -1136,6 +1186,7 @@ updateMining(dt);
 updateParticles(dt);
 updateSky(dt);
 updateLaunch(dt);
+updateTorchLights();
 _hudTimer+=dt;if(_hudTimer>.1){_hudTimer=0;updateHUD();updateHotbar();}
 
 // 区块流：跨区块时请求新区块
@@ -1183,16 +1234,31 @@ init();
 /* ========== HUD 布局编辑器 ========== */
 const HUD_DEFAULTS={
 joystick:{x:19,y:84,s:1,o:1,m:1},
-actionButtons:{x:88,y:75,s:1,o:1,m:1},
-hotbar:{x:50,y:95,s:1,o:1,m:1},
+btnInv:{x:94,y:30,s:1,o:1,m:1},
+btnJump:{x:88,y:57,s:1,o:1,m:1},
+btnPlace:{x:70,y:80,s:1,o:1,m:1},
+btnBreak:{x:88,y:80,s:1,o:1,m:1},
+hotbar:{x:50,y:92,s:1,o:1,m:1},
 planetBtn:{x:76,y:11,s:1,o:1,m:1},
 hudBar:{x:50,y:6,s:1,o:1,m:0},
 lookArea:{x:50,y:50,s:1,o:1,m:0}
 };
+const HUD_NAMES={joystick:'摇杆',btnInv:'背包',btnJump:'跳跃',btnPlace:'放置',btnBreak:'挖掘',hotbar:'快捷栏',planetBtn:'飞船',hudBar:'状态栏',lookArea:'视角区'};
 let hudCfg=null;
 let hudSelected=null;
-function loadHudCfg(){try{const d=JSON.parse(localStorage.getItem('hudCfg'));if(d)return d;}catch(e){}return JSON.parse(JSON.stringify(HUD_DEFAULTS));}
-function saveHudCfg(){try{localStorage.setItem('hudCfg',JSON.stringify(hudCfg));}catch(e){}}
+function loadHudCfg(){
+const def=JSON.parse(JSON.stringify(HUD_DEFAULTS));
+try{const d=JSON.parse(localStorage.getItem('hudCfg2'));
+if(d&&typeof d==='object'){
+// 合并默认值：老配置可能缺少新按键，补默认；废弃键直接忽略
+for(const k of Object.keys(def)){
+if(d[k]&&typeof d[k]==='object')def[k]=Object.assign({},def[k],d[k]);
+}
+return def;
+}}catch(e){}
+return def;
+}
+function saveHudCfg(){try{localStorage.setItem('hudCfg2',JSON.stringify(hudCfg));}catch(e){}}
 function applyHudLayout(){
 for(const[name,cfg]of Object.entries(hudCfg)){
 const el=document.querySelector('[data-hud="'+name+'"]');if(!el)continue;
@@ -1208,7 +1274,9 @@ els.forEach(el=>{
 el.classList.add('hud-edit-target');
 el.addEventListener('pointerdown',onHudDragStart);
 });
-hudSelected=null;hudEditSelect(null);
+hudSelected=null;hudEditSelect('joystick');
+// 摇晃提示
+showToast('👆 拖动位置 · 选滑块调大小/透明度');
 }
 function exitHudEdit(){
 Game.paused=false;el('hudEdit').classList.remove('show');
@@ -1225,7 +1293,7 @@ if(name){
 const el=document.querySelector('[data-hud="'+name+'"]');if(el)el.classList.add('selected');
 const cfg=hudCfg[name];
 if(cfg){
-el('hudEditName').textContent={'joystick':'摇杆','actionButtons':'按钮','hotbar':'快捷栏','planetBtn':'飞船','hudBar':'状态栏','lookArea':'视角区'}[name]||name;
+el('hudEditName').textContent=HUD_NAMES[name]||name;
 el('hudEditScale').value=Math.round(cfg.s*100);el('hudEditScaleVal').textContent=Math.round(cfg.s*100)+'%';
 el('hudEditOpacity').value=Math.round(cfg.o*100);el('hudEditOpacityVal').textContent=Math.round(cfg.o*100)+'%';
 }
@@ -1237,9 +1305,11 @@ el('hudEditOpacity').value=100;el('hudEditOpacityVal').textContent='100%';
 }
 let _hudDragEl=null,_hudDragName=null,_hudDragStart={x:0,y:0,lx:0,ly:0};
 function onHudDragStart(e){
-e.preventDefault();
+e.preventDefault();e.stopPropagation();
 const el=e.currentTarget;const name=el.getAttribute('data-hud');
-if(!name||!hudCfg[name]||!hudCfg[name].m)return; // 不可拖动
+if(!name||!hudCfg[name])return;
+hudEditSelect(name);
+if(!hudCfg[name].m)return; // 不可拖动
 el.setPointerCapture(e.pointerId);
 el.classList.add('dragging');
 _hudDragEl=el;_hudDragName=name;
@@ -1287,12 +1357,6 @@ const v=+this.value;
 hudCfg[hudSelected].o=v/100;
 applyHudLayout();
 el('hudEditOpacityVal').textContent=v+'%';
-});
-// 点击 HUD 元素选中（拖动与选中分离：pointerdown 拖动，click 选中）
-window.addEventListener('click',function(e){
-if(!el('hudEdit').classList.contains('show'))return;
-const target=e.target.closest('[data-hud]');
-if(target)hudEditSelect(target.getAttribute('data-hud'));
 });
 el('hudEditBtn').addEventListener('click',enterHudEdit);
 // 初始化布局
