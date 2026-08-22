@@ -59,6 +59,23 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 .instructions{margin-top:20px;color:#888;font-size:12px;text-align:center;line-height:1.8;max-width:440px;padding:0 14px}
 .instructions kbd{display:inline-block;padding:2px 6px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:3px;font-family:monospace;font-size:11px}
 .pause-btn{position:absolute;top:8px;right:12px;width:34px;height:34px;border-radius:6px;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:15px;cursor:pointer;z-index:11;backdrop-filter:blur(6px)}
+
+/* HUD 布局编辑器 */
+.hud-edit{position:absolute;inset:0;z-index:40;display:none;background:rgba(0,0,0,0.35);pointer-events:none}
+.hud-edit.show{display:block}
+.hud-edit-top{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;pointer-events:auto;z-index:42}
+.hud-edit-title{color:#00d4ff;font-size:13px;font-weight:bold;letter-spacing:1px;background:rgba(0,0,0,0.6);padding:8px 12px;border-radius:8px;border:1px solid rgba(0,212,255,0.3)}
+.hud-edit-btn{padding:8px 16px;font-size:12px}
+.hud-edit-panel{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,0.15);padding:10px 14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;pointer-events:auto;z-index:42}
+.hud-edit-item{display:flex;align-items:center;gap:6px}
+.hud-edit-name{color:#00d4ff;font-size:13px;font-weight:bold;min-width:44px}
+.hud-edit-hint{color:#888;font-size:11px}
+.hud-edit-panel label{color:#bbb;font-size:11px}
+.hud-edit-panel input[type=range]{width:80px;accent-color:#00d4ff}
+.hud-edit-val{color:#00d4ff;font-size:11px;min-width:38px;text-align:right}
+.hud-edit-target{pointer-events:auto!important;cursor:grab;touch-action:none;transition:outline-color .15s}
+.hud-edit-target:active{cursor:grabbing}
+.hud-edit-target.selected{outline:2px dashed #00d4ff;outline-offset:3px}
 .planet-info{position:absolute;top:72px;left:12px;background:rgba(0,0,0,0.5);padding:5px 10px;border-radius:6px;border:1px solid rgba(0,212,255,0.25);font-size:11px;z-index:10;backdrop-filter:blur(6px);pointer-events:auto;cursor:pointer}
 .planet-info .pn{color:#00d4ff;font-weight:bold}
 /* ===== 背包/合成界面 ===== */
@@ -99,7 +116,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
-<div class="hud">
+<div class="hud" data-hud="hudBar">
 <div class="hud-left">
 <div class="stat-bar health"><span class="icon">❤️</span><div class="bar"><div class="fill" id="healthBar" style="width:100%"></div></div><span id="healthText">20</span></div>
 <div class="stat-bar hunger"><span class="icon">🍖</span><div class="bar"><div class="fill" id="hungerBar" style="width:100%"></div></div><span id="hungerText">20</span></div>
@@ -114,13 +131,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 <div class="mine-progress" id="mineProgress"><div class="fill" id="mineFill" style="width:0%"></div></div>
 <div class="planet-info" id="planetInfo">📍 <span class="pn" id="planetName">地球</span></div>
 <button class="pause-btn" id="pauseBtn">⏸</button>
-<div class="hotbar" id="hotbar"></div>
-<div class="planet-btn" id="planetBtn">🚀</div>
+<div class="hotbar" id="hotbar" data-hud="hotbar"></div>
+<div class="planet-btn" id="planetBtn" data-hud="planetBtn">🚀</div>
 
 <div class="touch-controls">
-<div class="joystick" id="joystick"><div class="joystick-stick" id="joystickStick"></div></div>
-<div class="look-area" id="lookArea"></div>
-<div class="action-buttons">
+<div class="joystick" id="joystick" data-hud="joystick"><div class="joystick-stick" id="joystickStick"></div></div>
+<div class="look-area" id="lookArea" data-hud="lookArea"></div>
+<div class="action-buttons" data-hud="actionButtons">
 <div class="action-btn inv" id="btnInv">🎒</div>
 <div class="action-btn jump" id="btnJump">⬆</div>
 <div class="action-btn place" id="btnPlace">🧱</div>
@@ -166,14 +183,30 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 <div class="title" style="font-size:clamp(20px,4vw,32px)">⏸ 已暂停</div>
 <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
 <button class="btn-primary" id="resumeBtn">▶ 继续</button>
+<button class="btn-primary" id="hudEditBtn" style="background:linear-gradient(135deg,#00c8a0,#00a0d4)">🎛 自定义界面（拖动/大小/透明度）</button>
 <button class="btn-danger" id="restartBtn">🔄 重新开始</button>
 </div>
 </div>
 
+<!-- 加载页 -->
 <div class="loading" id="loadingScreen"><div class="loader"></div>
 <div class="loading-text" id="loadingText">正在开始…</div>
 <div class="loading-bar-track"><div class="loading-bar-fill" id="loadingBarFill"></div></div>
 <div class="loading-status" id="loadingStatus"></div>
+</div>
+
+<!-- HUD 布局编辑器 -->
+<div class="hud-edit" id="hudEdit">
+<div class="hud-edit-top"><span class="hud-edit-title">🎛 自定义界面</span>
+<button class="btn-primary hud-edit-btn" id="hudEditDone">✔ 完成</button>
+<button class="btn-danger hud-edit-btn" id="hudEditReset">↺ 重置</button>
+</div>
+<div class="hud-edit-panel" id="hudEditPanel">
+<div class="hud-edit-item"><span class="hud-edit-name" id="hudEditName">摇杆</span></div>
+<div class="hud-edit-item"><label>大小</label><input type="range" id="hudEditScale" min="50" max="200" value="100"><span class="hud-edit-val" id="hudEditScaleVal">100%</span></div>
+<div class="hud-edit-item"><label>透明</label><input type="range" id="hudEditOpacity" min="10" max="100" value="100"><span class="hud-edit-val" id="hudEditOpacityVal">100%</span></div>
+<div class="hud-edit-item"><span class="hud-edit-hint">拖动手柄移动位置</span></div>
+</div>
 </div>
 <script type="importmap">
 {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
@@ -378,14 +411,20 @@ return n;
 }
 function cleanupWorld(){
 const pcx=chunkCoord(Game.player.x),pcz=chunkCoord(Game.player.z);
+const removed=[];
 for(const k of Game.chunks.keys()){
 const[kx,kz]=k.split(',').map(Number);
 if(Math.abs(kx-pcx)>RENDER_DIST+2||Math.abs(kz-pcz)>RENDER_DIST+2){
 const x0=kx*16,z0=kz*16;
-for(let xx=x0;xx<x0+16;xx++)for(let zz=z0;zz<z0+16;zz++)for(let y=0;y<60;y++)Game.world.delete(wk(xx,y,zz));
-Game.chunks.delete(k);
+for(let xx=x0;xx<x0+16;xx++)for(let zz=z0;zz<z0+16;zz++)for(let y=0;y<60;y++){
+const kk=pk(xx,y,zz);
+const id=Game.world.get(kk);
+if(id!==undefined){Game.world.delete(kk);Game.dirtyTypes.add(id);const s=Game.typeBlocks.get(id);if(s)s.delete(kk);}
+}
+Game.chunks.delete(k);removed.push(k);
 }
 }
+if(removed.length)rebuildDirty();
 }
 /* 清空出生点周围 */
 function clearSpawn(){
@@ -399,7 +438,7 @@ if(getBlock(bx,by,bz)!==BLOCK.AIR&&getBlock(bx,by,bz)!==BLOCK.BEDROCK)setBlock(b
 /* ========== Three.js ========== */
 function initRenderer(){
 Game.renderer=new THREE.WebGLRenderer({canvas:el('gameCanvas'),antialias:false,powerPreference:'high-performance'});
-Game.renderer.setPixelRatio(Math.min(window.devicePixelRatio,IS_MOBILE?1.2:1.5));
+Game.renderer.setPixelRatio(Math.min(window.devicePixelRatio,IS_MOBILE?1:1.5));
 Game.renderer.setSize(window.innerWidth,window.innerHeight);
 Game.renderer.setClearColor(0x000000);
 Game.scene=new THREE.Scene();
@@ -760,6 +799,7 @@ Game.camera.rotation.set(Game.player.pitch,Game.player.yaw,0,'YXZ');
 }
 
 /* ========== 天空更新 ========== */
+const _skyTop=new THREE.Color(),_skyBot=new THREE.Color(),_skyHor=new THREE.Color();
 function updateSky(dt){
 Game.dayTime+=Game.daySpeed*dt;
 if(Game.dayTime>1)Game.dayTime-=1;
@@ -768,10 +808,10 @@ const sa=t*TAU;
 Game.sun.position.set(Math.cos(sa)*100,Math.sin(sa)*100,30);
 Game.moonMesh.position.set(-Math.cos(sa)*90,Math.sin(sa)*30-20,-120);
 let top,bot,hor,amb;
-if(t<.25){top=new THREE.Color('#4a9eff');bot=new THREE.Color('#87ceeb');hor=new THREE.Color('#ffdf80');amb=.8;}
-else if(t<.5){top=new THREE.Color('#ff6b3d');bot=new THREE.Color('#ff9966');hor=new THREE.Color('#ffcc66');amb=.5;}
-else if(t<.75){top=new THREE.Color('#0a1a3a');bot=new THREE.Color('#1a0a3a');hor=new THREE.Color('#2a1a5a');amb=.25;}
-else{top=new THREE.Color('#5a3a8a');bot=new THREE.Color('#ff8866');hor=new THREE.Color('#ffaaff');amb=.5;}
+if(t<.25){top=_skyTop.set('#4a9eff');bot=_skyBot.set('#87ceeb');hor=_skyHor.set('#ffdf80');amb=.8;}
+else if(t<.5){top=_skyTop.set('#ff6b3d');bot=_skyBot.set('#ff9966');hor=_skyHor.set('#ffcc66');amb=.5;}
+else if(t<.75){top=_skyTop.set('#0a1a3a');bot=_skyBot.set('#1a0a3a');hor=_skyHor.set('#2a1a5a');amb=.25;}
+else{top=_skyTop.set('#5a3a8a');bot=_skyBot.set('#ff8866');hor=_skyHor.set('#ffaaff');amb=.5;}
 const tc=new THREE.Color(Game.planets[Game.planetId].theme);
 top.lerp(tc,.12);bot.lerp(tc,.08);hor.lerp(tc,.2);
 Game.skyDome.material.uniforms.top.value=top;Game.skyDome.material.uniforms.bot.value=bot;Game.skyDome.material.uniforms.hor.value=hor;
@@ -881,7 +921,6 @@ if(launchStage===5&&launchTimer>=2){
 Game.launching=false;Game.launchTransferStarted=false;
 el('launchOverlay').classList.remove('show');
 showToast('🌍 欢迎来到 '+Game.planets[Game.planetId].name+'！');
-Game.meshDirty=true;
 }
 }
 
@@ -1086,6 +1125,7 @@ const dt=Math.min((time-Game.lastTime)/1000,.05);
 Game.lastTime=time;
 
 // 处理输入
+let _hudTimer=0;
 if(Game.input.breakHold&&!miningTarget)startMine();
 if(Game.input.mouseDown&&!miningTarget)startMine();
 
@@ -1096,22 +1136,17 @@ updateMining(dt);
 updateParticles(dt);
 updateSky(dt);
 updateLaunch(dt);
-updateHUD();
-updateHotbar();
+_hudTimer+=dt;if(_hudTimer>.1){_hudTimer=0;updateHUD();updateHotbar();}
 
 // 区块流：跨区块时请求新区块
 const pcx=chunkCoord(Game.player.x),pcz=chunkCoord(Game.player.z);
 if(pcx!==Game.lastPCX||pcz!==Game.lastPCZ){requestChunks();Game.lastPCX=pcx;Game.lastPCZ=pcz;}
-streamChunks(IS_MOBILE?2:5);
+streamChunks(IS_MOBILE?1:3);
 Game.cleanupTimer+=dt;
 if(Game.cleanupTimer>5){cleanupWorld();Game.cleanupTimer=0;}
 
 // 网格重建：只用增量（快）。meshDirty 仅在星球切换时由 rebuildFull 清除
 if(Game.pendingChunks.length===0&&time-Game.lastRebuild>100)rebuildDirty();
-if(Game.meshDirty&&time-Game.lastRebuild>800){
-rebuildFull();
-}
-
 // 渲染
 Game.renderer.render(Game.scene,Game.camera);
 requestAnimationFrame(gameLoop);
@@ -1144,6 +1179,125 @@ const ls=el('loadingStatus');if(ls)ls.textContent='请检查浏览器是否支�
 }
 }
 init();
+
+/* ========== HUD 布局编辑器 ========== */
+const HUD_DEFAULTS={
+joystick:{x:19,y:84,s:1,o:1,m:1},
+actionButtons:{x:88,y:75,s:1,o:1,m:1},
+hotbar:{x:50,y:95,s:1,o:1,m:1},
+planetBtn:{x:76,y:11,s:1,o:1,m:1},
+hudBar:{x:50,y:6,s:1,o:1,m:0},
+lookArea:{x:50,y:50,s:1,o:1,m:0}
+};
+let hudCfg=null;
+let hudSelected=null;
+function loadHudCfg(){try{const d=JSON.parse(localStorage.getItem('hudCfg'));if(d)return d;}catch(e){}return JSON.parse(JSON.stringify(HUD_DEFAULTS));}
+function saveHudCfg(){try{localStorage.setItem('hudCfg',JSON.stringify(hudCfg));}catch(e){}}
+function applyHudLayout(){
+for(const[name,cfg]of Object.entries(hudCfg)){
+const el=document.querySelector('[data-hud="'+name+'"]');if(!el)continue;
+if(cfg.m){el.style.left=cfg.x+'%';el.style.top=cfg.y+'%';el.style.transform='translate(-50%,-50%) scale('+cfg.s+')';}
+if(cfg.o!==undefined)el.style.opacity=cfg.o;
+}
+}
+function enterHudEdit(){
+Game.paused=true;el('pauseMenu').classList.add('hidden');
+el('hudEdit').classList.add('show');
+const els=document.querySelectorAll('[data-hud]');
+els.forEach(el=>{
+el.classList.add('hud-edit-target');
+el.addEventListener('pointerdown',onHudDragStart);
+});
+hudSelected=null;hudEditSelect(null);
+}
+function exitHudEdit(){
+Game.paused=false;el('hudEdit').classList.remove('show');
+const els=document.querySelectorAll('[data-hud]');
+els.forEach(el=>{
+el.classList.remove('hud-edit-target','selected');
+el.removeEventListener('pointerdown',onHudDragStart);
+});
+}
+function hudEditSelect(name){
+hudSelected=name;
+document.querySelectorAll('[data-hud]').forEach(el=>el.classList.remove('selected'));
+if(name){
+const el=document.querySelector('[data-hud="'+name+'"]');if(el)el.classList.add('selected');
+const cfg=hudCfg[name];
+if(cfg){
+el('hudEditName').textContent={'joystick':'摇杆','actionButtons':'按钮','hotbar':'快捷栏','planetBtn':'飞船','hudBar':'状态栏','lookArea':'视角区'}[name]||name;
+el('hudEditScale').value=Math.round(cfg.s*100);el('hudEditScaleVal').textContent=Math.round(cfg.s*100)+'%';
+el('hudEditOpacity').value=Math.round(cfg.o*100);el('hudEditOpacityVal').textContent=Math.round(cfg.o*100)+'%';
+}
+}else{
+el('hudEditName').textContent='—';
+el('hudEditScale').value=100;el('hudEditScaleVal').textContent='100%';
+el('hudEditOpacity').value=100;el('hudEditOpacityVal').textContent='100%';
+}
+}
+let _hudDragEl=null,_hudDragName=null,_hudDragStart={x:0,y:0,lx:0,ly:0};
+function onHudDragStart(e){
+e.preventDefault();
+const el=e.currentTarget;const name=el.getAttribute('data-hud');
+if(!name||!hudCfg[name]||!hudCfg[name].m)return; // 不可拖动
+el.setPointerCapture(e.pointerId);
+el.classList.add('dragging');
+_hudDragEl=el;_hudDragName=name;
+_hudDragStart.x=e.clientX;_hudDragStart.y=e.clientY;
+_hudDragStart.lx=parseFloat(el.style.left)||hudCfg[name].x;
+_hudDragStart.ly=parseFloat(el.style.top)||hudCfg[name].y;
+window.addEventListener('pointermove',onHudDragMove);
+window.addEventListener('pointerup',onHudDragEnd);
+window.addEventListener('pointercancel',onHudDragEnd);
+}
+function onHudDragMove(e){
+if(!_hudDragEl)return;
+const dx=(e.clientX-_hudDragStart.x)/window.innerWidth*100;
+const dy=(e.clientY-_hudDragStart.y)/window.innerHeight*100;
+const nx=Math.round(clamp(_hudDragStart.lx+dx,0,100));
+const ny=Math.round(clamp(_hudDragStart.ly+dy,0,100));
+_hudDragEl.style.left=nx+'%';
+_hudDragEl.style.top=ny+'%';
+hudCfg[_hudDragName].x=nx;
+hudCfg[_hudDragName].y=ny;
+}
+function onHudDragEnd(e){
+if(_hudDragEl){_hudDragEl.classList.remove('dragging');}
+_hudDragEl=null;_hudDragName=null;
+window.removeEventListener('pointermove',onHudDragMove);
+window.removeEventListener('pointerup',onHudDragEnd);
+window.removeEventListener('pointercancel',onHudDragEnd);
+}
+el('hudEditDone').addEventListener('click',()=>{saveHudCfg();exitHudEdit();});
+el('hudEditReset').addEventListener('click',()=>{
+hudCfg=JSON.parse(JSON.stringify(HUD_DEFAULTS));
+applyHudLayout();
+hudEditSelect(null);
+});
+el('hudEditScale').addEventListener('input',function(){
+if(!hudSelected)return;
+const v=+this.value;
+hudCfg[hudSelected].s=v/100;
+applyHudLayout();
+el('hudEditScaleVal').textContent=v+'%';
+});
+el('hudEditOpacity').addEventListener('input',function(){
+if(!hudSelected)return;
+const v=+this.value;
+hudCfg[hudSelected].o=v/100;
+applyHudLayout();
+el('hudEditOpacityVal').textContent=v+'%';
+});
+// 点击 HUD 元素选中（拖动与选中分离：pointerdown 拖动，click 选中）
+window.addEventListener('click',function(e){
+if(!el('hudEdit').classList.contains('show'))return;
+const target=e.target.closest('[data-hud]');
+if(target)hudEditSelect(target.getAttribute('data-hud'));
+});
+el('hudEditBtn').addEventListener('click',enterHudEdit);
+// 初始化布局
+hudCfg=loadHudCfg();
+applyHudLayout();
 </script>
 </body>
 </html>
