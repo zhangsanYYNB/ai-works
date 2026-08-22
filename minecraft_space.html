@@ -167,7 +167,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 </div>
 </div>
 
-<div class="loading" id="loadingScreen"><div class="loader"></div><div class="loading-text">正在生成星球...</div></div>
+<div class="loading" id="loadingScreen"><div class="loader"></div><div class="loading-text" id="loadingText">正在生成星球...</div></div>
 <script type="importmap">
 {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
 </script>
@@ -181,6 +181,13 @@ const lerp=(a,b,t)=>a+(b-a)*t;
 const rand=(a=0,b=1)=>a+Math.random()*(b-a);
 const randi=(a,b)=>Math.floor(rand(a,b));
 const hash=(x,y,z)=>{let h=(x*374761393+y*668265263+z*1274126177)|0;h=(h^(h>>>13))*1274126177;return((h^(h>>>16))>>>0)/4294967295;};
+// 打包键：整数比字符串快 5-10 倍。布局：x[24,40)bit z[8,24)bit y[0,8)bit
+const PACK_OFST=16384; // 坐标偏移（支持 ±16384 范围）
+const PACK_MUL=16777216; // x 段步长 2^24
+const PACK_MUL2=256; // z 段步长 2^8（y 占 [0,256)）
+const PACK_ZMUL=65536; // z 段宽度 2^16
+const pk=(x,y,z)=>(x+PACK_OFST)*PACK_MUL+(z+PACK_OFST)*PACK_MUL2+y;
+const upk=k=>{const y=(k%PACK_MUL2)|0;const t=(k/PACK_MUL2)|0;const z=((t%PACK_ZMUL)|0)-PACK_OFST;const x=((k/PACK_MUL)|0)-PACK_OFST;return[x,y,z]};
 const IS_MOBILE=('ontouchstart'in window)||navigator.maxTouchPoints>0;
 const RENDER_DIST=IS_MOBILE?3:4;
 
@@ -232,8 +239,8 @@ function fbm(x,y,z,oct=4){let a=1,f=1,s=0,n=0;for(let i=0;i<oct;i++){s+=noise3(x
 const Game={
 scene:null,renderer:null,camera:null,sun:null,
 world:new Map(),chunks:new Map(),pendingChunks:[],meshDirty:false,lastRebuild:0,
-chunkData:new Map(), // "cx,cz" -> Map("x,y,z" -> id) 用于快速按类型重建
 dirtyTypes:new Set(), // 发生变化的方块类型，用于增量重建
+typeBlocks:new Map(), // blockId -> Set(打包键) 按类型索引，消除全量扫描
 player:{x:0,y:40,z:0,vx:0,vy:0,vz:0,yaw:0,pitch:-.2,onGround:false,
 health:20,hunger:20,oxygen:100,oxygenMax:100,shield:0,energy:100,inSpace:false,speed:7},
 input:{forward:0,right:0,jump:false,sneak:false,mouseDown:false,rightDown:false,selectedSlot:0,breakHold:false},
@@ -288,25 +295,20 @@ let shipCrafted=false,fuelCrafted=false;
 const MINE_MULT={0:1,1:1.8,2:3}; // 工具挖掘倍速
 /* ========== 世界生成 ========== */
 const CHUNK_SIZE=16;
-function wk(x,y,z){return x+','+y+','+z}
 function setBlock(x,y,z,id,md=true){
-const k=wk(x,y,z);
+const k=pk(x,y,z);
 const old=Game.world.get(k);
-if(old&&old!==id)Game.dirtyTypes.add(old);
+if(old&&old!==id){
+Game.dirtyTypes.add(old);
+const olds=Game.typeBlocks.get(old);if(olds)olds.delete(k);
+}
 if(id===BLOCK.AIR)Game.world.delete(k);else Game.world.set(k,id);
 Game.dirtyTypes.add(id);
-// 同步到分块数据
-const cx=Math.floor(x/16),cz=Math.floor(z/16),ck=cx+','+cz;
-let cd=Game.chunkData.get(ck);
-if(id===BLOCK.AIR){
-if(cd){cd.delete(k);if(cd.size===0)Game.chunkData.delete(ck);}
-}else{
-if(!cd){cd=new Map();Game.chunkData.set(ck,cd);}
-cd.set(k,id);
+if(id!==BLOCK.AIR){
+let s=Game.typeBlocks.get(id);if(!s){s=new Set();Game.typeBlocks.set(id,s);}s.add(k);
 }
-if(md)Game.meshDirty=Game.meshDirty||false; // 细粒度重建由 dirtyTypes 驱动
 }
-function getBlock(x,y,z){return Game.world.get(wk(x,y,z))||BLOCK.AIR}
+function getBlock(x,y,z){if(y<0||y>250)return BLOCK.AIR;return Game.world.get(pk(x,y,z))||BLOCK.AIR}
 function chunkCoord(v){return Math.floor(v/CHUNK_SIZE)}
 function getHeight(x,z,planet){return planet.heightGen(x,z)}
 
@@ -330,6 +332,8 @@ if(getBlock(nx,ny,nz)===BLOCK.AIR)setBlock(nx,ny,nz,block,false);
 }
 
 function generateChunk(cx,cz){
+const ck=cx+','+cz;
+if(Game.chunks.has(ck))return;
 const planet=Game.planets[Game.planetId];
 const x0=cx*CHUNK_SIZE,z0=cz*CHUNK_SIZE;
 for(let dx=0;dx<CHUNK_SIZE;dx++)for(let dz=0;dz<CHUNK_SIZE;dz++){
@@ -348,7 +352,6 @@ if(planet.id==='alien'&&x%6===0&&z%6===0&&g<.4&&h>12)addPillar(x,h,z,BLOCK.OBSID
 if(planet.id==='crystal'&&x%5===0&&z%5===0&&g<.6&&h>10)addPillar(x,h,z,BLOCK.CRYSTAL,2,6);
 }
 Game.chunks.set(cx+','+cz,true);
-Game.meshDirty=true;
 }
 
 function requestChunks(){
@@ -384,7 +387,6 @@ for(let dx=-3;dx<=3;dx++)for(let dy=0;dy<=7;dy++)for(let dz=-3;dz<=3;dz++){
 const bx=Math.floor(p.x+dx),by=Math.floor(p.y+dy),bz=Math.floor(p.z+dz);
 if(getBlock(bx,by,bz)!==BLOCK.AIR&&getBlock(bx,by,bz)!==BLOCK.BEDROCK)setBlock(bx,by,bz,BLOCK.AIR,false);
 }
-Game.meshDirty=true;
 }
 
 /* ========== Three.js ========== */
@@ -411,7 +413,7 @@ const boxGeo=new THREE.BoxGeometry(1,1,1);
 Object.keys(COLORS).forEach(idStr=>{
 const id=+idStr;
 if(id===BLOCK.LEAVES||id===BLOCK.WATER||id===BLOCK.CRYSTAL)return;
-const mat=new THREE.MeshLambertMaterial({color:COLORS[id][2]});
+let mat=new THREE.MeshLambertMaterial({color:COLORS[id][2]});
 if(id===BLOCK.GLOW_MOSS)mat=new THREE.MeshBasicMaterial({color:COLORS[id][2]});
 const mesh=new THREE.InstancedMesh(boxGeo,mat,MAX_INST);
 mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -439,23 +441,20 @@ Game.scene.add(new THREE.AmbientLight(0x666677,.6));
 const _dummy=new THREE.Object3D();
 function scanTypes(types,px,pz,R){
 const listMap={};types.forEach(id=>listMap[id]=[]);
-const expCache={};
+const expCache=new Map();
 function isExposed(x,y,z){
-const k=x+','+y+','+z;
-if(expCache[k]!==undefined)return expCache[k];
+const k=pk(x,y,z);
+if(expCache.has(k))return expCache.get(k);
+const nx=[x+1,x-1,x,x,x,x],ny=[y,y,y+1,y-1,y,y],nz=[z,z,z,z,z+1,z-1];
 let e=false;
-if(getBlock(x+1,y,z)===BLOCK.AIR||getBlock(x-1,y,z)===BLOCK.AIR||getBlock(x,y+1,z)===BLOCK.AIR||getBlock(x,y-1,z)===BLOCK.AIR||getBlock(x,y,z+1)===BLOCK.AIR||getBlock(x,y,z-1)===BLOCK.AIR)e=true;
-if(!e&&(TRANSPARENT.has(getBlock(x+1,y,z))||TRANSPARENT.has(getBlock(x-1,y,z))||TRANSPARENT.has(getBlock(x,y+1,z))||TRANSPARENT.has(getBlock(x,y-1,z))||TRANSPARENT.has(getBlock(x,y,z+1))||TRANSPARENT.has(getBlock(x,y,z-1))))e=true;
-expCache[k]=e;return e;
+for(let i=0;i<6;i++){const nb=getBlock(nx[i],ny[i],nz[i]);if(nb===BLOCK.AIR||TRANSPARENT.has(nb)){e=true;break;}}
+expCache.set(k,e);return e;
 }
-const c0=chunkCoord(px-R),c1=chunkCoord(px+R),d0=chunkCoord(pz-R),d1=chunkCoord(pz+R);
-for(let cx=c0;cx<=c1;cx++)for(let cz=d0;cz<=d1;cz++){
-const cd=Game.chunkData.get(cx+','+cz);
-if(!cd)continue;
-for(const[key,id]of cd){
-if(!listMap[id])continue;
-const c1a=key.indexOf(','),c2a=key.indexOf(',',c1a+1);
-const x=+key.slice(0,c1a),y=+key.slice(c1a+1,c2a),z=+key.slice(c2a+1);
+for(const id of types){
+const set=Game.typeBlocks.get(id);if(!set)continue;
+for(const k of set){
+const y=(k%PACK_MUL2)|0,t=(k/PACK_MUL2)|0;
+const z=t%PACK_ZMUL-PACK_OFST,x=(k/PACK_MUL|0)-PACK_OFST;
 if(Math.abs(x-px)>R||Math.abs(z-pz)>R)continue;
 if(isExposed(x,y,z))listMap[id].push(x+.5,y+.5,z+.5);
 }
@@ -463,14 +462,14 @@ if(isExposed(x,y,z))listMap[id].push(x+.5,y+.5,z+.5);
 return listMap;
 }
 function applyToMesh(mesh,arr){
-const n=Math.min(arr.length/3,mesh===Game.crystalMesh?3000:Game.leafMesh&&mesh===Game.leafMesh?MAX_SPEC:mesh===Game.waterMesh?MAX_SPEC:MAX_INST);
+const n=Math.min(arr.length/3,mesh===Game.crystalMesh?3000:mesh===Game.leafMesh||mesh===Game.waterMesh?MAX_SPEC:MAX_INST);
 mesh.count=n;
 for(let i=0;i<n;i++){_dummy.position.set(arr[i*3],arr[i*3+1],arr[i*3+2]);_dummy.updateMatrix();mesh.setMatrixAt(i,_dummy.matrix);}
 mesh.instanceMatrix.needsUpdate=true;
 }
 function rebuildType(id){
 const px=Math.floor(Game.player.x),pz=Math.floor(Game.player.z);
-const R=RENDER_DIST*CHUNK_SIZE+6,area=(R*2)*(R*2);
+const R=RENDER_DIST*CHUNK_SIZE+6;
 if(id===BLOCK.LEAVES){applyToMesh(Game.leafMesh,scanTypes([id],px,pz,R)[id]);return;}
 if(id===BLOCK.WATER){applyToMesh(Game.waterMesh,scanTypes([id],px,pz,R)[id]);return;}
 if(id===BLOCK.CRYSTAL){applyToMesh(Game.crystalMesh,scanTypes([id],px,pz,R)[id]);return;}
@@ -493,8 +492,7 @@ if(lists[BLOCK.LEAVES])applyToMesh(Game.leafMesh,lists[BLOCK.LEAVES]);
 if(lists[BLOCK.WATER])applyToMesh(Game.waterMesh,lists[BLOCK.WATER]);
 if(lists[BLOCK.CRYSTAL])applyToMesh(Game.crystalMesh,lists[BLOCK.CRYSTAL]);
 Game.meshDirty=false;Game.lastRebuild=performance.now();Game.dirtyTypes.clear();
-}
-/* ========== 天穹 ========== */
+}/* ========== 天穹 ========== */
 function initSky(){
 const N=IS_MOBILE?500:1000;
 const pos=new Float32Array(N*3),col=new Float32Array(N*3);
@@ -872,8 +870,8 @@ const h=getHeight(0,0,planet);
 Game.player.x=0;Game.player.y=h+4;Game.player.z=0;Game.player.inSpace=false;Game.player.oxygen=100;Game.player.health=Game.player.hunger=20;
 Game.scene.fog.color.set(planet.theme);
 Game.lastPCX=null;Game.lastPCZ=null;
-requestChunks();
-for(let i=0;i<30;i++)streamChunks(30);
+Game.pendingChunks=[];Game.chunks.clear();Game.world.clear();Game.typeBlocks.clear();Game.dirtyTypes=new Set();
+for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)generateChunk(dx,dz);
 clearSpawn();
 rebuildFull();
 launchStage=5;launchTimer=0;
@@ -976,8 +974,6 @@ el('startBtn').addEventListener('click',()=>{
 el('startMenu').classList.add('hidden');
 el('loadingScreen').classList.remove('hidden');
 Game.started=true;
-requestChunks();
-initSkyPlaceholder();
 generatePlanetWorld();
 });
 el('resumeBtn').addEventListener('click',()=>{el('pauseMenu').classList.add('hidden');Game.paused=false;});
@@ -992,11 +988,16 @@ document.addEventListener('keydown',e=>{if(e.code==='Escape'){if(el('invScreen')
 function initSkyPlaceholder(){/* 天空在 initSky 中创建 */}
 
 /* ========== 生成世界（首次） ========== */
-function generatePlanetWorld(){
+async function generatePlanetWorld(){
 const pcx=chunkCoord(Game.player.x),pcz=chunkCoord(Game.player.z);
+const total=(RENDER_DIST*2+1)*(RENDER_DIST*2+1);
+let done=0,batch=0;
+const lt=el('loadingScreen').querySelector('.loading-text');
 for(let dx=-RENDER_DIST;dx<=RENDER_DIST;dx++)for(let dz=-RENDER_DIST;dz<=RENDER_DIST;dz++){
-generateChunk(pcx+dx,pcz+dz);
+generateChunk(pcx+dx,pcz+dz);done++;
+batch++;if(batch>=7){batch=0;lt.textContent='正在生成星球... '+done+'/'+total;await new Promise(r=>setTimeout(r,0));}
 }
+lt.textContent='正在生成星球... '+done+'/'+total;
 clearSpawn();
 Game.meshDirty=false;
 rebuildFull();
@@ -1006,7 +1007,6 @@ Game.lastTime=performance.now();
 showToast('🌍 已抵达 地球 — 收集资源，挖到钻石！');
 initMouseLook();
 }
-/* ========== 鼠标视角（启动后） ========== */
 function initMouseLook(){
 if(!IS_MOBILE)el('gameCanvas').addEventListener('click',()=>{if(Game.started&&!Game.paused)el('gameCanvas').requestPointerLock&&el('gameCanvas').requestPointerLock();});
 }
@@ -1051,9 +1051,9 @@ streamChunks(IS_MOBILE?2:5);
 Game.cleanupTimer+=dt;
 if(Game.cleanupTimer>5){cleanupWorld();Game.cleanupTimer=0;}
 
-// 网格重建：方块变化用增量（快），区块生成用全量（节流）
-if(Game.pendingChunks.length===0&&time-Game.lastRebuild>150)rebuildDirty();
-if(Game.meshDirty&&time-Game.lastRebuild>400){
+// 网格重建：只用增量（快）。meshDirty 仅在星球切换时由 rebuildFull 清除
+if(Game.pendingChunks.length===0&&time-Game.lastRebuild>100)rebuildDirty();
+if(Game.meshDirty&&time-Game.lastRebuild>800){
 rebuildFull();
 }
 
