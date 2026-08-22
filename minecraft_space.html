@@ -1165,6 +1165,7 @@ toastTimeout=setTimeout(()=>t.classList.remove('show'),3200);
 }
 
 /* ========== 主循环 ========== */
+let _hudTimer=0;
 function gameLoop(time){
 if(!Game.started||!Game.ready||Game.paused){
 Game.lastTime=time;
@@ -1175,7 +1176,6 @@ const dt=Math.min((time-Game.lastTime)/1000,.05);
 Game.lastTime=time;
 
 // 处理输入
-let _hudTimer=0;
 if(Game.input.breakHold&&!miningTarget)startMine();
 if(Game.input.mouseDown&&!miningTarget)startMine();
 
