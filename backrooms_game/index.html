@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a08">
+<title>后室：逃离 | BACKROOMS ESCAPE</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<!-- 3D 画布 -->
+<canvas id="game-canvas"></canvas>
+
+<!-- 电影感覆盖层 -->
+<div id="vignette"></div>
+<div id="grain"></div>
+<div id="damage-flash"></div>
+<div id="fade-layer"></div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="objective-box">
+    <div id="level-tag">LEVEL 0</div>
+    <div id="objective-text">目标：寻找出口</div>
+  </div>
+  <canvas id="minimap" width="140" height="140"></canvas>
+  <div id="inventory"></div>
+  <div id="stamina-bar"><div id="stamina-fill"></div></div>
+  <div id="interact-prompt" class="hidden"></div>
+  <div id="toast" class="hidden"></div>
+  <button id="pause-btn" title="暂停">⏸</button>
+</div>
+
+<!-- 触屏控制 -->
+<div id="touch-controls" class="hidden">
+  <div id="joystick-zone">
+    <div id="joystick-base"><div id="joystick-thumb"></div></div>
+  </div>
+  <div id="look-zone"></div>
+  <div id="action-buttons">
+    <button id="btn-interact" class="action-btn">✋<span>互动</span></button>
+    <button id="btn-flashlight" class="action-btn">🔦<span>手电</span></button>
+    <button id="btn-sprint" class="action-btn">🏃<span>奔跑</span></button>
+  </div>
+</div>
+
+<!-- 主菜单 -->
+<div id="menu-screen" class="screen">
+  <div class="menu-bg"></div>
+  <div class="menu-content">
+    <h1 class="game-title">后 室</h1>
+    <div class="game-subtitle">BACKROOMS · 逃 跑</div>
+    <p class="menu-quote">"如果你不小心，在错误的地方从现实中脱离，你就会掉进后室。<br>这里只有陈旧潮湿的地毯、单调发黄的墙纸、以及嗡嗡作响的荧光灯……"<br><span class="quote-tip">—— 而它们，并不都是空的。</span></p>
+    <div class="menu-buttons">
+      <button id="btn-start" class="menu-btn primary">▶ 开始游戏</button>
+      <div id="level-select" class="level-select"></div>
+      <button id="btn-help" class="menu-btn">❓ 玩法说明</button>
+    </div>
+    <div class="menu-footer">建议横屏游玩 · 佩戴耳机体验更佳</div>
+  </div>
+</div>
+
+<!-- 帮助 -->
+<div id="help-screen" class="screen hidden">
+  <div class="panel">
+    <h2>玩法说明</h2>
+    <div class="help-cols">
+      <div class="help-col">
+        <h3>🖥️ 电脑</h3>
+        <ul>
+          <li><b>W A S D</b> — 移动</li>
+          <li><b>鼠标</b> — 转动视角（点击画面锁定）</li>
+          <li><b>Shift</b> — 奔跑（消耗体力）</li>
+          <li><b>E</b> — 互动 / 拾取</li>
+          <li><b>F</b> — 手电筒</li>
+          <li><b>Esc</b> — 暂停</li>
+        </ul>
+      </div>
+      <div class="help-col">
+        <h3>📱 手机</h3>
+        <ul>
+          <li><b>左侧摇杆</b> — 移动</li>
+          <li><b>右半屏滑动</b> — 转动视角</li>
+          <li><b>✋ 互动</b> — 拾取/开门/使用</li>
+          <li><b>🔦 手电</b> — 开关手电筒</li>
+          <li><b>🏃 奔跑</b> — 按住加速</li>
+        </ul>
+      </div>
+    </div>
+    <div class="help-tips">
+      <p>⚠️ <b>注意：</b>某些层级中有"实体"在游荡。被追上就会死亡并重开本层。奔跑会发出声音吸引它；手电筒的光也可能暴露你。收集纸条可以了解这个世界的真相。</p>
+    </div>
+    <button id="btn-help-close" class="menu-btn primary">返回</button>
+  </div>
+</div>
+
+<!-- 纸条阅读 -->
+<div id="note-screen" class="screen hidden">
+  <div class="note-paper">
+    <div id="note-title" class="note-title"></div>
+    <div id="note-body" class="note-body"></div>
+    <button id="btn-note-close" class="menu-btn primary">收起纸条</button>
+  </div>
+</div>
+
+<!-- 密码锁 -->
+<div id="keypad-screen" class="screen hidden">
+  <div class="keypad-panel">
+    <h2 id="keypad-title">🔒 输入密码</h2>
+    <div id="keypad-display" class="keypad-display">····</div>
+    <div class="keypad-grid" id="keypad-grid"></div>
+    <div class="keypad-actions">
+      <button id="btn-keypad-cancel" class="menu-btn">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 暂停 -->
+<div id="pause-screen" class="screen hidden">
+  <div class="panel">
+    <h2>⏸ 已暂停</h2>
+    <div class="setting-row"><label>视角灵敏度</label><input type="range" id="set-sensitivity" min="0.4" max="2.2" step="0.1" value="1"></div>
+    <div class="setting-row"><label>音效</label><input type="checkbox" id="set-sound" checked></div>
+    <div class="setting-row"><label>反转Y轴</label><input type="checkbox" id="set-inverty"></div>
+    <div class="menu-buttons column">
+      <button id="btn-resume" class="menu-btn primary">继续游戏</button>
+      <button id="btn-restart-level" class="menu-btn">重新开始本层</button>
+      <button id="btn-quit-menu" class="menu-btn">返回主菜单</button>
+    </div>
+  </div>
+</div>
+
+<!-- 死亡 -->
+<div id="death-screen" class="screen hidden">
+  <div class="panel death-panel">
+    <h2 class="death-title">你 被 抓 住 了</h2>
+    <p id="death-text" class="death-text">黑暗中，有什么东西找到了你。</p>
+    <div class="menu-buttons column">
+      <button id="btn-retry" class="menu-btn primary">🔁 重试本层</button>
+      <button id="btn-death-menu" class="menu-btn">返回主菜单</button>
+    </div>
+  </div>
+</div>
+
+<!-- 过关 -->
+<div id="win-screen" class="screen hidden">
+  <div class="panel win-panel">
+    <h2 class="win-title" id="win-title">✅ 层级突破</h2>
+    <p id="win-text" class="win-text"></p>
+    <div id="win-stats" class="win-stats"></div>
+    <div class="menu-buttons column">
+      <button id="btn-next-level" class="menu-btn primary">➡ 进入下一层</button>
+      <button id="btn-win-menu" class="menu-btn">返回主菜单</button>
+    </div>
+  </div>
+</div>
+
+<!-- 横屏提示 -->
+<div id="rotate-hint">
+  <div style="font-size:44px">📱↻</div>
+  <div>建议横屏获得最佳体验</div>
+  <button id="btn-rotate-skip" class="menu-btn" style="min-width:180px">仍要竖屏游玩</button>
+</div>
+
+<!-- 加载中 -->
+<div id="loading-screen" class="screen hidden">
+  <div class="loading-box">
+    <div class="loading-text">正在进入后室…</div>
+    <div class="loading-bar"><div id="loading-fill"></div></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/textures.js"></script>
+<script src="js/level.js"></script>
+<script src="js/entity.js"></script>
+<script src="js/player.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

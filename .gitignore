@@ -526,3 +526,6 @@ _BinDeployableAssemblies/
 *.VC.VC.opendb-wal
 *.VC.VC.opend......
 ```
+# 后室游戏（例外：需要跟踪其中的 html/css/js）
+!backrooms_game/
+!backrooms_game/**
