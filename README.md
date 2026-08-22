@@ -4,7 +4,19 @@
 
 ## 📁 项目列表
 
-### 1. 入口页面 (index.html)
+### 1. 后室：逃离 3D 闯关解密游戏 (backrooms_game/)
+- **描述**: 后室（Backrooms）题材第一人称 3D 逃生解密游戏
+- **功能**:
+  - 三大层级：LEVEL 0 黄色迷宫 → LEVEL 1 潮湿车库 → LEVEL 2 废弃办公室，层层递进
+  - 随机生成迷宫（每次进入地图重新排列），门禁卡/保险丝/密码锁/软盘终端等多重解谜
+  - 实体 AI 巡逻/追蹪/搜索，BFS 寻路 + 视线与听觉感知，心跳预警与追逐警报
+  - 手电筒、体力奔跑、可读纸条碎片叙事、探索小地图、关卡进度存档
+  - 程序化 Canvas 纹理与 WebAudio 程序化音效，零外部资源依赖
+  - 电脑键鼠（指针锁定）+ 手机触屏（虚拟摇杆/滑动视角/动作按钮）双端适配
+- **技术栈**: Three.js, HTML5, Canvas 程序化纹理, WebAudio, JavaScript
+- **访问**: 浏览器打开 `backrooms_game/index.html`（建议横屏+耳机）
+
+### 2. 入口页面 (index.html)
 - **描述**: 项目导航主页，提供美观的文件列表展示界面
 - **功能**: 
   - 卡片式布局展示所有 HTML 项目
@@ -12,7 +24,7 @@
   - 一键刷新文件列表
 - **访问**: 直接在浏览器中打开 `index.html`
 
-### 2. 双环连杆机构运动仿真 (simulation.html)
+### 3. 双环连杆机构运动仿真 (simulation.html)
 - **描述**: 物理仿真项目，模拟两个垂直杆上的双环系统运动
 - **功能**:
   - 动态展示角度、加速度、速度随时间变化
@@ -22,7 +34,7 @@
 - **技术栈**: HTML5 Canvas, JavaScript
 - **访问**: 直接在浏览器中打开 `simulation.html`
 
-### 3. 等面四面体与长方体切割法可视化 (slz.html)
+### 4. 等面四面体与长方体切割法可视化 (slz.html)
 - **描述**: 3D 几何可视化项目，展示等面四面体与长方体的关系
 - **功能**:
   - Three.js 3D 渲染
@@ -32,7 +44,7 @@
 - **技术栈**: Three.js, HTML5, JavaScript
 - **访问**: 直接在浏览器中打开 `slz.html`
 
-### 4. 碰撞仿真 (collision_simulation.html)
+### 5. 碰撞仿真 (collision_simulation.html)
 - **描述**: 物理碰撞模拟项目
 - **功能**:
   - 模拟物体碰撞运动
@@ -41,7 +53,7 @@
 - **技术栈**: HTML5 Canvas, JavaScript
 - **访问**: 直接在浏览器中打开 `collision_simulation.html`
 
-### 5. 3D 电场可视化 (electric_field_3d.html)
+### 6. 3D 电场可视化 (electric_field_3d.html)
 - **描述**: 3D 电场线可视化项目
 - **功能**:
   - Three.js 3D 渲染
@@ -51,7 +63,7 @@
 - **技术栈**: Three.js, HTML5, JavaScript
 - **访问**: 直接在浏览器中打开 `electric_field_3d.html`
 
-### 6. 反应动力学仿真 (reaction_kinetics.html)
+### 7. 反应动力学仿真 (reaction_kinetics.html)
 - **描述**: 化学反应动力学模拟项目
 - **功能**:
   - 模拟化学反应过程
@@ -61,7 +73,7 @@
 - **技术栈**: HTML5 Canvas, JavaScript
 - **访问**: 直接在浏览器中打开 `reaction_kinetics.html`
 
-### 7. 商店配置编辑器 (shopdata.html)
+### 8. 商店配置编辑器 (shopdata.html)
 - **描述**: ShopData 商店配置的可视化树形 JSON 编辑器
 - **功能**:
   - 树形结构浏览与编辑（分组 / 物品）
@@ -72,7 +84,7 @@
 - **技术栈**: HTML5, CSS3, JavaScript
 - **访问**: 直接在浏览器中打开 `shopdata.html`
 
-### 8. 钢尺弯曲与振动 3D 物理仿真 (SteelRuler.html)
+### 9. 钢尺弯曲与振动 3D 物理仿真 (SteelRuler.html)
 - **描述**: 钢尺弯曲与振动的 3D 物理仿真（带阻尼动力学版）
 - **功能**:
   - Three.js 3D 渲染 + OrbitControls 视角控制
@@ -100,6 +112,10 @@ cd <repository-directory>
 ```
 .
 ├── index.html                  # 项目导航主页
+├── backrooms_game/             # 后室：逃离 3D 闯关解密游戏
+│   ├── index.html              # 游戏入口
+│   ├── css/style.css           # 样式
+│   └── js/                     # 游戏逻辑（关卡生成/实体AI/玩家控制/UI/音效/纹理）
 ├── simulation.html             # 双环连杆机构运动仿真
 ├── slz.html                    # 等面四面体可视化
 ├── collision_simulation.html   # 碰撞仿真
