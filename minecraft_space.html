@@ -90,6 +90,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 .loader{width:44px;height:44px;border:4px solid rgba(0,212,255,0.2);border-top-color:#00d4ff;border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-text{margin-top:14px;color:#00d4ff;letter-spacing:3px;font-size:12px}
+.loading-bar-track{width:clamp(180px,60vw,360px);height:6px;background:rgba(0,212,255,0.15);border-radius:3px;margin-top:12px;overflow:hidden}
+.loading-bar-fill{height:100%;background:linear-gradient(90deg,#00d4ff,#5856d6);border-radius:3px;width:0%;transition:width .2s}
+.loading-status{margin-top:6px;color:#888;font-size:11px;letter-spacing:1px}
 .event-toast{position:absolute;top:26%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);padding:8px 18px;border-radius:6px;border:1px solid rgba(0,212,255,0.35);color:#fff;font-size:13px;z-index:12;pointer-events:none;opacity:0;transition:opacity .3s}
 .event-toast.show{opacity:1}
 </style>
@@ -167,7 +170,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 </div>
 </div>
 
-<div class="loading" id="loadingScreen"><div class="loader"></div><div class="loading-text" id="loadingText">正在生成星球...</div></div>
+<div class="loading" id="loadingScreen"><div class="loader"></div>
+<div class="loading-text" id="loadingText">正在开始…</div>
+<div class="loading-bar-track"><div class="loading-bar-fill" id="loadingBarFill"></div></div>
+<div class="loading-status" id="loadingStatus"></div>
+</div>
 <script type="importmap">
 {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
 </script>
@@ -248,12 +255,12 @@ inventory:new Map(), // blockId -> count
 hotbar:[0,0,0,0,0,0,0,0,0], // 9格的方块id，0=空
 paused:false,started:false,ready:false,lastTime:0,
 planetId:0,planets:[],clouds:[],shootingStars:[],dayTime:.35,daySpeed:1/300,particles:[],
-lastPCX:null,lastPCZ:null,lastCountsKey:'',achievements:{},
+loadStartTime:0,lastPCX:null,lastPCZ:null,lastCountsKey:'',achievements:{},
 cleanupTimer:0,
 solidMesh:null,leafMesh:null,waterMesh:null,
 skyDome:null,distPlanets:null,moonMesh:null,
 mining:null, // 当前挖掘目标 {x,y,z,progress,hard,blockId}
-craftedShip:false,shipFuel:false,launching:false,maxBlocks:128,
+craftedShip:false,shipFuel:false,launching:false,launchTransferStarted:false,maxBlocks:128,
 };
 
 /* ========== 星球定义 ========== */
@@ -860,30 +867,39 @@ if(launchStage===3)el('launchText').textContent='🌌 空间跳跃中...';}
 }
 return;
 }
-if(launchStage===4){
-// 传送
-Game.planetId=(Game.planetId+1)%Game.planets.length;
-Game.world.clear();Game.chunks.clear();Game.pendingChunks=[];
-fuelCrafted=false;
-const planet=Game.planets[Game.planetId];
-const h=getHeight(0,0,planet);
-Game.player.x=0;Game.player.y=h+4;Game.player.z=0;Game.player.inSpace=false;Game.player.oxygen=100;Game.player.health=Game.player.hunger=20;
-Game.scene.fog.color.set(planet.theme);
-Game.lastPCX=null;Game.lastPCZ=null;
-Game.pendingChunks=[];Game.chunks.clear();Game.world.clear();Game.typeBlocks.clear();Game.dirtyTypes=new Set();
-for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)generateChunk(dx,dz);
-clearSpawn();
-rebuildFull();
+if(launchStage===4&&!Game.launchTransferStarted){
+Game.launchTransferStarted=true;
+el('launchCount').textContent='⏳';
+el('launchText').textContent='空间跳跃中...';
+doLaunchTransfer().then(()=>{
 launchStage=5;launchTimer=0;
 el('launchCount').textContent='✔';
-el('launchText').textContent='✅ 抵达 '+planet.name+'！';
+el('launchText').textContent='✅ 抵达 '+Game.planets[Game.planetId].name+'！';
+}).catch(e=>{console.error('launch transfer error:',e);showToast('❌ 传送失败');launchStage=5;launchTimer=0;Game.launching=false;el('launchOverlay').classList.remove('show');});
 }
 if(launchStage===5&&launchTimer>=2){
-Game.launching=false;
+Game.launching=false;Game.launchTransferStarted=false;
 el('launchOverlay').classList.remove('show');
 showToast('🌍 欢迎来到 '+Game.planets[Game.planetId].name+'！');
 Game.meshDirty=true;
 }
+}
+
+async function doLaunchTransfer(){
+Game.planetId=(Game.planetId+1)%Game.planets.length;
+const planet=Game.planets[Game.planetId];
+Game.world.clear();Game.chunks.clear();Game.pendingChunks=[];
+fuelCrafted=false;
+Game.player.x=0;Game.player.y=0;Game.player.z=0;
+Game.lastPCX=null;Game.lastPCZ=null;
+Game.pendingChunks=[];Game.chunks.clear();Game.world.clear();Game.typeBlocks.clear();Game.dirtyTypes=new Set();
+for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)generateChunk(dx,dz);
+const h=getHeight(0,0,planet);
+Game.player.x=0;Game.player.y=h+4;Game.player.z=0;Game.player.inSpace=false;Game.player.oxygen=100;Game.player.health=Game.player.hunger=20;
+Game.scene.fog.color.set(planet.theme);
+clearSpawn();
+Game.meshDirty=false;
+await rebuildFullAsync('',0,100);
 }
 
 /* ========== 键盘 ========== */
@@ -988,24 +1004,63 @@ document.addEventListener('keydown',e=>{if(e.code==='Escape'){if(el('invScreen')
 function initSkyPlaceholder(){/* 天空在 initSky 中创建 */}
 
 /* ========== 生成世界（首次） ========== */
+function setProgress(pct,label,elapsed){
+const bar=el('loadingBarFill');if(bar)bar.style.width=Math.min(pct,100)+'%';
+const lt=el('loadingText');if(lt)lt.textContent=label;
+const ls=el('loadingStatus');if(ls)ls.textContent='已用 '+(elapsed||Math.round((performance.now()-Game.loadStartTime)/100)/10)+'s';
+}
+function nextFrame(){return new Promise(r=>setTimeout(r,0));}
+async function rebuildFullAsync(prefix,startPct,endPct,onProgress){
+const px=Math.floor(Game.player.x),pz=Math.floor(Game.player.z);
+const R=RENDER_DIST*CHUNK_SIZE+6;
+const all=Object.keys(COLORS).map(Number);
+const range=endPct-startPct;
+for(let i=0;i<all.length;i++){
+const id=all[i];
+const list=scanTypes([id],px,pz,R)[id];
+if(list){
+const mesh=id===BLOCK.LEAVES?Game.leafMesh:id===BLOCK.WATER?Game.waterMesh:id===BLOCK.CRYSTAL?Game.crystalMesh:BLOCK_MESHES.get(id);
+if(mesh)applyToMesh(mesh,list);
+}
+const pct=startPct+Math.round((i+1)/all.length*range);
+if(onProgress)onProgress(pct);
+else setProgress(pct,prefix+' '+Math.round((i+1)/all.length*100)+'%');
+await nextFrame();
+}
+setProgress(endPct,prefix+' 完成');
+}
 async function generatePlanetWorld(){
+Game.loadStartTime=performance.now();
+try{
 const pcx=chunkCoord(Game.player.x),pcz=chunkCoord(Game.player.z);
 const total=(RENDER_DIST*2+1)*(RENDER_DIST*2+1);
-let done=0,batch=0;
-const lt=el('loadingScreen').querySelector('.loading-text');
+let done=0;
+setProgress(1,'正在生成地形 0/'+total);
 for(let dx=-RENDER_DIST;dx<=RENDER_DIST;dx++)for(let dz=-RENDER_DIST;dz<=RENDER_DIST;dz++){
 generateChunk(pcx+dx,pcz+dz);done++;
-batch++;if(batch>=7){batch=0;lt.textContent='正在生成星球... '+done+'/'+total;await new Promise(r=>setTimeout(r,0));}
+if(done%4===0){
+setProgress(Math.round(done/total*55),'正在生成地形 '+done+'/'+total);
+await nextFrame();
 }
-lt.textContent='正在生成星球... '+done+'/'+total;
+}
+setProgress(56,'清理出生点');
+await nextFrame();
 clearSpawn();
+setProgress(58,'构建方块网格 0%');
+await nextFrame();
 Game.meshDirty=false;
-rebuildFull();
+await rebuildFullAsync('构建方块网格',58,98);
+setProgress(100,'完成！');
+await nextFrame();
 el('loadingScreen').classList.add('hidden');
 Game.ready=true;
 Game.lastTime=performance.now();
 showToast('🌍 已抵达 地球 — 收集资源，挖到钻石！');
 initMouseLook();
+}catch(e){
+setProgress(0,'❌ 错误：'+e.message+' 请刷新重试');
+console.error('generatePlanetWorld error:',e);
+}
 }
 function initMouseLook(){
 if(!IS_MOBILE)el('gameCanvas').addEventListener('click',()=>{if(Game.started&&!Game.paused)el('gameCanvas').requestPointerLock&&el('gameCanvas').requestPointerLock();});
@@ -1064,17 +1119,29 @@ requestAnimationFrame(gameLoop);
 
 /* ========== 初始化 ========== */
 function init(){
+Game.loadStartTime=performance.now();
+try{
+setProgress(10,'初始化引擎…');
 initRenderer();
+setProgress(35,'构建方块缓存…');
 initBlockMeshes();
+setProgress(55,'生成天空…');
 initSky();
+setProgress(75,'绑定控件…');
 initKeyboard();
 initTouch();
 bindStaticUI();
-// 星球按钮默认隐藏，合成飞船后显示
 el('planetBtn').style.display='none';
 Game.meshDirty=true;
-// 启动循环
 requestAnimationFrame(gameLoop);
+setProgress(100,'▶ 点击开始游戏');
+// 初始化完成，显示开始菜单，隐藏加载
+el('loadingScreen').classList.add('hidden');
+}catch(e){
+console.error('init error:',e);
+setProgress(0,'⚠️ 初始化失败: '+e.message);
+const ls=el('loadingStatus');if(ls)ls.textContent='请检查浏览器是否支持 WebGL，然后刷新页面';
+}
 }
 init();
 </script>
