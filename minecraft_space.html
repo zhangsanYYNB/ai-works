@@ -679,6 +679,7 @@ return null;
 let miningTarget=null,miningProgress=0,miningHard=0,miningBlock=0;
 const TOOL_REQ={[BLOCK.IRON]:1,[BLOCK.GOLD]:1,[BLOCK.OBSIDIAN]:1,[BLOCK.DIAMOND]:2};
 function startMine(){
+if(Game.paused)return;
 const r=raycastBlock();
 if(!r||r.block===BLOCK.BEDROCK||r.block===BLOCK.LAVA){miningTarget=null;return;}
 const req=TOOL_REQ[r.block]||0;
@@ -722,6 +723,7 @@ el('mineProgress').style.display='none';
 }
 
 function placeBlock(){
+if(Game.paused)return;
 const r=raycastBlock();if(!r||!r.prev)return;
 const[bx,by,bz]=r.prev;
 const px=Game.player.x,py=Game.player.y+1,pz=Game.player.z;
@@ -1078,13 +1080,13 @@ lastLook={x:t.clientX,y:t.clientY};
 }},{passive:false});
 look.addEventListener('touchend',e=>{for(const t of e.changedTouches)if(t.identifier===lookTouch)lookTouch=null;},{passive:false});
 
-el('btnJump').addEventListener('touchstart',e=>{e.preventDefault();Game.input.jump=true;});
+el('btnJump').addEventListener('touchstart',e=>{e.preventDefault();if(!Game.paused)Game.input.jump=true;});
 el('btnJump').addEventListener('touchend',e=>{e.preventDefault();Game.input.jump=false;});
 // 挖掘：按住持续挖
 el('btnBreak').addEventListener('touchstart',e=>{e.preventDefault();Game.input.breakHold=true;startMine();},{passive:false});
 el('btnBreak').addEventListener('touchend',e=>{e.preventDefault();Game.input.breakHold=false;cancelMine();},{passive:false});
 el('btnPlace').addEventListener('touchstart',e=>{e.preventDefault();placeBlock();},{passive:false});
-el('btnInv').addEventListener('touchstart',e=>{e.preventDefault();toggleInventory();},{passive:false});
+el('btnInv').addEventListener('touchstart',e=>{e.preventDefault();if(!Game.paused)toggleInventory();},{passive:false});
 }
 function bindStaticUI(){
 el('startBtn').addEventListener('click',()=>{
