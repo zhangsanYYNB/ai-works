@@ -142,6 +142,7 @@ html, body {
   position: fixed; inset: 0; z-index: 50;
   display: flex; align-items: center; justify-content: center;
   overflow-y: auto; padding: 18px;
+  touch-action: pan-y;   /* 覆盖 body 的 none，允许手机上滚动面板 */
 }
 
 /* 主菜单 */
@@ -224,6 +225,7 @@ html, body {
   background: rgba(12,11,6,.94); border: 1px solid rgba(201,180,88,.4);
   border-radius: 14px; padding: 26px 26px 30px; max-width: 560px; width: 100%;
   max-height: 92vh; overflow-y: auto; text-align: center;
+  touch-action: pan-y;
   box-shadow: 0 0 60px rgba(0,0,0,.8), inset 0 0 40px rgba(201,180,88,.04);
 }
 .panel h2 { color: #d8bd57; letter-spacing: 6px; margin-bottom: 18px; font-size: 22px; }
@@ -298,9 +300,21 @@ html, body {
 }
 #loading-fill { height: 100%; width: 0; background: #c9b458; transition: width .2s; }
 
+/* 手机矮屏（横屏）压缩面板，避免按钮被裁剪 */
+@media (max-height: 520px) {
+  .panel { padding: 14px 18px 18px; }
+  .panel h2 { margin-bottom: 10px; font-size: 18px; letter-spacing: 4px; }
+  .setting-row { margin: 6px 0; font-size: 13px; }
+  .menu-btn { min-width: 200px; padding: 9px 22px; font-size: 14px; }
+  .menu-buttons { gap: 8px !important; margin-top: 12px !important; }
+  .cheat-grid { gap: 7px; margin-bottom: 12px; }
+  .cheat-btn { padding: 8px 13px; font-size: 13px; }
+  .cheat-hint { font-size: 11px; margin-bottom: 10px; }
+}
+
 /* 横屏提示 */
 @media (orientation: portrait) and (max-width: 820px) {
-  #rotate-hint { display: flex !important; }
+  #rotate-hint:not(.hidden) { display: flex !important; }
 }
 #rotate-hint {
   display: none; position: fixed; inset: 0; z-index: 90;

@@ -23,49 +23,50 @@ const UI = {
     };
 
     /* 主菜单按钮 */
-    $('btn-start').addEventListener('click', () => { window.GAME.startFromMenu(); });
-    $('btn-help').addEventListener('click', () => { this.show('help'); });
-    $('btn-help-close').addEventListener('click', () => { this.hide('help'); });
+    this.bindTap($('btn-start'), () => { window.GAME.startFromMenu(); });
+    this.bindTap($('btn-help'), () => this.show('help'));
+    this.bindTap($('btn-help-close'), () => { this.hide('help'); });
+    this.bindTap($('btn-cheat-menu'), () => this.openCheatPanel());
 
     /* 纸条 */
-    $('btn-note-close').addEventListener('click', () => { this.hide('note'); window.GAME.onNoteClosed(); });
+    this.bindTap($('btn-note-close'), () => { this.hide('note'); window.GAME.onNoteClosed(); });
 
     /* 密码锁 */
     this._buildKeypad($('keypad-grid'));
-    $('btn-keypad-cancel').addEventListener('click', () => { this.closeKeypad(false); });
+    this.bindTap($('btn-keypad-cancel'), () => { this.closeKeypad(false); });
 
     /* 暂停 */
     this.els.pauseBtn.addEventListener('click', () => { window.GAME.pause(); });
-    $('btn-resume').addEventListener('click', () => { window.GAME.resume(); });
-    $('btn-restart-level').addEventListener('click', () => { window.GAME.restartLevel(); });
-    $('btn-quit-menu').addEventListener('click', () => { window.GAME.quitToMenu(); });
+    this.bindTap($('btn-resume'), () => { window.GAME.resume(); });
+    this.bindTap($('btn-restart-level'), () => { window.GAME.restartLevel(); });
+    this.bindTap($('btn-quit-menu'), () => { window.GAME.quitToMenu(); });
+    this.bindTap($('btn-cheat'), () => { this.openCheatPanel(); });
 
     /* 死亡 */
-    $('btn-retry').addEventListener('click', () => { window.GAME.restartLevel(); });
-    $('btn-death-menu').addEventListener('click', () => { window.GAME.quitToMenu(); });
+    this.bindTap($('btn-retry'), () => { window.GAME.restartLevel(); });
+    this.bindTap($('btn-death-menu'), () => { window.GAME.quitToMenu(); });
 
     /* 胜利 */
-    $('btn-next-level').addEventListener('click', () => { window.GAME.nextLevel(); });
-    $('btn-win-menu').addEventListener('click', () => { window.GAME.quitToMenu(); });
+    this.bindTap($('btn-next-level'), () => { window.GAME.nextLevel(); });
+    this.bindTap($('btn-win-menu'), () => { window.GAME.quitToMenu(); });
 
     /* 作弊面板 */
-    $('btn-cheat').addEventListener('click', () => this.openCheatPanel());
-    $('btn-cheat-close').addEventListener('click', () => { this.hide('cheat'); });
-    $('ch-god').addEventListener('click', () => { window.GAME.doCheat('god'); this.refreshCheatPanel(); });
-    $('ch-noclip').addEventListener('click', () => { window.GAME.doCheat('noclip'); this.refreshCheatPanel(); });
-    $('ch-kfa').addEventListener('click', () => window.GAME.doCheat('kfa'));
-    $('ch-skip').addEventListener('click', () => {
+    this.bindTap($('btn-cheat-close'), () => { this.hide('cheat'); });
+    this.bindTap($('ch-god'), () => { window.GAME.doCheat('god'); this.refreshCheatPanel(); });
+    this.bindTap($('ch-noclip'), () => { window.GAME.doCheat('noclip'); this.refreshCheatPanel(); });
+    this.bindTap($('ch-kfa'), () => window.GAME.doCheat('kfa'));
+    this.bindTap($('ch-skip'), () => {
       this.hide('cheat');
       if (window.GAME.state === 'paused') this.hide('pause');
       window.GAME.doCheat('skip');
     });
-    $('ch-unlock').addEventListener('click', () => { window.GAME.doCheat('unlockall'); this.refreshCheatPanel(); });
-    $('ch-reset').addEventListener('click', () => { window.GAME.doCheat('reset'); this.refreshCheatPanel(); });
-    // 主菜单标题连点 5 次 = 打开后门（彩蛋入口）
+    this.bindTap($('ch-unlock'), () => { window.GAME.doCheat('unlockall'); this.refreshCheatPanel(); });
+    this.bindTap($('ch-reset'), () => { window.GAME.doCheat('reset'); this.refreshCheatPanel(); });
+    // 主菜单标题连点 5 次 = 打开后门（彩蛋入口，手机慢点也能触发）
     let taps = 0, tapT = 0;
     document.querySelector('.game-title').addEventListener('click', () => {
       const now = Date.now();
-      taps = (now - tapT < 600) ? taps + 1 : 1;
+      taps = (now - tapT < 1100) ? taps + 1 : 1;
       tapT = now;
       if (taps >= 5) { taps = 0; this.openCheatPanel(); }
     });
@@ -128,6 +129,22 @@ const UI = {
 
   show(key) { this.els[key].classList.remove('hidden'); },
   hide(key) { this.els[key].classList.add('hidden'); },
+
+  /* 触屏保险绑定：touchend + click 双通道（touchend preventDefault 抑制合成点击防重复） */
+  bindTap(el, fn) {
+    if (!el) return;
+    let lastT = 0;
+    const h = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const now = Date.now();
+      if (now - lastT < 350) return;   // 双通道去重
+      lastT = now;
+      fn(e);
+    };
+    el.addEventListener('touchend', h, { passive: false });
+    el.addEventListener('click', h);
+  },
   showOnly(key) {
     ['menu', 'help', 'note', 'keypad', 'pause', 'death', 'win', 'loading', 'cheat'].forEach(k => this.els[k].classList.add('hidden'));
     if (key) this.els[key].classList.remove('hidden');

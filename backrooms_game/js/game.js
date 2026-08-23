@@ -191,12 +191,14 @@ class Game {
     if (this.state !== 'playing') return;
     this.state = 'paused';
     UI.showOnly('pause');
+    UI.setHUDVisible(false);   // 手机上必须隐藏触摸层，避免透明层干扰面板
     if (document.pointerLockElement) document.exitPointerLock();
     Sound.setChase(false);
   }
   resume() {
     if (this.state !== 'paused') return;
     UI.showOnly(null);
+    UI.setHUDVisible(true);
     this.state = 'playing';
     if (!IS_TOUCH) this.canvas.requestPointerLock && this.canvas.requestPointerLock();
   }
