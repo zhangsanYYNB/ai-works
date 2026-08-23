@@ -26,7 +26,6 @@ const UI = {
     this.bindTap($('btn-start'), () => { window.GAME.startFromMenu(); });
     this.bindTap($('btn-help'), () => this.show('help'));
     this.bindTap($('btn-help-close'), () => { this.hide('help'); });
-    this.bindTap($('btn-cheat-menu'), () => this.openCheatPanel());
 
     /* 纸条 */
     this.bindTap($('btn-note-close'), () => { this.hide('note'); window.GAME.onNoteClosed(); });
