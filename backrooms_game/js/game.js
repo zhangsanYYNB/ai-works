@@ -39,6 +39,7 @@ class Game {
     UI.init();
     this.player = new Player(this.camera, canvas);
     window.GAME = this;
+    this._initCheatCodes();
 
     if (IS_TOUCH) {
       this.player.bindTouch({
@@ -147,6 +148,7 @@ class Game {
         this.elapsed = 0;
         this._deathHandled = false;
         this.player.boostT = 0;
+        this.player.noclip = this.cheats.noclip;
 
         UI.setLoading(1);
         setTimeout(() => {
@@ -356,6 +358,65 @@ class Game {
 
   checkCode(input) { return input === GAME_STATE.levelCode; }
 
+  /* ================= 秘籍后门 ================= */
+  cheats = { god: false, noclip: false };
+  _cheatBuf = '';
+  _initCheatCodes() {
+    document.addEventListener('keydown', e => {
+      if (!/^[a-z]$/i.test(e.key)) return;
+      this._cheatBuf = (this._cheatBuf + e.key.toUpperCase()).slice(-10);
+      for (const [code, act] of Object.entries({ IDDQD: 'god', IDCLIP: 'noclip', IDKFA: 'kfa', IDLEVEL: 'skip' })) {
+        if (this._cheatBuf.endsWith(code)) {
+          this._cheatBuf = '';
+          if (this.state === 'playing' || this.state === 'paused') this.doCheat(act);
+          break;
+        }
+      }
+    });
+  }
+  doCheat(action) {
+    const C = this.cheats;
+    if (action === 'god') {
+      C.god = !C.god;
+      UI.showToast(C.god ? '👻 <b>无敌模式</b> 已开启——它们抓不住你了' : '无敌模式已关闭', 2400);
+    } else if (action === 'noclip') {
+      C.noclip = !C.noclip;
+      this.player.noclip = C.noclip;
+      UI.showToast(C.noclip ? '🚧 <b>穿墙模式</b> 已开启——墙壁只是建议' : '穿墙模式已关闭', 2400);
+    } else if (action === 'kfa') {
+      if (!this.level) return;
+      const id = this.level.cfg.id;
+      if (id === 0) { this.hasKeycard = true; UI.showToast('🔑 门禁卡已到手', 2200); }
+      else if (id === 1) {
+        this.hasFuse = true;
+        UI.showToast(`🎒 补给包：保险丝 ×1<br>🔐 门锁密码：<b style="letter-spacing:4px">${GAME_STATE.levelCode}</b>`, 6000);
+      } else if (id === 2) {
+        this.disks = Math.max(this.disks, 3);
+        UI.showToast('💾 软盘 ×3 已到手', 2200);
+      } else {
+        this.player.stamina = 100; this.player.boostT = 10;
+        UI.showToast('💉 肾上腺素直接打进心臟！10 秒爆发', 2400);
+      }
+      this.player.stamina = Math.max(this.player.stamina, 100);
+      this._updateInventory();
+      this._refreshObjective();
+    } else if (action === 'skip') {
+      UI.showToast('⏭️ 好吧，这层就当过去了……', 1800);
+      setTimeout(() => this._winLevel(), 700);
+    } else if (action === 'unlockall') {
+      Store.set('unlocked', LEVEL_CFGS.length - 1);
+      UI.refreshLevelSelect();
+      UI.showToast('🔓 全部层级已解锁', 2200);
+    } else if (action === 'reset') {
+      C.god = false; C.noclip = false; this.player.noclip = false;
+      UI.showToast('🧹 作弊已全部关闭，祝你好运', 2200);
+    }
+    this._updateCheatBadge();
+  }
+  _updateCheatBadge() {
+    document.getElementById('cheat-badge').classList.toggle('hidden', !(this.cheats.god || this.cheats.noclip));
+  }
+
   /* ================= 目标流程 ================= */
   _refreshObjective() {
     const flow = this.level.cfg.objectiveFlow;
@@ -455,7 +516,10 @@ class Game {
       this.level.update(dt);
 
       if (this.entity && !pausedLike) {
-        this.entity.update(dt, this.player.pos, this.player.running, this.player.flashlightOn, () => this.onDeath());
+        this.entity.update(dt, this.player.pos, this.player.running, this.player.flashlightOn, () => {
+          if (!this.cheats.god) this.onDeath();
+          else if (Math.random() < dt * 2) UI.showToast('👻 它穿过了你……但抓不住你', 1200);
+        });
       }
 
       // 探索标记（小地图）

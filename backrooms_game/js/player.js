@@ -34,6 +34,7 @@ class Player {
     this._bobT = 0;
     this._stepT = 0;
     this.boostT = 0;   // 肾上腺素加速剩余时间
+    this.noclip = false; // 作弊：穿墙
 
     this._bindDesktop();
   }
@@ -207,9 +208,15 @@ class Player {
       const len = Math.sqrt(wx * wx + wz * wz) || 1;
       const nx = this.pos.x + wx / len * speed * dt;
       const nz = this.pos.z + wz / len * speed * dt;
-      // 轴分离碰撞
-      if (!level.circleHitsWall(nx, this.pos.z, this.radius)) this.pos.x = nx;
-      if (!level.circleHitsWall(this.pos.x, nz, this.radius)) this.pos.z = nz;
+      // 轴分离碰撞（noclip 穿墙时跳过，但限制在地图范围内防止走丢）
+      if (this.noclip) {
+        const lim = CELL * 1.5;
+        this.pos.x = U.clamp(nx, -lim, level.W * CELL + lim);
+        this.pos.z = U.clamp(nz, -lim, level.H * CELL + lim);
+      } else {
+        if (!level.circleHitsWall(nx, this.pos.z, this.radius)) this.pos.x = nx;
+        if (!level.circleHitsWall(this.pos.x, nz, this.radius)) this.pos.z = nz;
+      }
 
       // 头部晃动 & 脚步声
       this._bobT += dt * (this.running ? 11 : 7.5);

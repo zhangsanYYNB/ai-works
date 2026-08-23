@@ -22,6 +22,7 @@
 <!-- HUD -->
 <div id="hud" class="hidden">
   <div id="crosshair"></div>
+  <div id="cheat-badge" class="hidden">👻 作弊中</div>
   <div id="objective-box">
     <div id="level-tag">LEVEL 0</div>
     <div id="objective-text">目标：寻找出口</div>
@@ -136,7 +137,25 @@
       <button id="btn-resume" class="menu-btn primary">继续游戏</button>
       <button id="btn-restart-level" class="menu-btn">重新开始本层</button>
       <button id="btn-quit-menu" class="menu-btn">返回主菜单</button>
+      <button id="btn-cheat" class="menu-btn cheat-link">🔧 秘密后门…</button>
     </div>
+  </div>
+</div>
+
+<!-- 作弊面板 -->
+<div id="cheat-screen" class="screen hidden">
+  <div class="panel">
+    <h2>👻 秘密后门</h2>
+    <p class="cheat-hint">桌面端游戏中直接输入：IDDQD 无敌 · IDCLIP 穿墙 · IDKFA 补给 · IDLEVEL 跳层</p>
+    <div class="cheat-grid">
+      <button id="ch-god" class="cheat-btn">👻 无敌模式</button>
+      <button id="ch-noclip" class="cheat-btn">🚧 穿墙行走</button>
+      <button id="ch-kfa" class="cheat-btn">🎒 补给包</button>
+      <button id="ch-skip" class="cheat-btn">⏭️ 跳过本层</button>
+      <button id="ch-unlock" class="cheat-btn wide">🔓 解锁全部层级</button>
+      <button id="ch-reset" class="cheat-btn wide">🧹 关闭所有作弊</button>
+    </div>
+    <div class="menu-buttons column"><button id="btn-cheat-close" class="menu-btn">返回</button></div>
   </div>
 </div>
 

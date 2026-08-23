@@ -190,6 +190,26 @@ html, body {
   font-family: inherit;
 }
 .diff-btn.active { background: rgba(201,180,88,.22); border-color: #d8bd57; color: #ffe9a8; }
+
+/* 作弊系统 */
+#cheat-badge {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  padding: 4px 14px; border-radius: 12px; font-size: 13px; letter-spacing: 2px;
+  background: rgba(120,30,120,.35); border: 1px solid rgba(220,120,255,.5); color: #f2ccff;
+  animation: cheatPulse 2s infinite;
+}
+@keyframes cheatPulse { 50% { opacity: .55; } }
+.cheat-link { opacity: .55; font-size: 13px; border-style: dashed; }
+.cheat-hint { color: #9a8c5c; font-size: 13px; line-height: 1.6; margin-bottom: 16px; }
+.cheat-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 18px; }
+.cheat-btn {
+  padding: 10px 16px; border-radius: 10px; cursor: pointer; font-size: 14px; letter-spacing: 1px;
+  background: rgba(30,20,40,.8); border: 1px solid rgba(200,120,255,.35); color: #d8c8f0;
+  font-family: inherit;
+}
+.cheat-btn:hover { border-color: #d890ff; color: #fff; }
+.cheat-btn.on { background: rgba(160,60,200,.35); border-color: #e0a0ff; color: #ffeaff; }
+.cheat-btn.wide { width: 100%; }
 .level-btn {
   width: 54px; height: 54px; border-radius: 8px; cursor: pointer;
   background: rgba(20,18,8,.75); border: 1px solid rgba(201,180,88,.4); color: #d8cba0;

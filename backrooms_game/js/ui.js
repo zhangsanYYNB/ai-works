@@ -14,6 +14,7 @@ const UI = {
       menu: $('menu-screen'), help: $('help-screen'), note: $('note-screen'),
       keypad: $('keypad-screen'), pause: $('pause-screen'), death: $('death-screen'),
       win: $('win-screen'), loading: $('loading-screen'), rotateHint: $('rotate-hint'),
+      cheat: $('cheat-screen'),
       touch: $('touch-controls'),
       noteTitle: $('note-title'), noteBody: $('note-body'),
       fade: $('fade-layer'), damage: $('damage-flash'),
@@ -46,6 +47,28 @@ const UI = {
     /* 胜利 */
     $('btn-next-level').addEventListener('click', () => { window.GAME.nextLevel(); });
     $('btn-win-menu').addEventListener('click', () => { window.GAME.quitToMenu(); });
+
+    /* 作弊面板 */
+    $('btn-cheat').addEventListener('click', () => this.openCheatPanel());
+    $('btn-cheat-close').addEventListener('click', () => { this.hide('cheat'); });
+    $('ch-god').addEventListener('click', () => { window.GAME.doCheat('god'); this.refreshCheatPanel(); });
+    $('ch-noclip').addEventListener('click', () => { window.GAME.doCheat('noclip'); this.refreshCheatPanel(); });
+    $('ch-kfa').addEventListener('click', () => window.GAME.doCheat('kfa'));
+    $('ch-skip').addEventListener('click', () => {
+      this.hide('cheat');
+      if (window.GAME.state === 'paused') this.hide('pause');
+      window.GAME.doCheat('skip');
+    });
+    $('ch-unlock').addEventListener('click', () => { window.GAME.doCheat('unlockall'); this.refreshCheatPanel(); });
+    $('ch-reset').addEventListener('click', () => { window.GAME.doCheat('reset'); this.refreshCheatPanel(); });
+    // 主菜单标题连点 5 次 = 打开后门（彩蛋入口）
+    let taps = 0, tapT = 0;
+    document.querySelector('.game-title').addEventListener('click', () => {
+      const now = Date.now();
+      taps = (now - tapT < 600) ? taps + 1 : 1;
+      tapT = now;
+      if (taps >= 5) { taps = 0; this.openCheatPanel(); }
+    });
 
     /* 设置 */
     const sens = $('set-sensitivity');
@@ -106,8 +129,23 @@ const UI = {
   show(key) { this.els[key].classList.remove('hidden'); },
   hide(key) { this.els[key].classList.add('hidden'); },
   showOnly(key) {
-    ['menu', 'help', 'note', 'keypad', 'pause', 'death', 'win', 'loading'].forEach(k => this.els[k].classList.add('hidden'));
+    ['menu', 'help', 'note', 'keypad', 'pause', 'death', 'win', 'loading', 'cheat'].forEach(k => this.els[k].classList.add('hidden'));
     if (key) this.els[key].classList.remove('hidden');
+  },
+
+  /* ---- 作弊面板 ---- */
+  openCheatPanel() {
+    this.els.cheat = this.els.cheat || document.getElementById('cheat-screen');
+    if (window.GAME && window.GAME.state === 'playing') window.GAME.pause();
+    this.refreshCheatPanel();
+    this.show('cheat');
+    Sound.keypadClick();
+  },
+  refreshCheatPanel() {
+    const G = window.GAME;
+    if (!G) return;
+    document.getElementById('ch-god').classList.toggle('on', G.cheats.god);
+    document.getElementById('ch-noclip').classList.toggle('on', G.cheats.noclip);
   },
 
   /* ---- 主菜单关卡选择 ---- */
