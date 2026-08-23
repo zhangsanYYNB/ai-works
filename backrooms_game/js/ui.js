@@ -45,7 +45,7 @@ const UI = {
     this.bindTap($('btn-death-menu'), () => { window.GAME.quitToMenu(); });
 
     /* 胜利 */
-    this.bindTap($('btn-next-level'), () => { window.GAME.nextLevel(); });
+    this.bindTap($('btn-next-level'), () => { if (window.GAME.nextLevel) window.GAME.nextLevel(); });
     this.bindTap($('btn-win-menu'), () => { window.GAME.quitToMenu(); });
 
     /* 作弊面板 */
@@ -122,7 +122,7 @@ const UI = {
       }
     });
 
-    this._buildLevelSelect();
+    this._buildCodex();
   },
 
   show(key) { this.els[key].classList.remove('hidden'); },
@@ -163,21 +163,31 @@ const UI = {
     document.getElementById('ch-noclip').classList.toggle('on', G.cheats.noclip);
   },
 
-  /* ---- 主菜单关卡选择 ---- */
-  _buildLevelSelect() {
-    const box = document.getElementById('level-select');
+  /* ---- 主菜单：层级图鉴（仅已发现的层级可传送） ---- */
+  _buildCodex() {
+    const box = document.getElementById('codex-grid');
+    if (!box) return;
     box.innerHTML = '';
-    const unlocked = Store.get('unlocked', 0);
+    const disc = Game.ensureDiscovered();
+    const KIND_ICON = { door: '🚪', elevator: '🛗', pipe: '🕳️', glitch: '⚡', hole: '⬇️', lightdoor: '✨' };
     LEVEL_CFGS.forEach(cfg => {
       const b = document.createElement('button');
-      b.className = 'level-btn' + (cfg.id <= unlocked ? '' : ' locked');
-      b.textContent = cfg.id <= unlocked ? (cfg.id + 1) : '🔒';
-      b.title = cfg.name;
-      b.addEventListener('click', () => window.GAME.startLevel(cfg.id));
+      if (disc[cfg.id]) {
+        const kinds = (cfg.exits || []).map(e => KIND_ICON[e.kind] || '?').join('');
+        b.className = 'codex-btn';
+        b.innerHTML = `<span class="cx-name">${cfg.short}</span><span class="cx-sub">${cfg.entity ? '⚠ ' + cfg.entity.name : '🕊 安全区'}</span><span class="cx-ic">${kinds}</span>`;
+        b.addEventListener('click', () => {
+          Sound.keypadClick();
+          window.GAME.startLevel(cfg.id);
+        });
+      } else {
+        b.className = 'codex-btn locked';
+        b.innerHTML = `<span class="cx-name">？？？</span><span class="cx-sub">尚未发现</span><span class="cx-ic">🔒</span>`;
+      }
       box.appendChild(b);
     });
   },
-  refreshLevelSelect() { this._buildLevelSelect(); },
+  refreshCodex() { this._buildCodex(); },
 
   /* ---- 难度 / 纪录 ---- */
   getDifficulty() { return Store.get('difficulty', 'normal'); },
@@ -187,13 +197,12 @@ const UI = {
   },
   refreshMenuStats() {
     const escapes = Store.get('escapes', 0);
-    const bests = Store.get('bestTimes', {});
-    let txt = escapes > 0 ? `🏆 已成功逃脱 ${escapes} 次` : '';
-    if (Object.keys(bests).length) {
-      const parts = Object.entries(bests).sort(([a], [b]) => a - b).map(([lv, t]) => `L${+lv + 1} ${t.toFixed(1)}s`);
-      txt += (txt ? ' · ' : '') + '最快：' + parts.join(' / ');
-    }
-    document.getElementById('menu-stats').innerHTML = txt ? txt + '<br>' : '';
+    const discN = (typeof Game !== 'undefined') ? Game.discoveredCount() : 1;
+    const notes = Store.get('notesTotal', 0);
+    let txt = `🗺 层级发现 <b>${discN} / ${LEVEL_CFGS.length}</b>`;
+    if (escapes > 0) txt += ` · 🏆 逃脱 ${escapes} 次`;
+    if (notes > 0) txt += ` · 📄 纸条 ${notes} 张`;
+    document.getElementById('menu-stats').innerHTML = txt + '<br>';
   },
 
   /* ---- HUD ---- */
@@ -243,11 +252,16 @@ const UI = {
       if (level.grid[y] && level.grid[y][x] === 0)
         ctx.fillRect(ox + x * scale, oy + y * scale, scale + 0.5, scale + 0.5);
     }
-    // 出口
-    if (this._exitSeen) {
-      const ex = ox + (level.exit.x / CELL) * scale, ez = oy + (level.exit.z / CELL) * scale;
-      ctx.fillStyle = level.exit.unlocked ? '#7fe85a' : '#e8b13a';
+    // 传送装置（走近后标记，按类型着色）
+    const DEV_COLOR = { door: '#e8b13a', elevator: '#7fb8ff', pipe: '#b09a6a', glitch: '#b08aff', hole: '#8a744a', lightdoor: '#fff7d0' };
+    for (let i = 0; i < level.exits.length; i++) {
+      const dev = level.exits[i];
+      if (U.dist2(player.pos.x, player.pos.z, dev.x, dev.z) < 26 * 26) this._seenDevs.add(i);
+      if (!this._seenDevs.has(i)) continue;
+      const ex = ox + (dev.x / CELL) * scale, ez = oy + (dev.z / CELL) * scale;
+      ctx.fillStyle = DEV_COLOR[dev.kind] || '#e8b13a';
       ctx.beginPath(); ctx.arc(ex, ez, 4, 0, 7); ctx.fill();
+      if (dev.kind === 'lightdoor') { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); }
     }
     // 实体（仅追逐时显示红点，增加紧张感）
     if (entity && entity.state === 'chase') {
@@ -267,8 +281,8 @@ const UI = {
     ctx.restore();
   },
 
-  markExitSeen() { this._exitSeen = true; },
-  resetMinimapState() { this._exitSeen = false; },
+  markExitSeen() {},
+  resetMinimapState() { this._seenDevs = new Set(); },
 
   /* ---- 纸条 ---- */
   showNote(title, body) {

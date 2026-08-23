@@ -1,11 +1,18 @@
-/* ============ 玩家：移动 / 视角 / 触屏控制 ============ */
+/* ============ 玩家：移动 / 视角 / 触屏控制 / 跳跃与重力 ============ */
 'use strict';
+
+const GRAVITY = -22;
+const JUMP_V = 5.2;
+const STEP_UP_MAX = 0.72;   // 可直接迈上的最大高差
 
 class Player {
   constructor(camera, canvas) {
     this.camera = camera;
     this.canvas = canvas;
     this.pos = new THREE.Vector3(CELL * 1.5, EYE_H, CELL * 1.5);
+    this.feetY = 0;          // 脚底高度
+    this.vy = 0;             // 垂直速度
+    this.onGround = true;
     this.yaw = Math.PI * 0.25;
     this.pitch = 0;
     this.radius = 0.34;
@@ -30,13 +37,27 @@ class Player {
     this.lookDX = 0; this.lookDY = 0;      // 待处理的视角增量
     this.moveVec = { x: 0, y: 0 };         // 摇杆向量 (-1..1)
     this.touchSprint = false;
+    this.wantJump = false;
 
     this._bobT = 0;
     this._stepT = 0;
     this.boostT = 0;   // 肾上腺素加速剩余时间
-    this.noclip = false; // 作弊：穿墙
+    this.noclip = false; // 作弊：穿墙（飞行）
 
     this._bindDesktop();
+  }
+
+  reset(x, z, yaw) {
+    this.pos.set(x, EYE_H, z);
+    this.yaw = yaw != null ? yaw : this.yaw;
+    this.pitch = 0;
+    const g = window.GAME;
+    const gy = g && g.level ? g.level.groundAt(x, z) : 0;
+    this.feetY = (gy > HOLE_DEPTH / 2) ? gy : 0;
+    this.vy = 0;
+    this.onGround = true;
+    this.stamina = 100;
+    this.boostT = 0;
   }
 
   /* ---------------- 桌面输入 ---------------- */
@@ -48,6 +69,7 @@ class Player {
       if (!G) return;
       if (e.code === 'KeyE') G.tryInteract();
       if (e.code === 'KeyF') G.toggleFlashlight();
+      if (e.code === 'Space') { this.wantJump = true; e.preventDefault(); }
     });
     document.addEventListener('keyup', e => { this.keys[e.code] = false; });
 
@@ -137,12 +159,14 @@ class Player {
 
     /* 动作按钮 */
     const bindBtn = (el, down, up) => {
+      if (!el) return;
       el.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); el.classList.add('pressed'); down(); }, { passive: false });
       el.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); el.classList.remove('pressed'); if (up) up(); }, { passive: false });
     };
     bindBtn(els.btnInteract, () => window.GAME && window.GAME.tryInteract());
     bindBtn(els.btnFlashlight, () => window.GAME && window.GAME.toggleFlashlight());
     bindBtn(els.btnSprint, () => { this.touchSprint = true; }, () => { this.touchSprint = false; });
+    bindBtn(els.btnJump, () => { this.wantJump = true; });
   }
 
   _updateJoy(x, y, cx, cy, R, out, setThumb) {
@@ -196,9 +220,48 @@ class Player {
       }
     }
 
+    /* ---- 垂直物理 ---- */
+    if (this.noclip) {
+      // 穿墙模式：悬浮飞行，不受重力
+      this.vy = 0;
+      const gHere = level ? level.groundAt(this.pos.x, this.pos.z) : 0;
+      this.feetY = Math.max(this.feetY, (gHere > HOLE_DEPTH / 2 ? gHere : 0));
+      this.onGround = false;
+    } else if (level) {
+      if (this.onGround) {
+        const g = level.groundAt(this.pos.x, this.pos.z);
+        if (g <= HOLE_DEPTH / 2 || g < this.feetY - 0.02) {
+          // 走出边缘 → 开始下落
+          this.onGround = false;
+          this.vy = 0;
+        } else {
+          this.feetY = g;
+        }
+        // 跳跃
+        if (this.wantJump && !paused && !(g <= HOLE_DEPTH / 2)) {
+          this.vy = JUMP_V;
+          this.onGround = false;
+          Sound.jump && Sound.jump();
+        }
+      }
+      if (!this.onGround) {
+        this.vy += GRAVITY * dt;
+        if (this.vy < -30) this.vy = -30;
+        this.feetY += this.vy * dt;
+        const g = level.groundAt(this.pos.x, this.pos.z);
+        if (this.vy <= 0 && g > HOLE_DEPTH / 2 && this.feetY <= g) {
+          this.feetY = g;
+          this.vy = 0;
+          this.onGround = true;
+          Sound.land && Sound.land();
+        }
+      }
+    }
+    this.wantJump = false;
+    if (this.boostT > 0) this.boostT -= dt;
+
     // 世界空间移动
     if (this.moving && !paused) {
-      if (this.boostT > 0) this.boostT -= dt;
       const speed = (this.running ? this.speedRun : this.speedWalk) * mag * (this.boostT > 0 ? 1.22 : 1);
       const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
       // 前方向（yaw=0 时面向 -Z）
@@ -214,8 +277,11 @@ class Player {
         this.pos.x = U.clamp(nx, -lim, level.W * CELL + lim);
         this.pos.z = U.clamp(nz, -lim, level.H * CELL + lim);
       } else {
-        if (!level.circleHitsWall(nx, this.pos.z, this.radius)) this.pos.x = nx;
-        if (!level.circleHitsWall(this.pos.x, nz, this.radius)) this.pos.z = nz;
+        // 高差阻挡：目标点地面比脚底高出太多则视为墙
+        const canGoX = this._passable(level, nx, this.pos.z);
+        const canGoZ = this._passable(level, this.pos.x, nz);
+        if (canGoX && !level.circleHitsWall(nx, this.pos.z, this.radius)) this.pos.x = nx;
+        if (canGoZ && !level.circleHitsWall(this.pos.x, nz, this.radius)) this.pos.z = nz;
       }
 
       // 头部晃动 & 脚步声
@@ -229,14 +295,23 @@ class Player {
       this._bobT = U.lerp(this._bobT, Math.round(this._bobT / Math.PI) * Math.PI, dt * 6);
     }
 
-    // 相机同步
+    // 相机同步（含垂直位置）
     const bobY = Math.sin(this._bobT) * (this.moving ? 0.035 : 0.008);
     const bobX = Math.cos(this._bobT * 0.5) * (this.moving ? 0.02 : 0);
-    this.camera.position.set(this.pos.x + bobX, EYE_H + bobY, this.pos.z);
+    this.camera.position.set(this.pos.x + bobX, this.feetY + EYE_H + bobY, this.pos.z);
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.y = this.yaw;
     this.camera.rotation.x = this.pitch;
     this.camera.rotation.z = Math.sin(this._bobT * 0.5) * 0.006;
+  }
+
+  /** 该目标点是否可以走过去（含高差判定） */
+  _passable(level, x, z) {
+    const g = level.groundAt(x, z);
+    if (g <= HOLE_DEPTH / 2) return true;              // 破洞：允许走出去然后坠落
+    if (this.onGround && g > this.feetY + STEP_UP_MAX) return false;  // 台阶太高
+    if (!this.onGround && this.vy <= 0 && g > this.feetY + 0.05 && this.feetY + 0.25 < g) return false; // 空中撞台侧壁
+    return true;
   }
 
   toggleFlashlight() {

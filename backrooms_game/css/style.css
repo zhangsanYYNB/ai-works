@@ -182,7 +182,9 @@ html, body {
   border-color: #d8bd57; box-shadow: 0 0 18px rgba(201,180,88,.25);
 }
 .menu-btn.primary:hover { box-shadow: 0 0 28px rgba(201,180,88,.5); }
-.level-select { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+/* 层级图鉴 */
+.codex-title { margin-top: 14px; color: #6d6544; font-size: 12px; letter-spacing: 3px; }
+.codex-grid { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; max-width: 720px; }
 .difficulty-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .diff-label { color: #8d7f47; font-size: 13px; letter-spacing: 3px; }
 .diff-btn {
@@ -211,13 +213,17 @@ html, body {
 .cheat-btn:hover { border-color: #d890ff; color: #fff; }
 .cheat-btn.on { background: rgba(160,60,200,.35); border-color: #e0a0ff; color: #ffeaff; }
 .cheat-btn.wide { width: 100%; }
-.level-btn {
-  width: 54px; height: 54px; border-radius: 8px; cursor: pointer;
+.codex-btn {
+  width: 108px; padding: 10px 6px 8px; border-radius: 10px; cursor: pointer;
   background: rgba(20,18,8,.75); border: 1px solid rgba(201,180,88,.4); color: #d8cba0;
-  font-size: 15px; font-weight: bold;
+  font-family: inherit; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
 }
-.level-btn.locked { opacity: .3; pointer-events: none; }
-.level-btn:hover { border-color: #c9b458; color: #fff2c4; }
+.codex-btn .cx-name { font-size: 13px; font-weight: bold; letter-spacing: 1px; color: #e8dba8; }
+.codex-btn .cx-sub { font-size: 10px; opacity: .7; letter-spacing: 1px; }
+.codex-btn .cx-ic { font-size: 12px; letter-spacing: 2px; opacity: .85; }
+.codex-btn.locked { opacity: .35; pointer-events: none; filter: grayscale(.7); }
+.codex-btn:hover { border-color: #c9b458; box-shadow: 0 0 18px rgba(201,180,88,.35); transform: translateY(-2px); }
 .menu-footer { margin-top: 30px; color: #6d6544; font-size: 12px; letter-spacing: 2px; }
 
 /* 面板（帮助/暂停/死亡/胜利） */

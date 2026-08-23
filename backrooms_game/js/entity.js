@@ -19,27 +19,36 @@ class Entity {
   }
 
   _buildMesh() {
+    const look = this.cfg.look || 'stalker';
     const g = new THREE.Group();
-    // 细长身体
-    const bodyMat = new THREE.MeshLambertMaterial({ color: 0x0a0a0c });
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.3, 1.7, 8), bodyMat);
-    body.position.y = 1.05;
+    // 外形变种：体色/体型
+    const bodyColor = look === 'wraith' ? 0x0d0d12 : (look === 'crawler' ? 0x14100a : 0x0a0a0c);
+    const bodyMat = new THREE.MeshLambertMaterial({ color: bodyColor });
+    const bodyH = look === 'crawler' ? 1.1 : 1.7;
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, look === 'crawler' ? 0.36 : 0.3, bodyH, 8), bodyMat);
+    body.position.y = bodyH * 0.62;
     // 头
+    const headY = bodyH * 1.2 + 0.35;
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 10, 10), bodyMat);
-    head.position.y = 2.05;
+    head.position.y = headY;
     head.scale.y = 1.35;
     // 发光眼睛
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const eyeBase = look === 'wraith' ? 0xffddaa : 0xffffff;
+    const eyeMat = new THREE.MeshBasicMaterial({ color: eyeBase });
     const e1 = new THREE.Mesh(new THREE.SphereGeometry(0.032, 6, 6), eyeMat);
-    e1.position.set(-0.07, 2.12, -0.15);
+    e1.position.set(-0.07, headY + 0.07, -0.15);
     const e2 = e1.clone(); e2.position.x = 0.07;
     // 手臂（细长下垂）
-    const armGeo = new THREE.CylinderGeometry(0.05, 0.04, 1.15, 6);
-    const a1 = new THREE.Mesh(armGeo, bodyMat); a1.position.set(-0.34, 1.28, 0); a1.rotation.z = 0.12;
-    const a2 = new THREE.Mesh(armGeo, bodyMat); a2.position.set(0.34, 1.28, 0); a2.rotation.z = -0.12;
+    const armLen = look === 'wraith' ? 1.45 : 1.15;
+    const armGeo = new THREE.CylinderGeometry(0.05, 0.04, armLen, 6);
+    const a1 = new THREE.Mesh(armGeo, bodyMat); a1.position.set(-0.34, bodyH * 0.75, 0); a1.rotation.z = 0.12;
+    const a2 = new THREE.Mesh(armGeo, bodyMat); a2.position.set(0.34, bodyH * 0.75, 0); a2.rotation.z = -0.12;
     g.add(body, head, e1, e2, a1, a2);
+    if (look === 'crawler') { g.scale.set(1.15, 0.72, 1.25); }
+    if (look === 'wraith') { g.scale.set(0.92, 1.18, 0.92); }
     this.mesh = g;
     this.eyeMat = eyeMat;
+    this._eyeBase = eyeBase;
   }
 
   addTo(scene) { scene.add(this.mesh); }
@@ -49,7 +58,12 @@ class Entity {
   findPath(sx, sy, tx, ty) {
     const grid = this.level.grid;
     const H = grid.length, W = grid[0].length;
-    if (tx < 0 || ty < 0 || tx >= W || ty >= H || grid[ty][tx] !== 0) return [];
+    const passable = (x, y) => {
+      if (x < 0 || y < 0 || x >= W || y >= H || grid[y][x] !== 0) return false;
+      const f = this.level.floorMap[y * W + x];
+      return f > HOLE_DEPTH / 2 && f <= 0.5;
+    };
+    if (!passable(tx, ty)) return [];
     const prev = new Map();
     const key = (x, y) => y * W + x;
     const q = [[sx, sy]];
@@ -71,7 +85,7 @@ class Entity {
       }
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const nx = x + dx, ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= W || ny >= H || grid[ny][nx] !== 0) continue;
+        if (!passable(nx, ny)) continue;
         const nk = key(nx, ny);
         if (!prev.has(nk)) { prev.set(nk, key(x, y)); q.push([nx, ny]); }
       }
@@ -88,7 +102,10 @@ class Entity {
     for (let i = 0; i < 30; i++) {
       const nx = U.clamp(px + rng.int(-7, 7), 1, this.level.W - 2);
       const ny = U.clamp(py + rng.int(-7, 7), 1, this.level.H - 2);
-      if (this.level.grid[ny][nx] === 0) return [nx, ny];
+      if (this.level.grid[ny][nx] !== 0) continue;
+      const f = this.level.floorMap[ny * this.level.W + nx];
+      if (f <= HOLE_DEPTH / 2 || f > 0.5) continue;
+      return [nx, ny];
     }
     return [px, py];
   }
@@ -179,12 +196,14 @@ class Entity {
 
     /* ---- 动画 & 同步 ---- */
     this.bob += dt * (this.state === 'chase' ? 11 : 5);
-    this.mesh.position.set(this.pos.x, Math.abs(Math.sin(this.bob)) * 0.06, this.pos.y);
+    const gy = L.groundAt(this.pos.x, this.pos.y);
+    const baseY = gy > HOLE_DEPTH / 2 ? gy : 0;
+    this.mesh.position.set(this.pos.x, baseY + Math.abs(Math.sin(this.bob)) * 0.06, this.pos.y);
     this.mesh.rotation.y = this.dir;
     // 眼睛：追逐时变红；无限追杀模式永远猩红
     if (this.state === 'chase' || this.cfg.alwaysChase) this.eyeMat.color.setHex(0xff2222);
-    else if (this.state === 'search') this.eyeMat.color.setHex(0xffcc66);
-    else this.eyeMat.color.setHex(0xdddddd);
+    else if (this.state === 'search') this.eyeMat.color.setHex(this._eyeBase === 0xffffff ? 0xffcc66 : 0xffaa44);
+    else this.eyeMat.color.setHex(this._eyeBase);
 
     /* ---- 抓捕判定 ---- */
     if (distP < this.cfg.catchRange) onCatch();

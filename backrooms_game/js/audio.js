@@ -78,6 +78,18 @@ const Sound = {
     this._burst(f, 0.09, (running ? 0.16 : 0.09) * (0.85 + Math.random() * 0.3));
   },
 
+  /* ---- 跳跃 / 落地 ---- */
+  jump() {
+    if (!this.ctx) return;
+    this._burst(500, 0.06, 0.06);
+    this._tone(300, 0.08, 0.03, 'sine', 80);
+  },
+  land() {
+    if (!this.ctx) return;
+    this._burst(300, 0.12, 0.14);
+    this._tone(90, 0.16, 0.06, 'sine', 40);
+  },
+
   /* ---- 实体呼吸声（距离衰减，随层级持续存在） ---- */
   _breathNodes: null,
   startBreath() {
@@ -152,7 +164,9 @@ const Sound = {
     this.stopAmbient();
     const ctx = this.ctx;
     const g = ctx.createGain();
-    g.gain.value = level >= 1 ? 0.015 : 0.05;
+    // 层级音量/音色分组：0 黄色房间最响；11 白色虚空几乎无声
+    const humVol = level === 11 ? 0.006 : (level === 5 ? 0.004 : (level >= 1 ? 0.02 : 0.05));
+    g.gain.value = humVol;
     // 120Hz 电流声
     const o1 = ctx.createOscillator(); o1.type = 'sine'; o1.frequency.value = 120;
     const o2 = ctx.createOscillator(); o2.type = 'sine'; o2.frequency.value = 240;
@@ -165,16 +179,16 @@ const Sound = {
     n.connect(nf); nf.connect(ng); ng.connect(g);
     g.connect(this.master);
     o1.start(); o2.start(); n.start();
-    // 水滴声（地下层）
+    // 水滴声（地下/潮湿层）
     let dripTimer = null;
-    if (level === 1) {
+    if ([1, 5, 6, 7, 9].includes(level)) {
       dripTimer = setInterval(() => {
-        if (Math.random() < 0.5) this._tone(this.ctx ? 1400 + Math.random() * 800 : 1500, 0.15, 0.05, 'sine', 500);
-      }, 4000);
+        if (Math.random() < (level === 6 ? 0.75 : 0.5)) this._tone(this.ctx ? 1400 + Math.random() * 800 : 1500, 0.15, 0.05, 'sine', 500);
+      }, level === 6 ? 3000 : 4000);
     }
-    // 警笛（追逐层）
+    // 警笛（深红警报）
     let siren = null;
-    if (level === 3) {
+    if (level === 10) {
       const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 640;
       const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.45;
       const lg = ctx.createGain(); lg.gain.value = 190;

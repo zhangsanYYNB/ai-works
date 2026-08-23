@@ -1,12 +1,12 @@
-/* ============ 主控制器：状态机 / 关卡流程 / 交互 ============ */
+/* ============ 主控制器：状态机 / 无缝探索 / 层级穿越 ============ */
 'use strict';
 
-/* 全局共享状态（level.js 的纸条文本会引用 levelCode） */
+/* 全局共享状态 */
 const GAME_STATE = { levelCode: '0000' };
 
 class Game {
   constructor() {
-    this.state = 'menu';   // menu | loading | playing | note | keypad | paused | dead | win
+    this.state = 'menu';   // menu | loading | playing | note | paused | dead | win | traveling
     this.levelIdx = 0;
     this.level = null;
     this.entity = null;
@@ -14,9 +14,14 @@ class Game {
     this.visited = new Set();
     this.notesRead = 0;
     this.itemsGot = 0;
+    this.levelsVisited = 0;
     this.startTime = 0;
     this.elapsed = 0;
     this._lastInteractTarget = null;
+    this.travelCooldown = 0;
+    this.hasKeycard = false;
+    this.hasFuse = false;
+    this.fuseUsed = false;
 
     /* 渲染器 */
     const canvas = document.getElementById('game-canvas');
@@ -50,13 +55,12 @@ class Game {
         btnInteract: document.getElementById('btn-interact'),
         btnFlashlight: document.getElementById('btn-flashlight'),
         btnSprint: document.getElementById('btn-sprint'),
+        btnJump: document.getElementById('btn-jump'),
       });
     }
 
     this.clock = new THREE.Clock();
     requestAnimationFrame(() => this._loop());
-
-    // 菜单背景小场景（简单旋转的黄色走廊氛围）——直接黑屏+CSS即可，省资源
   }
 
   _resize() {
@@ -65,10 +69,29 @@ class Game {
     this.renderer.setSize(innerWidth, innerHeight);
   }
 
+  /* ================= 进度（探索发现） ================= */
+  static ensureDiscovered() {
+    let d = Store.get('discovered', null);
+    if (!d || d.length !== LEVEL_CFGS.length) {
+      d = LEVEL_CFGS.map((c, i) => {
+        if (i === 0) return true;
+        // 迁移旧存档：unlocked>0 表示老玩家进度
+        return false;
+      });
+      const un = Store.get('unlocked', 0);
+      if (un > 0) for (let i = 0; i <= Math.min(un, LEVEL_CFGS.length - 1); i++) d[i] = true;
+      Store.set('discovered', d);
+    }
+    return d;
+  }
+  static discoveredCount() {
+    return Game.ensureDiscovered().filter(Boolean).length;
+  }
+
   /* ================= 关卡生命周期 ================= */
   startFromMenu() {
-    const unlocked = Store.get('unlocked', 0);
-    this.startLevel(Math.min(unlocked, LEVEL_CFGS.length - 1));
+    const last = Store.get('lastLevel', 0);
+    this.startLevel(U.clamp(last, 0, LEVEL_CFGS.length - 1));
   }
 
   startLevel(idx) {
@@ -95,20 +118,25 @@ class Game {
     setTimeout(() => {
       try {
         // 每次进入随机种子（地图重新生成）
-        const seed = (Date.now() & 0xffff) ^ (idx * 7919);
+        const seed = (Date.now() & 0xffff) ^ (idx * 7919) ^ (Math.random() * 0xffff);
         GAME_STATE.levelCode = String(Math.floor(1000 + Math.random() * 9000));
         this.level = new Level(cfg, seed);
         this.level.build(this.scene);
         this.scene.add(this.camera);   // 手电筒是相机子对象，必须把相机加入场景
         UI.setLoading(0.7);
 
-        // 玩家复位（面向迷宫中心，避免出生即面对墙角）
-        this.player.pos.set(this.level.playerStart[0], EYE_H, this.level.playerStart[1]);
+        // 玩家复位（面向迷宫中心）
+        const startX = this.level.playerStart[0], startZ = this.level.playerStart[1];
         const midX = this.level.W * CELL / 2, midZ = this.level.H * CELL / 2;
-        this.player.yaw = Math.atan2(-(midX - this.player.pos.x), -(midZ - this.player.pos.z));
+        this.player.pos.set(startX, EYE_H, startZ);
+        this.player.yaw = Math.atan2(-(midX - startX), -(midZ - startZ));
         this.player.pitch = 0;
+        const g0 = this.level.groundAt(startX, startZ);
+        this.player.feetY = g0 > HOLE_DEPTH / 2 ? g0 : 0;
+        this.player.vy = 0;
+        this.player.onGround = true;
         this.player.stamina = 100;
-      if (this.player.flashlightOn && cfg.dark) this.player.toggleFlashlight(); // 黑暗层默认关灯，玩家可自行开启
+        if (this.player.flashlightOn && cfg.dark && cfg.id !== 5) { /* 黑暗层保留玩家自己开灯的选择 */ }
 
         // 实体（按难度调整参数，克隆避免污染配置）
         this.entity = null;
@@ -138,25 +166,26 @@ class Game {
         this.visited = new Set();
         this.notesRead = 0;
         this.itemsGot = 0;
-        this.objectiveStep = 0;
-        this.hasKeycard = false;
-        this.hasFuse = false;
-        this.fuseUsed = false;
-        this.disks = 0;
-        this.terminalUsed = false;
         this.startTime = performance.now();
         this.elapsed = 0;
         this._deathHandled = false;
+        this.travelCooldown = 1.4;
         this.player.boostT = 0;
         this.player.noclip = this.cheats.noclip;
+
+        // 记录探索进度
+        const disc = Game.ensureDiscovered();
+        if (!disc[cfg.id]) { disc[cfg.id] = true; Store.set('discovered', disc); }
+        Store.set('lastLevel', cfg.id);
 
         UI.setLoading(1);
         setTimeout(() => {
           UI.showOnly(null);
           UI.setHUDVisible(true);
           UI.setLevelTag(cfg.name);
+          UI.setObjective(cfg.hint || '');
           UI.applyCrosshair();
-          this._refreshObjective();
+          this._updateInventory();
           const diffName = { easy: '🌿 轻松', normal: '⚔ 普通', hard: '💀 哥梦' }[UI.getDifficulty()] || '普通';
           UI.showToast(cfg.introText + '<br><span style="opacity:.75">难度：' + diffName + '</span>', 5200);
           UI.fadeIn();
@@ -167,22 +196,21 @@ class Game {
         }, 350);
       } catch (err) {
         console.error(err);
-        alert('关卡加载失败：' + err.message);
+        alert('层级加载失败：' + err.message);
         this.quitToMenu();
-      }    }, 60);
+      }
+    }, 60);
   }
 
-  restartLevel() { Sound.setChase(false); this.startLevel(this.levelIdx); }  nextLevel() {
-    if (this.levelIdx + 1 < LEVEL_CFGS.length) this.startLevel(this.levelIdx + 1);
-    else this.quitToMenu();
-  }
+  restartLevel() { Sound.setChase(false); this.startLevel(this.levelIdx); }
+
   quitToMenu() {
     Sound.setChase(false); Sound.stopAmbient(); Sound.stopBreath();
     UI.els.damage.style.opacity = 0;
     this.state = 'menu';
     UI.setHUDVisible(false);
     UI.showOnly('menu');
-    UI.refreshLevelSelect();
+    UI.refreshCodex();
     UI.refreshMenuStats();
     if (document.pointerLockElement) document.exitPointerLock();
   }
@@ -207,6 +235,71 @@ class Game {
     if (this.state === 'note') { this.state = 'playing'; }
   }
 
+  /* ================= 层级穿越 ================= */
+  travelTo(levelId, viaLabel) {
+    if (this.state !== 'playing') return;
+    if (levelId < 0) { this._ending(); return; }
+    Sound.setChase(false);
+    Sound.doorOpen();
+    this.state = 'traveling';
+    UI.setHUDVisible(false);
+    UI.showOnly('loading');
+    UI.setLoading(0.5);
+    const fromName = this.level.cfg.short;
+    setTimeout(() => {
+      this.startLevel(U.clamp(levelId, 0, LEVEL_CFGS.length - 1));
+      const toName = LEVEL_CFGS[levelId].short;
+      const first = Game.ensureDiscovered()[levelId];
+      setTimeout(() => {
+        UI.showToast(`⬇ ${viaLabel || '穿行'}：<b>${fromName}</b> → <b>${toName}</b>${first ? '　✨ 新层级！' : ''}`, 3000);
+      }, 600);
+    }, 420);
+  }
+
+  /** 每帧检测自动触发型装置（破洞坠落 / 现实裂缝） */
+  _checkTransits(dt) {
+    if (this.travelCooldown > 0) { this.travelCooldown -= dt; return; }
+    const L = this.level, p = this.player;
+    // 破洞坠落：掉到足够深时传送
+    if (p.feetY < -3 && !p.onGround) {
+      const [cx, cy] = L.worldToCell(p.pos.x, p.pos.z);
+      const hole = L.holeCells.find(h => h.cx === cx && h.cy === cy);
+      if (hole) { this.travelTo(hole.to, '🕳️ 坠入破洞'); return; }
+      // 掉进没有装置的洞（理论不会发生）：拉回地面
+      p.feetY = 0; p.vy = 0; p.onGround = true;
+    }
+    // 现实裂缝：直接走入
+    for (const dev of L.exits) {
+      if (dev.kind !== 'glitch' || dev.used) continue;
+      if (U.dist2(p.pos.x, p.pos.z, dev.x, dev.z) < 1.05 * 1.05) {
+        dev.used = true;
+        this.travelTo(dev.to, '⚡ 穿过现实裂缝');
+        return;
+      }
+    }
+  }
+
+  /** 使用需要交互的装置（门 / 电梯 / 管道 / 光之门） */
+  _useDevice(dev) {
+    if (dev.kind === 'lightdoor' && dev.ending) { dev.used = true; this._ending(); return; }
+    if (dev.needsPower && !this.level.powerOn) {
+      Sound.doorLocked();
+      UI.showToast('🛗 电梯没电。这层某处有配电箱……先找到保险丝', 3200);
+      return;
+    }
+    if (dev.lock === 'keycard' && !this.hasKeycard) {
+      Sound.doorLocked();
+      UI.showToast('🔒 门禁读卡器红光闪烁——需要一张 <b>门禁卡</b>', 2800);
+      return;
+    }
+    if (dev.kind === 'door') Sound.doorOpen();
+    else if (dev.kind === 'elevator') { Sound.fuseOn(); }
+    dev.used = true;
+    this.travelTo(dev.to, dev.label);
+  }
+
+  checkCode(input) { return input === GAME_STATE.levelCode; }
+
   /* ================= 交互 ================= */
   toggleFlashlight() {
     if (this.state !== 'playing') return;
@@ -215,21 +308,15 @@ class Game {
     UI.showToast(on ? '🔦 手电筒已开启' : '手电筒已关闭', 1200);
   }
 
-  /** 找到玩家面前的最近可交互物 */
+  /** 找到玩家附近的最近可交互物（含装置） */
   _findInteractable() {
+    if (!this.level) return null;
     const p = this.player.pos;
-    let best = null, bestD = 2.3 * 2.3;
+    let best = null, bestD = 2.2 * 2.2;
     for (const it of this.level.items) {
       if (it.taken) continue;
       const d = U.dist2(p.x, p.z, it.x, it.z);
       if (d < bestD) { best = it; bestD = d; }
-    }
-    // 出口
-    if (this.level.exit && !this.level.exit.used) {
-      const d = U.dist2(p.x, p.z, this.level.exit.x, this.level.exit.z);
-      if (d < 3.4 * 3.4) {
-        return { type: 'exit', x: this.level.exit.x, z: this.level.exit.z };
-      }
     }
     return best;
   }
@@ -238,31 +325,30 @@ class Game {
     if (this.state !== 'playing') return;
     const target = this._findInteractable();
     if (!target) return;
-    if (target.type === 'exit') { this._tryExit(); return; }
 
     switch (target.type) {
+      case 'device':
+        this._useDevice(target.ref);
+        break;
       case 'keycard':
         target.taken = true; target.mesh.visible = false;
         this.hasKeycard = true; this.itemsGot++;
         Sound.pickup();
         UI.showToast('🔑 拾取了 <b>门禁卡</b>', 2200);
-        this.level.unlockExit();
-        this._advanceObjective();
         break;
       case 'fuse':
         target.taken = true; target.mesh.visible = false;
         this.hasFuse = true; this.itemsGot++;
         Sound.pickup();
         UI.showToast('🔌 拾取了 <b>保险丝</b>，去找配电箱', 2600);
-        this._advanceObjective();
         break;
-      case 'disk':
+      case 'almond':
         target.taken = true; target.mesh.visible = false;
-        this.disks++; this.itemsGot++;
+        this.player.stamina = 100;
+        this.player.boostT = Math.max(this.player.boostT, 4);
+        this.itemsGot++;
         Sound.pickup();
-        UI.showToast(`💾 拾取了软盘（${this.disks}/3）`, 2000);
-        if (this.disks >= 3) this._advanceObjective();
-        else this._refreshObjective();
+        UI.showToast('🧴 <b>杏仁水！</b>体力全满，脚步轻快了几分', 2400);
         break;
       case 'adrenaline':
         target.taken = true; target.mesh.visible = false;
@@ -270,21 +356,14 @@ class Game {
         this.player.boostT = 8;
         this.itemsGot++;
         Sound.pickup();
-        UI.showToast('💉 <b>肾上腺素！</b>体力全满，8 秒爆发加速', 2400);
+        UI.showToast('💉 <b>肾上腺素！</b>8 秒爆发加速', 2400);
         break;
       case 'note':
         target.taken = true; target.mesh.visible = false;
         this.notesRead++; this.itemsGot++;
+        Store.set('notesTotal', Store.get('notesTotal', 0) + 1);
         this.state = 'note';
         UI.showNote(target.title, target.body);
-        this._updateInventory();
-        break;
-      case 'notecode':
-        target.taken = true; target.mesh.visible = false;
-        this.notesRead++; this.itemsGot++;
-        this.state = 'note';
-        UI.showNote(target.title, target.body);
-        this._updateInventory();
         break;
       case 'powerbox':
         if (!this.fuseUsed) {
@@ -292,9 +371,7 @@ class Game {
             this.fuseUsed = true;
             this.level.setPower(true);
             Sound.fuseOn();
-            UI.showToast('💡 电力恢复了！灯光亮起——但它们也看得见你了', 3200);
-            this._advanceObjective();
-            this._updateInventory();
+            UI.showToast('💡 电力恢复了！灯光亮起——电梯可以用了', 3200);
           } else {
             Sound.doorLocked();
             UI.showToast('⚠️ 配电箱缺少保险丝，先在黑暗中找到它', 2600);
@@ -303,62 +380,9 @@ class Game {
           UI.showToast('配电箱运行正常。', 1500);
         }
         break;
-      case 'terminal':
-        if (!this.terminalUsed) {
-          if (this.disks >= 3) {
-            this.terminalUsed = true;
-            this.level.unlockTerminal();
-            Sound.keypadOk();
-            UI.showToast('🖥️ 终端激活！白光之门已在某处打开……跟着感觉走', 3400);
-            this._advanceObjective();
-            this._updateInventory();
-          } else {
-            Sound.doorLocked();
-            UI.showToast(`🖥️ 终端需要 3 张软盘（当前 ${this.disks}/3）`, 2400);
-          }
-        } else {
-          UI.showToast('终端：出口已开放。快走。', 1800);
-        }
-        break;
     }
-    if (target.type !== 'note' && target.type !== 'notecode') this._updateInventory();
+    this._updateInventory();
   }
-
-  _tryExit() {
-    const exit = this.level.exit;
-    const cfg = this.level.cfg;
-    if (cfg.id === 0 && !this.hasKeycard) {
-      Sound.doorLocked();
-      UI.showToast('🔒 门禁卡读卡器红光闪烁——你需要一张门禁卡', 2600);
-      return;
-    }
-    if (cfg.id === 1 && !exit.unlocked) {
-      // 打开密码锁
-      this.state = 'keypad';
-      Sound.doorOpen();
-      UI.openKeypad(ok => {
-        this.state = 'playing';
-        if (ok) {
-          this.level.unlockExit();
-          UI.showToast('✅ 密码正确！电梯门缓缓打开', 2600);
-          this._advanceObjective();
-        } else {
-          UI.showToast('❌ 密码错误', 1600);
-        }
-      });
-      return;
-    }
-    if (!exit.unlocked && cfg.id !== 0) {
-      Sound.doorLocked();
-      UI.showToast('这扇门还没有解锁。', 1800);
-      return;
-    }
-    // 过关
-    exit.used = true;
-    this._winLevel();
-  }
-
-  checkCode(input) { return input === GAME_STATE.levelCode; }
 
   /* ================= 秘籍后门 ================= */
   cheats = { god: false, noclip: false };
@@ -386,29 +410,27 @@ class Game {
       this.player.noclip = C.noclip;
       UI.showToast(C.noclip ? '🚧 <b>穿墙模式</b> 已开启——墙壁只是建议' : '穿墙模式已关闭', 2400);
     } else if (action === 'kfa') {
-      if (!this.level) return;
-      const id = this.level.cfg.id;
-      if (id === 0) { this.hasKeycard = true; UI.showToast('🔑 门禁卡已到手', 2200); }
-      else if (id === 1) {
-        this.hasFuse = true;
-        UI.showToast(`🎒 补给包：保险丝 ×1<br>🔐 门锁密码：<b style="letter-spacing:4px">${GAME_STATE.levelCode}</b>`, 6000);
-      } else if (id === 2) {
-        this.disks = Math.max(this.disks, 3);
-        UI.showToast('💾 软盘 ×3 已到手', 2200);
-      } else {
-        this.player.stamina = 100; this.player.boostT = 10;
-        UI.showToast('💉 肾上腺素直接打进心臟！10 秒爆发', 2400);
-      }
-      this.player.stamina = Math.max(this.player.stamina, 100);
+      this.hasKeycard = true;
+      this.hasFuse = true;
+      this.player.stamina = 100; this.player.boostT = 10;
+      UI.showToast('🎒 补给包：门禁卡 ×1　保险丝 ×1<br>💉 肾上腺素直接注射！', 4000);
       this._updateInventory();
-      this._refreshObjective();
     } else if (action === 'skip') {
-      UI.showToast('⏭️ 好吧，这层就当过去了……', 1800);
-      setTimeout(() => this._winLevel(), 700);
+      if (!this.level) return;
+      const exs = this.level.cfg.exits.filter(e => e.to >= 0);
+      if (!exs.length) return;
+      const pick = exs[Math.floor(Math.random() * exs.length)];
+      UI.showToast('⏭️ 现实在眼前折叠了……', 1600);
+      setTimeout(() => {
+        if (pick.kind === 'hole') this.travelTo(pick.to, '🕳️ 坠入破洞');
+        else if (pick.kind === 'glitch') this.travelTo(pick.to, '⚡ 穿过现实裂缝');
+        else this.travelTo(pick.to, pick.kind === 'elevator' ? '🛗 电梯下行' : (pick.kind === 'pipe' ? '🕳️ 爬过管道' : '🚪 推门'));
+      }, 700);
     } else if (action === 'unlockall') {
-      Store.set('unlocked', LEVEL_CFGS.length - 1);
-      UI.refreshLevelSelect();
-      UI.showToast('🔓 全部层级已解锁', 2200);
+      const d = LEVEL_CFGS.map(() => true);
+      Store.set('discovered', d);
+      UI.refreshCodex();
+      UI.showToast('🔓 全部层级已在图鉴中点亮', 2200);
     } else if (action === 'reset') {
       C.god = false; C.noclip = false; this.player.noclip = false;
       UI.showToast('🧹 作弊已全部关闭，祝你好运', 2200);
@@ -416,35 +438,20 @@ class Game {
     this._updateCheatBadge();
   }
   _updateCheatBadge() {
-    document.getElementById('cheat-badge').classList.toggle('hidden', !(this.cheats.god || this.cheats.noclip));
-  }
-
-  /* ================= 目标流程 ================= */
-  _refreshObjective() {
-    const flow = this.level.cfg.objectiveFlow;
-    UI.setObjective(flow[Math.min(this.objectiveStep, flow.length - 1)]);
-  }
-  _advanceObjective() {
-    this.objectiveStep++;
-    this._refreshObjective();
+    const b = document.getElementById('cheat-badge');
+    if (b) b.classList.toggle('hidden', !(this.cheats.god || this.cheats.noclip));
   }
 
   _updateInventory() {
     const items = [];
-    if (this.level.cfg.id === 0) {
-      items.push({ icon: '🔑', label: '门禁卡', count: 1, used: !this.hasKeycard ? false : false });
-      if (this.hasKeycard) items[0].used = false; else items.length = 0;
-    } else if (this.level.cfg.id === 1) {
-      if (this.hasFuse && !this.fuseUsed) items.push({ icon: '🔌', label: '保险丝', count: 1 });
-      if (this.fuseUsed) items.push({ icon: '🔌', label: '保险丝', count: 1, used: true });
-    } else {
-      if (this.disks > 0) items.push({ icon: '💾', label: '软盘', count: this.disks, used: this.terminalUsed });
-    }
+    if (this.hasKeycard) items.push({ icon: '🔑', label: '门禁卡', count: 1 });
+    if (this.hasFuse && !this.fuseUsed) items.push({ icon: '🔌', label: '保险丝', count: 1 });
+    if (this.fuseUsed) items.push({ icon: '🔌', label: '保险丝', count: 1, used: true });
     if (this.notesRead > 0) items.push({ icon: '📄', label: '纸条', count: this.notesRead });
     UI.setInventory(items);
   }
 
-  /* ================= 死亡 / 胜利 ================= */
+  /* ================= 死亡 / 结局 ================= */
   onDeath() {
     if (this._deathHandled || this.state !== 'playing') return;
     this._deathHandled = true;
@@ -466,41 +473,25 @@ class Game {
     }, 550);
   }
 
-  _winLevel() {
+  _ending() {
     this.state = 'win';
     Sound.win();
     Sound.setChase(false);
     Sound.stopAmbient();
-    const cfg = this.level.cfg;
-    const isLast = cfg.id === LEVEL_CFGS.length - 1;
-    // 解锁进度
-    const unlocked = Store.get('unlocked', 0);
-    Store.set('unlocked', Math.max(unlocked, Math.min(cfg.id + 1, LEVEL_CFGS.length - 1)));
-    if (isLast) Store.set('unlocked', LEVEL_CFGS.length - 1);
-    if (document.pointerLockElement) document.exitPointerLock();
-    // 最佳纪录与逃脱次数
-    const bests = Store.get('bestTimes', {});
-    const prevBest = bests[cfg.id];
-    const isRecord = !prevBest || this.elapsed < prevBest;
-    if (isRecord) { bests[cfg.id] = this.elapsed; Store.set('bestTimes', bests); }
     Sound.stopBreath();
+    if (document.pointerLockElement) document.exitPointerLock();
+    Store.set('escapes', Store.get('escapes', 0) + 1);
     UI.els.damage.style.opacity = 0;
+    const discN = Game.discoveredCount();
+    const notesTotal = Store.get('notesTotal', 0);
     setTimeout(() => {
       UI.setHUDVisible(false);
-      if (isLast) {
-        Store.set('escapes', Store.get('escapes', 0) + 1);
-        UI.els.winTitle.textContent = '🌅 你逃出来了';
-        UI.els.winText.innerHTML = '穿过白光的瞬间，你闻到了雨后泥土的味道。<br>天空是真的天空。而你永远不会忘记那嗡嗡作响的黄色房间。';
-        document.getElementById('btn-next-level').classList.add('hidden');
-      } else {
-        UI.els.winTitle.textContent = `✅ ${cfg.name} · 已突破`;
-        const nextCfg = LEVEL_CFGS[cfg.id + 1];
-        UI.els.winText.innerHTML = `电梯门在身后合拢。<br>下一层：<b>${nextCfg.name}</b>`;
-        document.getElementById('btn-next-level').classList.remove('hidden');
-      }
+      UI.els.winTitle.textContent = '🌅 你逃出来了';
+      UI.els.winText.innerHTML = '穿过白光的瞬间，你闻到了雨后泥土的味道。<br>天空是真的天空。而你永远不会忘记那嗡嗡作响的黄色房间。';
       UI.els.winStats.innerHTML =
-        `⏱ 用时 ${fmtTime(this.elapsed)}${isRecord ? '　🏆 新纪录！' : ''}　·　📄 纸条 ${this.notesRead} 张　·　📦 物品 ${this.itemsGot} 件` +
-        (prevBest && !isRecord ? `<br><span style="opacity:.65">本层最佳 ${fmtTime(prevBest)}</span>` : '');
+        `🗺 已发现的层级 <b>${discN} / ${LEVEL_CFGS.length}</b>　·　📄 累计纸条 ${notesTotal} 张<br>` +
+        `<span style="opacity:.75">每一次坠落都不是终点，只是另一段走廊的开始。</span>`;
+      document.getElementById('btn-next-level').classList.add('hidden');
       UI.showOnly('win');
     }, 700);
   }
@@ -510,12 +501,14 @@ class Game {
     requestAnimationFrame(() => this._loop());
     const dt = Math.min(this.clock.getDelta(), 0.05);
 
-    if (this.state === 'playing' || this.state === 'note' || this.state === 'keypad') {
+    if ((this.state === 'playing' || this.state === 'note') && this.level) {
       const pausedLike = this.state !== 'playing';
       this.elapsed += dt;
 
       this.player.update(dt, this.level, pausedLike);
       this.level.update(dt);
+
+      if (!pausedLike) this._checkTransits(dt);
 
       if (this.entity && !pausedLike) {
         this.entity.update(dt, this.player.pos, this.player.running, this.player.flashlightOn, () => {
@@ -530,33 +523,37 @@ class Game {
         const cx = pcx + dx, cy = pcy + dy;
         if (cx >= 0 && cy >= 0 && cx < this.level.W && cy < this.level.H) this.visited.add(cy * this.level.W + cx);
       }
-      // 出口被发现则显示在小地图
-      if (!UI._exitSeen && this.level.exit) {
-        if (U.dist2(this.player.pos.x, this.player.pos.z, this.level.exit.x, this.level.exit.z) < 30 * 30)
-          UI.markExitSeen();
-      }
 
       // 交互提示
       if (!pausedLike) {
         const t = this._findInteractable();
-        const key = t ? t.type : null;
+        const key = t ? (t.type === 'device' ? 'dev' + t.ref.kind : t.type) : null;
         if (key !== this._lastInteractTarget) {
           this._lastInteractTarget = key;
           if (!t) UI.prompt(null);
           else {
-            const label = {
-              exit: this.level.cfg.id === 0 ? (this.hasKeycard ? '🚪 刷卡离开' : '🚪 检查出口')
-                : this.level.cfg.id === 1 ? (this.level.exit.unlocked ? '🚪 进入电梯' : '🔒 输入密码')
-                : (this.level.exit.unlocked ? '🚪 穿过白光之门' : '🚪 检查出口'),
-              keycard: '🔑 拾取门禁卡',
-              fuse: '🔌 拾取保险丝',
-              disk: '💾 拾取软盘',
-              adrenaline: '💉 注射肾上腺素',
-              note: '📄 阅读纸条',
-              notecode: '📄 阅读纸条',
-              powerbox: this.hasFuse && !this.fuseUsed ? '💡 安装保险丝' : '⚡ 检查配电箱',
-              terminal: this.disks >= 3 && !this.terminalUsed ? '🖥️ 插入软盘' : '🖥️ 使用终端',
-            }[t.type] || '互动';
+            let label = '互动';
+            if (t.type === 'device') {
+              const dev = t.ref;
+              if (dev.kind === 'door') {
+                label = (dev.lock === 'keycard' && !this.hasKeycard) ? '🔒 检查门禁门' : '🚪 推门而入 → ' + this._destName(dev.to);
+              } else if (dev.kind === 'elevator') {
+                label = (dev.needsPower && !this.level.powerOn) ? '🛗 电梯（没电）' : '🛗 乘电梯 → ' + this._destName(dev.to);
+              } else if (dev.kind === 'pipe') {
+                label = '🕳️ 爬进管道 → ' + this._destName(dev.to);
+              } else if (dev.kind === 'lightdoor') {
+                label = dev.ending ? '✨ 走进白光（离开后室）' : '✨ 穿过光之门';
+              }
+            } else {
+              label = {
+                keycard: '🔑 拾取门禁卡',
+                fuse: '🔌 拾取保险丝',
+                almond: '🧴 喝下杏仁水',
+                adrenaline: '💉 注射肾上腺素',
+                note: '📄 阅读纸条',
+                powerbox: this.hasFuse && !this.fuseUsed ? '💡 安装保险丝' : '⚡ 检查配电箱',
+              }[t.type] || '互动';
+            }
             UI.prompt((IS_TOUCH ? '✋ ' : '[E] ') + label);
           }
         }
@@ -580,7 +577,7 @@ class Game {
         UI.els.damage.style.opacity = 0;
       }
 
-      // LEVEL 0 黑影彩蛋：远处走廊闪现一瞬
+      // 黑影彩蛋：远处走廊闪现一瞬
       const sf = this.level.shadowFigure;
       if (sf) {
         this.level.shadowTimer -= dt;
@@ -588,7 +585,7 @@ class Game {
           this.level.shadowActiveT -= dt;
           if (this.level.shadowActiveT <= 0) sf.visible = false;
         } else if (this.level.shadowTimer <= 0) {
-          // 先在视线锥形范围内（±40°）找，找不到则放宽到全向（转身才能瞥见的黑影更渗人）
+          // 先在视线锥形范围内（±40°）找，找不到则放宽到全向
           const sfL = this.level;
           for (let attempt = 0; attempt < 60; attempt++) {
             const ang = attempt < 30
@@ -598,10 +595,11 @@ class Game {
             const dist = 9 + Math.random() * 5;
             const gx = this.player.pos.x + fx * dist, gz = this.player.pos.z + fz * dist;
             const cx = Math.floor(gx / CELL), cy = Math.floor(gz / CELL);
-            if (!sfL.isSolidCell(cx, cy) &&
+            if (!sfL.isSolidCell(cx, cy) && sfL.groundAt(gx, gz) > HOLE_DEPTH / 2 &&
                 sfL.losClear(this.player.pos.x, this.player.pos.z, (cx + 0.5) * CELL, (cy + 0.5) * CELL)) {
-              sf.position.set((cx + 0.5) * CELL, 0, (cy + 0.5) * CELL);
-              sf.lookAt(this.player.pos.x, 0, this.player.pos.z);
+              const gy = sfL.groundAt((cx + 0.5) * CELL, (cy + 0.5) * CELL);
+              sf.position.set((cx + 0.5) * CELL, gy > HOLE_DEPTH / 2 ? gy : 0, (cy + 0.5) * CELL);
+              sf.lookAt(this.player.pos.x, sf.position.y, this.player.pos.z);
               sf.visible = true;
               this.level.shadowActiveT = 1.4 + Math.random() * 0.8;
               Sound._tone(52, 1.2, 0.06, 'sine', 40); // 极低频嗡鸣
@@ -610,12 +608,6 @@ class Game {
           }
           this.level.shadowTimer = 45 + Math.random() * 50;   // 下次触发间隔
         }
-      }
-
-      // 追逐层：接近出口时更新目标提示
-      if (this.level.cfg.alarm && this.objectiveStep === 0 &&
-          U.dist2(this.player.pos.x, this.player.pos.z, this.level.exit.x, this.level.exit.z) < 26 * 26) {
-        this._advanceObjective();
       }
 
       UI.setStamina(this.player.stamina, this.player.running);
@@ -637,6 +629,10 @@ class Game {
     }
 
     if (this.scene) this.renderer.render(this.scene, this.camera);
+  }
+
+  _destName(id) {
+    return id < 0 ? '？？？' : (LEVEL_CFGS[id].name.split('·')[1] || LEVEL_CFGS[id].short).trim();
   }
 }
 

@@ -385,3 +385,185 @@ const Tex = {
     return c;
   },
 };
+
+/* ==================== v2 探索版新增纹理 ==================== */
+Object.assign(Tex, {
+  /* 恐怖酒店：暗红条纹墙纸 */
+  hotelWall() {
+    if (this._cache.hw) return this._cache.hw;
+    const W = 512, H = 512;
+    const c = this._canvas(W, H), ctx = c.getContext('2d');
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#5e3428'); bg.addColorStop(1, '#47241b');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    for (let x = 0; x < W; x += 48) {
+      ctx.fillStyle = 'rgba(20,8,4,0.35)'; ctx.fillRect(x, 0, 18, H);
+      ctx.fillStyle = 'rgba(190,120,80,0.10)'; ctx.fillRect(x + 26, 0, 6, H);
+    }
+    // 大马士革花纹（简化菱形花）
+    ctx.strokeStyle = 'rgba(160,90,55,0.28)'; ctx.lineWidth = 1.6;
+    for (let y = 40; y < H; y += 96) for (let x = ((y / 96) % 2 ? 24 : 72); x < W; x += 96) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - 26); ctx.quadraticCurveTo(x + 20, y, x, y + 26);
+      ctx.quadraticCurveTo(x - 20, y, x, y - 26); ctx.stroke();
+    }
+    const rng = new RNG(2024);
+    this._stains(ctx, W, H, 10, 'rgba(15,6,3,0.30)', rng);
+    const gr = ctx.createLinearGradient(0, H * 0.75, 0, H);
+    gr.addColorStop(0, 'rgba(12,5,2,0)'); gr.addColorStop(1, 'rgba(12,5,2,0.55)');
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+    this._noise(ctx, W, H, 0.08);
+    this._cache.hw = c; return c;
+  },
+
+  /* 酒店：旧红地毯 */
+  redCarpet() {
+    if (this._cache.rc) return this._cache.rc;
+    const S = 512;
+    const c = this._canvas(S, S), ctx = c.getContext('2d');
+    ctx.fillStyle = '#571e1a'; ctx.fillRect(0, 0, S, S);
+    for (let i = 0; i < 22000; i++) {
+      const x = Math.random() * S, y = Math.random() * S;
+      ctx.fillStyle = Math.random() < 0.5 ? 'rgba(25,8,6,0.3)' : 'rgba(150,60,45,0.2)';
+      ctx.fillRect(x, y, 2, 1);
+    }
+    // 金色边框花纹
+    ctx.strokeStyle = 'rgba(180,140,60,0.4)'; ctx.lineWidth = 5;
+    ctx.strokeRect(14, 14, S - 28, S - 28);
+    ctx.strokeStyle = 'rgba(180,140,60,0.22)'; ctx.lineWidth = 2;
+    ctx.strokeRect(30, 30, S - 60, S - 60);
+    const rng = new RNG(4321);
+    this._stains(ctx, S, S, 14, 'rgba(10,3,2,0.35)', rng);
+    this._noise(ctx, S, S, 0.09);
+    this._cache.rc = c; return c;
+  },
+
+  /* 病房：白瓷砖墙 */
+  tileWall() {
+    if (this._cache.tw) return this._cache.tw;
+    const S = 512;
+    const c = this._canvas(S, S), ctx = c.getContext('2d');
+    ctx.fillStyle = '#b8bdb4'; ctx.fillRect(0, 0, S, S);
+    const T = 128;
+    for (let y = 0; y < S; y += T) for (let x = 0; x < S; x += T) {
+      const v = 178 + Math.floor(Math.random() * 22);
+      ctx.fillStyle = `rgb(${v},${v + 4},${v - 2})`;
+      ctx.fillRect(x + 3, y + 3, T - 6, T - 6);
+    }
+    const rng = new RNG(808);
+    this._stains(ctx, S, S, 9, 'rgba(70,90,60,0.18)', rng);
+    this._stains(ctx, S, S, 6, 'rgba(60,30,20,0.14)', rng);
+    // 裂砖
+    ctx.strokeStyle = 'rgba(40,44,38,0.5)'; ctx.lineWidth = 1.5;
+    for (let k = 0; k < 4; k++) {
+      let x = rng.range(0, S), y = rng.range(0, S);
+      ctx.beginPath(); ctx.moveTo(x, y);
+      for (let s = 0; s < 5; s++) { x += rng.range(-40, 40); y += rng.range(-40, 40); ctx.lineTo(x, y); }
+      ctx.stroke();
+    }
+    this._noise(ctx, S, S, 0.06);
+    this._cache.tw = c; return c;
+  },
+
+  /* 病房：绿白地砖 */
+  tileFloor() {
+    if (this._cache.tf) return this._cache.tf;
+    const S = 256;
+    const c = this._canvas(S, S), ctx = c.getContext('2d');
+    for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
+      ctx.fillStyle = (x + y) % 2 === 0 ? '#9aa894' : '#c8ccc0';
+      ctx.fillRect(x * 128, y * 128, 128, 128);
+    }
+    const rng = new RNG(909);
+    this._stains(ctx, S, S, 10, 'rgba(50,60,42,0.3)', rng);
+    this._stains(ctx, S, S, 4, 'rgba(90,30,20,0.16)', rng);
+    ctx.strokeStyle = 'rgba(60,66,56,0.65)'; ctx.lineWidth = 3;
+    ctx.strokeRect(0, 0, S, S);
+    ctx.beginPath(); ctx.moveTo(S / 2, 0); ctx.lineTo(S / 2, S); ctx.moveTo(0, S / 2); ctx.lineTo(S, S / 2); ctx.stroke();
+    this._noise(ctx, S, S, 0.07);
+    this._cache.tf = c; return c;
+  },
+
+  /* 管道长廊：铆钉金属墙 */
+  pipeWall() {
+    if (this._cache.pw) return this._cache.pw;
+    const S = 512;
+    const c = this._canvas(S, S), ctx = c.getContext('2d');
+    ctx.fillStyle = '#3a4038'; ctx.fillRect(0, 0, S, S);
+    const rng = new RNG(5150);
+    this._stains(ctx, S, S, 14, 'rgba(90,60,25,0.35)', rng);
+    this._stains(ctx, S, S, 10, 'rgba(8,10,8,0.45)', rng);
+    // 横向面板缝 + 铆钉
+    for (let y = 0; y < S; y += 128) {
+      ctx.strokeStyle = 'rgba(15,18,14,0.9)'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(S, y); ctx.stroke();
+      ctx.fillStyle = 'rgba(120,130,120,0.5)';
+      for (let x = 16; x < S; x += 64) { ctx.beginPath(); ctx.arc(x, y + 14, 4, 0, 7); ctx.fill(); }
+    }
+    // 竖管
+    ctx.fillStyle = '#2c332c'; ctx.fillRect(S * 0.3, 0, 34, S);
+    ctx.fillStyle = 'rgba(140,150,140,0.18)'; ctx.fillRect(S * 0.3 + 4, 0, 6, S);
+    this._noise(ctx, S, S, 0.1);
+    this._cache.pw = c; return c;
+  },
+
+  /* 矿洞：泥土岩壁 */
+  dirtWall() {
+    if (this._cache.dw) return this._cache.dw;
+    const S = 512;
+    const c = this._canvas(S, S), ctx = c.getContext('2d');
+    ctx.fillStyle = '#4a3a28'; ctx.fillRect(0, 0, S, S);
+    const rng = new RNG(1717);
+    for (let i = 0; i < 900; i++) {
+      const x = rng.next() * S, y = rng.next() * S, r = rng.range(4, 26);
+      ctx.fillStyle = `rgba(${rng.int(40, 95)},${rng.int(30, 70)},${rng.int(16, 40)},${rng.range(0.2, 0.5)})`;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    }
+    this._stains(ctx, S, S, 8, 'rgba(15,10,5,0.4)', rng);
+    // 岩石裂纹
+    ctx.strokeStyle = 'rgba(20,14,8,0.6)'; ctx.lineWidth = 2;
+    for (let k = 0; k < 7; k++) {
+      let x = rng.range(0, S), y = rng.range(0, S);
+      ctx.beginPath(); ctx.moveTo(x, y);
+      for (let s = 0; s < 6; s++) { x += rng.range(-50, 50); y += rng.range(-35, 35); ctx.lineTo(x, y); }
+      ctx.stroke();
+    }
+    this._noise(ctx, S, S, 0.12);
+    this._cache.dw = c; return c;
+  },
+
+  /* 矿洞：碎石地面 */
+  rockFloor() {
+    if (this._cache.rf) return this._cache.rf;
+    const S = 512;
+    const c = this._canvas(S, S), ctx = c.getContext('2d');
+    ctx.fillStyle = '#3d332a'; ctx.fillRect(0, 0, S, S);
+    const rng = new RNG(2727);
+    for (let i = 0; i < 700; i++) {
+      const x = rng.next() * S, y = rng.next() * S, r = rng.range(2, 14);
+      ctx.fillStyle = `rgba(${rng.int(70, 130)},${rng.int(60, 105)},${rng.int(45, 80)},${rng.range(0.3, 0.7)})`;
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * rng.range(0.5, 1), rng.next() * 3, 0, 7); ctx.fill();
+    }
+    this._stains(ctx, S, S, 10, 'rgba(10,8,5,0.4)', rng);
+    this._noise(ctx, S, S, 0.11);
+    this._cache.rf = c; return c;
+  },
+
+  /* 白色虚空 */
+  whiteVoid(key) {
+    const ck = 'wv' + (key || '');
+    if (this._cache[ck]) return this._cache[ck];
+    const S = 256;
+    const c = this._canvas(S, S), ctx = c.getContext('2d');
+    ctx.fillStyle = '#ecece6'; ctx.fillRect(0, 0, S, S);
+    ctx.strokeStyle = 'rgba(200,200,192,0.5)'; ctx.lineWidth = 1;
+    for (let i = 0; i < 40; i++) {
+      ctx.beginPath();
+      const x = Math.random() * S, y = Math.random() * S;
+      ctx.moveTo(x, y); ctx.lineTo(x + 30, y + Math.random() * 6);
+      ctx.stroke();
+    }
+    this._noise(ctx, S, S, 0.03);
+    this._cache[ck] = c; return c;
+  },
+});

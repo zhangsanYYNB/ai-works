@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0a08">
 <title>后室：逃离 | BACKROOMS ESCAPE</title>
-<link rel="stylesheet" href="css/style.css?v=7">
+<link rel="stylesheet" href="css/style.css?v=8">
 </head>
 <body>
 <!-- 3D 画布 -->
@@ -45,6 +45,7 @@
     <button id="btn-interact" class="action-btn">✋<span>互动</span></button>
     <button id="btn-flashlight" class="action-btn">🔦<span>手电</span></button>
     <button id="btn-sprint" class="action-btn">🏃<span>奔跑</span></button>
+    <button id="btn-jump" class="action-btn">⬆️<span>跳跃</span></button>
   </div>
 </div>
 
@@ -56,16 +57,17 @@
     <div class="game-subtitle">BACKROOMS · 逃 跑</div>
     <p class="menu-quote">"如果你不小心，在错误的地方从现实中脱离，你就会掉进后室。<br>这里只有陈旧潮湿的地毯、单调发黄的墙纸、以及嗡嗡作响的荧光灯……"<br><span class="quote-tip">—— 而它们，并不都是空的。</span></p>
     <div class="menu-buttons">
-      <button id="btn-start" class="menu-btn primary">▶ 开始游戏</button>
+      <button id="btn-start" class="menu-btn primary">▶ 继续探索</button>
       <div class="difficulty-row">
         <span class="diff-label">难度</span>
         <button class="diff-btn" data-diff="easy">轻松</button>
         <button class="diff-btn active" data-diff="normal">普通</button>
         <button class="diff-btn" data-diff="hard">噩梦</button>
       </div>
-      <div id="level-select" class="level-select"></div>
-      <button id="btn-help" class="menu-btn">❓ 玩法说明</button>
     </div>
+    <div class="codex-title">—— 层级图鉴 · 点击已发现的层级直接穿行 ——</div>
+    <div id="codex-grid" class="codex-grid"></div>
+    <button id="btn-help" class="menu-btn">❓ 玩法说明</button>
     <div class="menu-footer"><span id="menu-stats"></span>建议横屏游玩 · 佩戴耳机体验更佳</div>
   </div>
 </div>
@@ -83,6 +85,7 @@
           <li><b>Shift</b> — 奔跑（消耗体力）</li>
           <li><b>E</b> — 互动 / 拾取</li>
           <li><b>F</b> — 手电筒</li>
+          <li><b>Space</b> — 跳跃（可跳上矮台阶，也可跳进破洞）</li>
           <li><b>Esc</b> — 暂停</li>
         </ul>
       </div>
@@ -94,11 +97,12 @@
           <li><b>✋ 互动</b> — 拾取/开门/使用</li>
           <li><b>🔦 手电</b> — 开关手电筒</li>
           <li><b>🏃 奔跑</b> — 按住加速</li>
+          <li><b>⬆️ 跳跃</b> — 跳过矮障碍 / 跳入破洞</li>
         </ul>
       </div>
     </div>
     <div class="help-tips">
-      <p>⚠️ <b>注意：</b>某些层级中有"实体"在游荡。被追上就会死亡并重开本层。奔跑会发出声音吸引它；手电筒的光也可能暴露你。收集纸条可以了解这个世界的真相。</p>
+      <p>⚠️ <b>注意：</b>某些层级中有“实体”在游荡。被追上就会死亡并在本层重新苏醒。奔跑会发出声音吸引它；手电筒的光也可能暴露你。层与层之间没有顺序——门、电梯、管道、地板破洞、现实裂缝，都是通路。收集纸条可以了解这个世界的真相。</p>
     </div>
     <button id="btn-help-close" class="menu-btn primary">返回</button>
   </div>
@@ -170,14 +174,14 @@
   </div>
 </div>
 
-<!-- 过关 -->
+<!-- 结局 -->
 <div id="win-screen" class="screen hidden">
   <div class="panel win-panel">
-    <h2 class="win-title" id="win-title">✅ 层级突破</h2>
+    <h2 class="win-title" id="win-title">🌅 你逃出来了</h2>
     <p id="win-text" class="win-text"></p>
     <div id="win-stats" class="win-stats"></div>
     <div class="menu-buttons column">
-      <button id="btn-next-level" class="menu-btn primary">➡ 进入下一层</button>
+      <button id="btn-next-level" class="menu-btn primary hidden">➡ 继续探索</button>
       <button id="btn-win-menu" class="menu-btn">返回主菜单</button>
     </div>
   </div>
@@ -199,13 +203,13 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="js/utils.js?v=7"></script>
-<script src="js/audio.js?v=7"></script>
-<script src="js/textures.js?v=7"></script>
-<script src="js/level.js?v=7"></script>
-<script src="js/entity.js?v=7"></script>
-<script src="js/player.js?v=7"></script>
-<script src="js/ui.js?v=7"></script>
-<script src="js/game.js?v=7"></script>
+<script src="js/utils.js?v=8"></script>
+<script src="js/audio.js?v=8"></script>
+<script src="js/textures.js?v=8"></script>
+<script src="js/level.js?v=8"></script>
+<script src="js/entity.js?v=8"></script>
+<script src="js/player.js?v=8"></script>
+<script src="js/ui.js?v=8"></script>
+<script src="js/game.js?v=8"></script>
 </body>
 </html>
