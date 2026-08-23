@@ -63,6 +63,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 /* HUD 布局编辑器 */
 .hud-edit{position:absolute;inset:0;z-index:40;display:none;background:rgba(0,0,0,0.35);pointer-events:none}
 .hud-edit.show{display:block}
+#hudDragLayer{position:absolute;inset:0;pointer-events:auto;z-index:41;touch-action:none}
 .hud-edit-top{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;pointer-events:auto;z-index:42}
 .hud-edit-title{color:#00d4ff;font-size:13px;font-weight:bold;letter-spacing:1px;background:rgba(0,0,0,0.6);padding:8px 12px;border-radius:8px;border:1px solid rgba(0,212,255,0.3)}
 .hud-edit-btn{padding:8px 16px;font-size:12px}
@@ -112,6 +113,23 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 .loading-status{margin-top:6px;color:#888;font-size:11px;letter-spacing:1px}
 .event-toast{position:absolute;top:26%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);padding:8px 18px;border-radius:6px;border:1px solid rgba(0,212,255,0.35);color:#fff;font-size:13px;z-index:12;pointer-events:none;opacity:0;transition:opacity .3s}
 .event-toast.show{opacity:1}
+/* ===== 视觉升级补丁 ===== */
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 6px rgba(255,255,255,.5)}50%{box-shadow:0 0 16px rgba(255,255,255,.9)}}
+.hotbar-slot.active{animation:pulseGlow 1.6s ease-in-out infinite}
+.crosshair::before,.crosshair::after{background:rgba(255,255,255,.9);box-shadow:0 0 6px rgba(255,255,255,.6),0 0 2px rgba(0,0,0,.9)}
+.action-btn{box-shadow:0 3px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.15)}
+.action-btn:active{background:rgba(255,255,255,0.3);transform:scale(0.9);box-shadow:0 0 14px rgba(255,255,255,.35)}
+@keyframes titleFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.overlay .title{animation:titleFloat 3s ease-in-out infinite}
+.stat-bar{box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.toast{animation:toastIn .25s ease-out!important}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+/* 任务目标横幅 */
+#questBanner{position:absolute;top:44px;left:50%;transform:translateX(-50%);z-index:9;background:linear-gradient(135deg,rgba(0,20,40,.72),rgba(20,0,50,.72));border:1px solid rgba(0,212,255,.4);backdrop-filter:blur(8px);padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;color:#dff6ff;pointer-events:none;text-align:center;box-shadow:0 2px 12px rgba(0,150,255,.25);transition:opacity .3s;max-width:86vw}
+#questBanner .q-title{color:#ffd76a;font-weight:700}
+#questBanner.quest-done{border-color:rgba(120,255,140,.7);color:#c8ffd0}
+@keyframes questPop{0%{transform:translateX(-50%) scale(.7);opacity:0}60%{transform:translateX(-50%) scale(1.1)}100%{transform:translateX(-50%) scale(1);opacity:1}}
+#questBanner.pop{animation:questPop .45s ease-out}
 </style>
 </head>
 <body>
@@ -195,8 +213,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 <div class="loading-status" id="loadingStatus"></div>
 </div>
 
+<div id="questBanner" style="display:none"></div>
 <!-- HUD 布局编辑器 -->
 <div class="hud-edit" id="hudEdit">
+<div id="hudDragLayer"></div>
 <div class="hud-edit-top"><span class="hud-edit-title">🎛 自定义界面</span>
 <button class="btn-primary hud-edit-btn" id="hudEditDone">✔ 完成</button>
 <button class="btn-danger hud-edit-btn" id="hudEditReset">↺ 重置</button>
@@ -282,7 +302,7 @@ scene:null,renderer:null,camera:null,sun:null,
 world:new Map(),chunks:new Map(),pendingChunks:[],meshDirty:false,lastRebuild:0,
 dirtyTypes:new Set(), // 发生变化的方块类型，用于增量重建
 typeBlocks:new Map(), // blockId -> Set(打包键) 按类型索引，消除全量扫描
-player:{x:0,y:40,z:0,vx:0,vy:0,vz:0,yaw:0,pitch:-.2,onGround:false,
+player:{x:0,y:40,z:0,vx:0,vy:0,vz:0,yaw:0,pitch:-.2,onGround:false,coyote:0,jumpBuf:0,jumpHeld:false,
 health:20,hunger:20,oxygen:100,oxygenMax:100,shield:0,energy:100,inSpace:false,speed:7},
 input:{forward:0,right:0,jump:false,sneak:false,mouseDown:false,rightDown:false,selectedSlot:0,breakHold:false},
 inventory:new Map(), // blockId -> count
@@ -356,6 +376,97 @@ if(id===BLOCK.TORCH)Game.torches.add(k);
 function getBlock(x,y,z){if(y<0||y>250)return BLOCK.AIR;return Game.world.get(pk(x,y,z))||BLOCK.AIR}
 function chunkCoord(v){return Math.floor(v/CHUNK_SIZE)}
 function getHeight(x,z,planet){return planet.heightGen(x,z)}
+
+/* ========== 生物系统：星球小兽（发光漫步者） ========== */
+const CREATURE_COLOR={earth:'#8fdf5a',mars:'#ff7043',ice:'#aee6ff',alien:'#d06bff',crystal:'#ff8ff5',space:'#eeeeee'};
+function initCreatures(){
+Game.creaturePool=[];
+for(let i=0;i<8;i++){
+const m=new THREE.Mesh(new THREE.BoxGeometry(.55,.55,.55),new THREE.MeshBasicMaterial({color:0x8fdf5a}));
+const eye=new THREE.Mesh(new THREE.BoxGeometry(.5,.14,.5),new THREE.MeshBasicMaterial({color:0x101018}));
+eye.position.set(0,.05,.26);m.add(eye);eye.position.z=.28;
+m.visible=false;Game.scene.add(m);
+Game.creaturePool.push({mesh:m,alive:false,x:0,y:0,z:0,vy:0,dirX:0,dirZ:1,dirT:0,hp:2,hitT:0,seed:Math.random()*100});
+}
+}
+function spawnCreatures(){
+Game.creaturePool.forEach(c=>{c.alive=false;c.mesh.visible=false;});
+const col=CREATURE_COLOR[Game.planets[Game.planetId].id]||'#8fdf5a';
+const px=Game.player.x,pz=Game.player.z;
+let n=0;
+for(const c of Game.creaturePool){
+if(n>=6)break;
+const a=Math.random()*Math.PI*2,r=10+Math.random()*20;
+const x=px+Math.cos(a)*r,z=pz+Math.sin(a)*r;
+const h=getHeight(Math.floor(x),Math.floor(z),Game.planets[Game.planetId]);
+if(h<2||h>55)continue;
+c.alive=true;c.x=x;c.y=h+1.5;c.z=z;c.vy=0;c.hp=2;c.hitT=0;
+c.mesh.material.color.set(col);c.mesh.visible=true;
+n++;
+}
+}
+function updateCreatures(dt){
+if(!Game.creaturePool)return;
+const g=Game.planets[Game.planetId].gravity;
+const t=performance.now();
+for(const c of Game.creaturePool){
+if(!c.alive)continue;
+const dx=Game.player.x-c.x,dz=Game.player.z-c.z;
+const d2=dx*dx+dz*dz;
+if(d2>3600){c.alive=false;c.mesh.visible=false;continue;} // 超过60格消失
+c.dirT-=dt;
+if(c.hitT>0){c.hitT-=dt;if(d2>.01){const dd=Math.sqrt(d2);c.dirX=dx/dd*(-1);c.dirZ=dz/dd*(-1);}}
+else if(c.dirT<=0){c.dirT=1.5+Math.random()*2.5;const a=Math.random()*Math.PI*2;c.dirX=Math.cos(a);c.dirZ=Math.sin(a);}
+else if(d2<6){const dd=Math.sqrt(d2)||1;c.dirX=dx/dd*(-1);c.dirZ=dz/dd*(-1);}
+const sp=c.hitT>0?3.2:1.1;
+const nx=c.x+c.dirX*sp*dt,nz=c.z+c.dirZ*sp*dt;
+const fx=Math.floor(nx),fz=Math.floor(nz),fy=Math.floor(c.y);
+if(getBlock(fx,fy,fz)!==BLOCK.AIR||getBlock(fx,fy+1,fz)!==BLOCK.AIR){
+const onG=getBlock(Math.floor(c.x),Math.floor(c.y-.1),Math.floor(c.z))!==BLOCK.AIR&&c.vy<=0;
+if(onG)c.vy=4.5;
+}else{c.x=nx;c.z=nz;}
+c.vy-=g*dt*.7;if(c.vy<-20)c.vy=-20;
+const ny2=c.y+c.vy*dt;
+if(getBlock(Math.floor(c.x),Math.floor(ny2-.01),Math.floor(c.z))!==BLOCK.AIR){
+if(c.vy<0)c.y=Math.floor(ny2)+1.0;
+c.vy=0;
+}else c.y=ny2;
+if(c.y<-10){c.alive=false;c.mesh.visible=false;continue;}
+c.mesh.position.set(c.x,c.y+.35+Math.sin(t*.004+c.seed)*.05,c.z);
+c.mesh.rotation.y+=dt*1.2;
+}
+}
+function tryHitCreature(){
+if(!Game.creaturePool)return false;
+const fx=-Math.sin(Game.player.yaw)*Math.cos(Game.player.pitch);
+const fz=-Math.cos(Game.player.yaw)*Math.cos(Game.player.pitch);
+const fy=Math.sin(Game.player.pitch);
+const py=Game.player.y+1.6;
+let best=null,bestDot=.92;
+for(const c of Game.creaturePool){
+if(!c.alive)continue;
+const dx=c.x-Game.player.x,dy=c.y+.35-py,dz=c.z-Game.player.z;
+const d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+if(d>4.5)continue;
+const dot=(dx*fx+dy*fy+dz*fz)/(d||1);
+if(dot>bestDot){bestDot=dot;best=c;}
+}
+if(!best)return false;
+best.hp--;best.hitT=.9;
+spawnBreakParticles(best.x,best.y+.35,best.z,'#ffffff',6);
+sfx('place');
+if(best.hp<=0){
+best.alive=false;best.mesh.visible=false;
+spawnBreakParticles(best.x,best.y+.35,best.z,'#ffd76a',18);
+Game.player.hunger=Math.min(20,Game.player.hunger+4);
+Game.player.oxygen=Math.min(Game.player.oxygenMax,Game.player.oxygen+15);
+Game.player.health=Math.min(20,Game.player.health+2);
+showToast('💫 小兽精华：饥饿+4 氧气+15 生命+2');
+sfx('quest');
+}
+return true;
+}
+
 
 function addTree(x,y,z){
 const h=y;
@@ -492,7 +603,9 @@ new THREE.MeshBasicMaterial({color:0xffaa33}),2000);
 Game.torchMesh.frustumCulled=false;Game.torchMesh.count=0;Game.scene.add(Game.torchMesh);
 // 光照
 const sun=new THREE.DirectionalLight(0xffffff,1.0);sun.position.set(50,100,50);Game.scene.add(sun);Game.sun=sun;
-Game.scene.add(new THREE.AmbientLight(0x666677,.6));
+Game.scene.add(new THREE.AmbientLight(0x666677,.5));
+// 半球光：天空蓝/地面棕，让方块有自然明暗层次
+const hemi=new THREE.HemisphereLight(0xbfd9ff,0x554433,.35);Game.scene.add(hemi);Game.hemi=hemi;
 // 火把灯光池（4 个点光源，跟随最近的火把）
 Game.torchLights=[];
 for(let i=0;i<4;i++){
@@ -612,7 +725,12 @@ const speed=p.inSpace?20:(Game.input.sneak?3.5:6.5);
 const inWater=getBlock(Math.floor(p.x),Math.floor(p.y+.5),Math.floor(p.z))===BLOCK.WATER;
 
 if(inWater&&Game.input.jump){p.vy=4.5;Game.input.jump=false;}
-else if(Game.input.jump&&p.onGround&&!p.inSpace){p.vy=9.5;p.onGround=false;}
+else if(!p.inSpace){
+// 土狼时间 + 跳跃缓冲，手感大幅改善
+if(p.onGround){p.coyote=.12;}else if(p.coyote>0)p.coyote-=dt;
+if(Game.input.jump){if(!p.jumpHeld){p.jumpBuf=.12;}p.jumpHeld=true;}else p.jumpHeld=false;
+if(p.jumpBuf>0){p.jumpBuf-=dt;if(p.coyote>0){p.vy=9.5;p.onGround=false;p.coyote=0;p.jumpBuf=0;}}
+}
 if(Game.input.jump&&p.inSpace){p.vy=7;}
 
 p.vx=lerp(p.vx,mx*speed,.22);
@@ -680,6 +798,7 @@ let miningTarget=null,miningProgress=0,miningHard=0,miningBlock=0;
 const TOOL_REQ={[BLOCK.IRON]:1,[BLOCK.GOLD]:1,[BLOCK.OBSIDIAN]:1,[BLOCK.DIAMOND]:2};
 function startMine(){
 if(Game.paused)return;
+if(tryHitCreature())return;
 const r=raycastBlock();
 if(!r||r.block===BLOCK.BEDROCK||r.block===BLOCK.LAVA){miningTarget=null;return;}
 const req=TOOL_REQ[r.block]||0;
@@ -711,7 +830,9 @@ spawnBreakParticles(bx+.5,by+.5,bz+.5,COLORS[miningBlock][2]);
 // 加入背包
 addToInv(miningBlock,1);
 if(miningBlock===BLOCK.LEAVES){Game.player.hunger=Math.min(20,Game.player.hunger+2);}
-if(!Game.achievements.mine){Game.achievements.mine=true;showToast('🏆 破土动工！挖到的东西都在背包(E)里');}
+if(miningBlock===BLOCK.DIAMOND)Game.achievements.diamond=true;
+if(!Game.achievements.mine){Game.achievements.mine=true;showToast('🏆 破土动工！挖到的都进了背包(E)');}
+checkQuest();
 rebuildDirty();
 sfx('break');
 miningTarget=null;el('mineProgress').style.display='none';
@@ -786,6 +907,11 @@ const ctx=Game.audio||(Game.audio=new(window.AudioContext||window.webkitAudioCon
 const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);
 o.type='square';
 if(type==='break'){o.frequency.value=rand(170,210);g.gain.setValueAtTime(.1,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.1);}
+else if(type==='quest'){
+o.type='triangle';const notes=[523,659,784,1047];
+notes.forEach((f,i)=>{const o2=ctx.createOscillator(),g2=ctx.createGain();o2.type='triangle';o2.frequency.value=f;o2.connect(g2);g2.connect(ctx.destination);const t0=ctx.currentTime+i*.09;g2.gain.setValueAtTime(.15,t0);g2.gain.exponentialRampToValueAtTime(.001,t0+.25);o2.start(t0);o2.stop(t0+.3);});
+g.gain.value=0;o.start();o.stop(ctx.currentTime+.01);return;
+}
 else{o.frequency.value=rand(290,330);g.gain.setValueAtTime(.08,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.12);}
 o.start();o.stop(ctx.currentTime+.15);
 }catch(e){}
@@ -847,14 +973,25 @@ else{top=_skyTop.set('#5a3a8a');bot=_skyBot.set('#ff8866');hor=_skyHor.set('#ffa
 const tc=new THREE.Color(Game.planets[Game.planetId].theme);
 top.lerp(tc,.12);bot.lerp(tc,.08);hor.lerp(tc,.2);
 Game.skyDome.material.uniforms.top.value=top;Game.skyDome.material.uniforms.bot.value=bot;Game.skyDome.material.uniforms.hor.value=hor;
-Game.sun.intensity=clamp(Math.sin(sa)+.3,0,1.2);
+// 太阳颜色随昼夜变化：日出日落橙红、正午白、夜晚隐藏
+const sunAngle=Math.sin(sa);
+const sunWarm=clamp(1-Math.abs(sunAngle),0,1);
+Game.sun.color.setRGB(1,1-sunWarm*.45,1-sunWarm*.65);
+Game.sun.intensity=clamp(sunAngle+.3,0,1.2);
 Game.scene.children.forEach(c=>{if(c.isAmbientLight)c.intensity=amb;});
+if(Game.hemi)Game.hemi.intensity=.15+clamp(sunAngle,0,1)*.25;
+// 雾跟天空同色，远景融入地平线
+Game.scene.fog.color.copy(hor);
+Game.fogExp=Game.scene.fog;
 Game.renderer.setClearColor(top);
 if(Math.random()<dt*.25)spawnShootingStar();
 for(let i=Game.shootingStars.length-1;i>=0;i--){const s=Game.shootingStars[i];s.mesh.position.add(s.vel.clone().multiplyScalar(dt));s.life-=dt;if(s.life<=0){Game.scene.remove(s.mesh);Game.shootingStars.splice(i,1);}}
 Game.clouds.forEach(c=>{c.position.x+=c.userData.sp*dt;if(c.position.x>Game.player.x+150)c.position.x-=300;});
 if(Game.distPlanets)Game.distPlanets.children.forEach(p=>p.rotation.y+=p.userData.rs);
 Game.waterMesh.material.opacity=.6+.1*Math.sin(performance.now()*.001);
+// 发光苔脉动，如活物呼吸
+const gm=BLOCK_MESHES.get(BLOCK.GLOW_MOSS);
+if(gm&&Game.glowPulse!==false){const t=performance.now()*.002;gm.material.color.setHSL(.38,.95,.45+Math.sin(t)*.12);}
 }
 /* 火把灯光：每帧搜索玩家附近最近的 4 个火把，更新点光源位置 */
 function updateTorchLights(){
@@ -906,6 +1043,44 @@ grid.appendChild(d);
 updateCraftUI();
 updateHotbar();
 }
+/* ========== 任务目标系统 ========== */
+const QUESTS=[
+{t:'砍伐 2 块木头',c:()=>countInInv(BLOCK.WOOD)>=2},
+{t:'挖掘 3 块石头',c:()=>countInInv(BLOCK.STONE)>=3},
+{t:'合成石镐（背包 → 合成）',c:()=>toolLevel>=1},
+{t:'挖掘 3 块铁矿（石镐可挖）',c:()=>countInInv(BLOCK.IRON)>=3},
+{t:'合成铁镐',c:()=>toolLevel>=2},
+{t:'深入地下，挖出 1 颗钻石',c:()=>countInInv(BLOCK.DIAMOND)>=1||Game.achievements.diamond},
+{t:'合成火把，照亮矿洞',c:()=>countInInv(BLOCK.TORCH)>=1||Game.achievements.torch},
+{t:'收集 3 金矿 + 5 铁矿（备飞船材料）',c:()=>(countInInv(BLOCK.GOLD)>=3&&countInInv(BLOCK.IRON)>=5)||Game.achievements.ship},
+{t:'合成飞船核心',c:()=>shipCrafted},
+{t:'合成曲速燃料',c:()=>fuelCrafted},
+{t:'乘坐飞船，探索下一颗星球！',c:()=>(Game.planetVisited||0)>0}
+];
+let questIdx=0;
+function showQuestBanner(){
+const b=el('questBanner');
+if(questIdx>=QUESTS.length){b.style.display='none';return;}
+b.style.display='block';
+b.classList.remove('quest-done','pop');
+b.innerHTML='🎯 <span class="q-title">目标 '+(questIdx+1)+'/'+QUESTS.length+'</span>：'+QUESTS[questIdx].t;
+}
+function checkQuest(){
+if(questIdx>=QUESTS.length)return;
+if(QUESTS[questIdx].c()){
+questIdx++;sfx('quest');
+const b=el('questBanner');
+b.style.display='block';
+b.classList.add('quest-done','pop');
+if(questIdx>=QUESTS.length){
+b.innerHTML='🎉 <span class="q-title">全部任务完成！</span> 你已经是星际开拓大师';
+setTimeout(()=>{b.style.opacity=0;},4000);
+return;
+}
+b.innerHTML='✨ <span class="q-title">目标达成！</span> 下一个：'+QUESTS[questIdx].t;
+setTimeout(()=>{b.classList.remove('pop','quest-done');showQuestBanner();},1600);
+}
+}
 function updateCraftUI(){
 const list=el('craftList');
 list.innerHTML='';
@@ -939,7 +1114,8 @@ if(rc.effect==='fuel'){fuelCrafted=true;showToast('⛽ 曲速燃料装填！');}
 if(rc.effect==='mask'){hasMask=true;showToast('🛡️ 氧气面罩装备完成！');}
 if(rc.effect==='pickaxe_stone'){toolLevel=1;showToast('🧱 石镐获得，挖矿速度提升！');}
 if(rc.effect==='pickaxe_iron'){toolLevel=2;showToast('⚙️ 铁镐获得，钻石唾手可得！');}
-if(rc.effect==='torch'){addToInv(BLOCK.TORCH,4);showToast('🔥 获得 4 个火把！放置照亮地下');}
+if(rc.effect==='torch'){addToInv(BLOCK.TORCH,4);Game.achievements.torch=true;showToast('🔥 获得 4 个火把！放置照亮地下');}
+checkQuest();
 sfx('place');
 updateInventoryUI();
 };
@@ -990,6 +1166,7 @@ showToast('🌍 欢迎来到 '+Game.planets[Game.planetId].name+'！');
 
 async function doLaunchTransfer(){
 Game.planetId=(Game.planetId+1)%Game.planets.length;
+Game.planetVisited=(Game.planetVisited||0)+1;
 const planet=Game.planets[Game.planetId];
 Game.world.clear();Game.chunks.clear();Game.pendingChunks=[];
 fuelCrafted=false;
@@ -1003,6 +1180,8 @@ Game.scene.fog.color.set(planet.theme);
 clearSpawn();
 Game.meshDirty=false;
 await rebuildFullAsync('',0,100);
+spawnCreatures();
+checkQuest();
 }
 
 /* ========== 键盘 ========== */
@@ -1094,6 +1273,7 @@ el('startMenu').classList.add('hidden');
 el('loadingScreen').classList.remove('hidden');
 Game.started=true;
 generatePlanetWorld();
+showQuestBanner();
 });
 el('resumeBtn').addEventListener('click',()=>{el('pauseMenu').classList.add('hidden');Game.paused=false;});
 el('restartBtn').addEventListener('click',()=>location.reload());
@@ -1158,6 +1338,7 @@ await nextFrame();
 el('loadingScreen').classList.add('hidden');
 Game.ready=true;
 Game.lastTime=performance.now();
+spawnCreatures();
 showToast('🌍 已抵达 地球 — 收集资源，挖到钻石！');
 initMouseLook();
 }catch(e){
@@ -1201,6 +1382,7 @@ updateParticles(dt);
 updateSky(dt);
 updateLaunch(dt);
 updateTorchLights();
+updateCreatures(dt);
 _hudTimer+=dt;if(_hudTimer>.1){_hudTimer=0;updateHUD();updateHotbar();}
 
 // 区块流：跨区块时请求新区块
@@ -1225,6 +1407,7 @@ setProgress(10,'初始化引擎…');
 initRenderer();
 setProgress(35,'构建方块缓存…');
 initBlockMeshes();
+initCreatures();
 setProgress(55,'生成天空…');
 initSky();
 setProgress(75,'绑定控件…');
@@ -1283,22 +1466,13 @@ if(cfg.o!==undefined)el.style.opacity=cfg.o;
 function enterHudEdit(){
 Game.paused=true;el('pauseMenu').classList.add('hidden');
 el('hudEdit').classList.add('show');
-const els=document.querySelectorAll('[data-hud]');
-els.forEach(el=>{
-el.classList.add('hud-edit-target');
-el.addEventListener('pointerdown',onHudDragStart);
-});
-hudSelected=null;hudEditSelect('joystick');
-// 摇晃提示
-showToast('👆 拖动位置 · 选滑块调大小/透明度');
+document.querySelectorAll('[data-hud]').forEach(el=>el.classList.add('hud-edit-target'));
+hudEditSelect('joystick');
+showToast('👆 点住并拖动控件 · 底部滑块调大小/透明度');
 }
 function exitHudEdit(){
 Game.paused=false;el('hudEdit').classList.remove('show');
-const els=document.querySelectorAll('[data-hud]');
-els.forEach(el=>{
-el.classList.remove('hud-edit-target','selected');
-el.removeEventListener('pointerdown',onHudDragStart);
-});
+document.querySelectorAll('[data-hud]').forEach(el=>el.classList.remove('hud-edit-target','selected'));
 }
 function hudEditSelect(name){
 hudSelected=name;
@@ -1318,39 +1492,58 @@ el('hudEditOpacity').value=100;el('hudEditOpacityVal').textContent='100%';
 }
 }
 let _hudDragEl=null,_hudDragName=null,_hudDragStart={x:0,y:0,lx:0,ly:0};
+/* 命中测试：触摸点坐标命中哪个可拖动 HUD 元素（选面积最小者，跳过不可移动的）*/
+function hudHitTest(x,y){
+let best=null,bestArea=1e18;
+document.querySelectorAll('[data-hud]').forEach(el=>{
+const name=el.getAttribute('data-hud');
+const cfg=hudCfg[name];
+if(!cfg||!cfg.m)return;
+const r=el.getBoundingClientRect();
+if(r.width===0)return;
+if(x>=r.left-8&&x<=r.right+8&&y>=r.top-8&&y<=r.bottom+8){
+const a=r.width*r.height;
+if(a<bestArea){bestArea=a;best=el;}
+}
+});
+return best;
+}
 function onHudDragStart(e){
-e.preventDefault();e.stopPropagation();
-const el=e.currentTarget;const name=el.getAttribute('data-hud');
-if(!name||!hudCfg[name])return;
+e.preventDefault();
+const target=hudHitTest(e.clientX,e.clientY);
+if(!target){hudEditSelect(null);return;}
+const name=target.getAttribute('data-hud');
 hudEditSelect(name);
-if(!hudCfg[name].m)return; // 不可拖动
-el.setPointerCapture(e.pointerId);
-el.classList.add('dragging');
-_hudDragEl=el;_hudDragName=name;
+const cfg=hudCfg[name];
+target.classList.add('dragging');
+_hudDragEl=target;_hudDragName=name;
 _hudDragStart.x=e.clientX;_hudDragStart.y=e.clientY;
-_hudDragStart.lx=parseFloat(el.style.left)||hudCfg[name].x;
-_hudDragStart.ly=parseFloat(el.style.top)||hudCfg[name].y;
-window.addEventListener('pointermove',onHudDragMove);
-window.addEventListener('pointerup',onHudDragEnd);
-window.addEventListener('pointercancel',onHudDragEnd);
+_hudDragStart.lx=parseFloat(target.style.left)||cfg.x;
+_hudDragStart.ly=parseFloat(target.style.top)||cfg.y;
+el('hudDragLayer').setPointerCapture(e.pointerId);
 }
 function onHudDragMove(e){
 if(!_hudDragEl)return;
+e.preventDefault();
 const dx=(e.clientX-_hudDragStart.x)/window.innerWidth*100;
 const dy=(e.clientY-_hudDragStart.y)/window.innerHeight*100;
-const nx=Math.round(clamp(_hudDragStart.lx+dx,0,100));
-const ny=Math.round(clamp(_hudDragStart.ly+dy,0,100));
+const nx=Math.round(clamp(_hudDragStart.lx+dx,2,98));
+const ny=Math.round(clamp(_hudDragStart.ly+dy,2,98));
 _hudDragEl.style.left=nx+'%';
 _hudDragEl.style.top=ny+'%';
 hudCfg[_hudDragName].x=nx;
 hudCfg[_hudDragName].y=ny;
 }
 function onHudDragEnd(e){
-if(_hudDragEl){_hudDragEl.classList.remove('dragging');}
+if(_hudDragEl)_hudDragEl.classList.remove('dragging');
 _hudDragEl=null;_hudDragName=null;
-window.removeEventListener('pointermove',onHudDragMove);
-window.removeEventListener('pointerup',onHudDragEnd);
-window.removeEventListener('pointercancel',onHudDragEnd);
+}
+{
+const layer=el('hudDragLayer');
+layer.addEventListener('pointerdown',onHudDragStart);
+layer.addEventListener('pointermove',onHudDragMove);
+layer.addEventListener('pointerup',onHudDragEnd);
+layer.addEventListener('pointercancel',onHudDragEnd);
 }
 el('hudEditDone').addEventListener('click',()=>{saveHudCfg();exitHudEdit();});
 el('hudEditReset').addEventListener('click',()=>{
