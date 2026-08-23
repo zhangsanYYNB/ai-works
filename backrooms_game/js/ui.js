@@ -40,7 +40,6 @@ const UI = {
     this.bindTap($('btn-resume'), () => { window.GAME.resume(); });
     this.bindTap($('btn-restart-level'), () => { window.GAME.restartLevel(); });
     this.bindTap($('btn-quit-menu'), () => { window.GAME.quitToMenu(); });
-    this.bindTap($('btn-cheat'), () => { this.openCheatPanel(); });
 
     /* 死亡 */
     this.bindTap($('btn-retry'), () => { window.GAME.restartLevel(); });
