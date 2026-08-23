@@ -25,6 +25,15 @@
 - 推送前需确认 token 可用：`git push -u origin main`
 - 提交信息用中文描述改动内容
 
+## 后室游戏 (backrooms_game/) v2.0 记忆
+- **架构**：12 层级无缝探索，无选关门槛；图鉴记录发现进度（Store.discovered[]）
+- **六类穿越装置**：door(可 keycard 锁)/elevator(needsPower→L1 保险丝+配电箱)/pipe/glitch(靠近<1.05 自动)/hole(feetY<-3 坠落)/lightdoor(L11 终局 to:-1)
+- **关键 API**：level.js — groundAt(x,z)/isHoleCell/holeCells/exits/items/setPower/unlockDoor；player.js — feetY/vy/onGround/wantJump/noclip；game.js — travelTo/_checkTransits/_useDevice/Game.ensureDiscovered/discoveredCount
+- **高度系统**：floorMap 高度场 + 跳跃(Space/⬆️按钮)；STEP_UP_MAX=0.72；楼梯每级≤0.5m 且最高阶贴平台（曾修复兜底单级 0.8m 无法攀爬的 bug）
+- **实体**：stalker/crawler/wraith 三形态；寻路过滤破洞(floorMap>HOLE_DEPTH/2)与高台(>0.5)格；L10 暴走者 alwaysChase
+- **秘籍**：仅主菜单标题连点5次入口；IDDQD/IDCLIP/IDKFA/IDLEVEL/unlockall
+- **测试要点**：Termux headless 用 agent_browser auto 会话（fresh 会因 socket 名超长失败）；服务器日志重定向 $HOME/httpd.log（无 /tmp）；缓存用 ?v=N（现 v8），测试加 ?nocache=N
+
 ## 常用命令
 ```bash
 git pull                # 拉取远端更新
