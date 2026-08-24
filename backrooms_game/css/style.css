@@ -327,3 +327,32 @@ html, body {
   background: #050503; color: #c9b458; align-items: center; justify-content: center;
   flex-direction: column; gap: 16px; font-size: 16px; letter-spacing: 3px; text-align: center;
 }
+
+/* ============ v2.2 新增 ============ */
+#level-banner {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; pointer-events: none;
+  opacity: 0; transition: opacity .5s ease; z-index: 90;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,.55) 0%, rgba(0,0,0,.75) 100%);
+}
+#level-banner.show { opacity: 1; }
+#level-banner .lb-name {
+  font-size: clamp(26px, 6vw, 52px); font-weight: 700; letter-spacing: .12em;
+  color: #e8d9a8; text-shadow: 0 0 24px rgba(232,217,168,.5), 0 2px 8px #000;
+  transform: translateY(8px); animation: lbIn .6s ease forwards;
+}
+#level-banner .lb-sub { margin-top: 10px; font-size: 15px; color: #b8a86a; letter-spacing: .3em; }
+@keyframes lbIn { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
+
+/* 藏身柜遮罩 */
+#hide-overlay { position: fixed; inset: 0; z-index: 80; pointer-events: none; }
+#hide-overlay .ho-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 22%, rgba(0,0,0,.97) 58%);
+}
+#hide-overlay .ho-slit {
+  position: absolute; left: 50%; top: 50%; width: 34vw; height: 7vh;
+  transform: translate(-50%, -50%);
+  box-shadow: inset 0 0 40px rgba(0,0,0,.85);
+  border-radius: 50%;
+}

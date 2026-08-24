@@ -139,6 +139,25 @@ const Sound = {
     o.start(t); o2.start(t); o.stop(t + 0.65); o2.stop(t + 0.65);
   },
   pickup() { this._tone(880, 0.12, 0.2, 'triangle'); setTimeout(() => this._tone(1320, 0.18, 0.18, 'triangle'), 90); },
+  throwWhoosh() {
+    if (!this.ctx) return; const c = this.ctx;
+    const n = c.createBufferSource(); n.buffer = this._noiseBuf(0.25);
+    const f = c.createBiquadFilter(); f.type = 'bandpass';
+    f.frequency.setValueAtTime(400, c.currentTime);
+    f.frequency.exponentialRampToValueAtTime(2200, c.currentTime + 0.2);
+    const g = c.createGain(); g.gain.setValueAtTime(0.18, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.24);
+    n.connect(f); f.connect(g); g.connect(this.master); n.start();
+  },
+  glassBreak() {
+    if (!this.ctx) return; const c = this.ctx;
+    const n = c.createBufferSource(); n.buffer = this._noiseBuf(0.35);
+    const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 3000;
+    const g = c.createGain(); g.gain.setValueAtTime(0.5, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.32);
+    n.connect(f); f.connect(g); g.connect(this.master); n.start();
+    for (let i = 0; i < 4; i++) setTimeout(() => this._tone(2400 + Math.random() * 2400, 0.06, 0.1, 'triangle'), i * 40);
+  },
   noteOpen() { this._burst(3200, 0.25, 0.1, 'highpass'); },
   doorOpen() { this._burst(300, 0.7, 0.3); this._tone(90, 0.6, 0.15, 'sawtooth', 60); },
   doorLocked() { this._tone(220, 0.12, 0.25, 'square'); setTimeout(() => this._tone(180, 0.15, 0.25, 'square'), 130); },
@@ -179,6 +198,37 @@ const Sound = {
     n.connect(nf); nf.connect(ng); ng.connect(g);
     g.connect(this.master);
     o1.start(); o2.start(); n.start();
+
+    // v2.2 层级特色环境音
+    let extraStop = null;
+    if (level === 22) {
+      // 白色风暴：呼啸的风（带通噪声扫频）
+      const wn = ctx.createBufferSource(); wn.buffer = this._noiseBuf(3); wn.loop = true;
+      const wf = ctx.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 500; wf.Q.value = 1.4;
+      const wg = ctx.createGain(); wg.gain.value = 0.16;
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 0.13;
+      const lg = ctx.createGain(); lg.gain.value = 320;
+      lfo.connect(lg); lg.connect(wf.frequency);
+      wn.connect(wf); wf.connect(wg); wg.connect(this.master);
+      wn.start(); lfo.start();
+      extraStop = () => { try { wn.stop(); lfo.stop(); } catch (e) {} };
+    } else if (level === 21) {
+      // 数据中心：高频电流嗡鸣
+      const eo = ctx.createOscillator(); eo.type = 'sawtooth'; eo.frequency.value = 360;
+      const ef = ctx.createBiquadFilter(); ef.type = 'lowpass'; ef.frequency.value = 800;
+      const eg = ctx.createGain(); eg.gain.value = 0.012;
+      eo.connect(ef); ef.connect(eg); eg.connect(this.master); eo.start();
+      extraStop = () => { try { eo.stop(); } catch (e) {} };
+    } else if (level === 20) {
+      // 温室：虫鸣脉动
+      const bo = ctx.createOscillator(); bo.type = 'sine'; bo.frequency.value = 4200;
+      const bg = ctx.createGain(); bg.gain.value = 0;
+      const bl = ctx.createOscillator(); bl.frequency.value = 2.7;
+      const blg = ctx.createGain(); blg.gain.value = 0.008;
+      bl.connect(blg); blg.connect(bg.gain);
+      bo.connect(bg); bg.connect(this.master); bo.start(); bl.start();
+      extraStop = () => { try { bo.stop(); bl.stop(); } catch (e) {} };
+    }
     // 水滴声（地下/潮湿层）
     let dripTimer = null;
     if ([1, 5, 6, 7, 9, 12].includes(level)) {
@@ -198,7 +248,7 @@ const Sound = {
       o.start(); lfo.start();
       siren = { o, lfo };
     }
-    this._humNodes = { stop() { try { o1.stop(); o2.stop(); n.stop(); } catch (e) {} if (dripTimer) clearInterval(dripTimer); if (siren) { try { siren.o.stop(); siren.lfo.stop(); } catch (e) {} } g.disconnect(); } };
+    this._humNodes = { stop() { try { o1.stop(); o2.stop(); n.stop(); } catch (e) {} if (extraStop) extraStop(); if (dripTimer) clearInterval(dripTimer); if (siren) { try { siren.o.stop(); siren.lfo.stop(); } catch (e) {} } g.disconnect(); } };
   },
   stopAmbient() {
     if (this._humNodes) { this._humNodes.stop(); this._humNodes = null; }

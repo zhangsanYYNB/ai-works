@@ -25,16 +25,16 @@
 - 推送前需确认 token 可用：`git push -u origin main`
 - 提交信息用中文描述改动内容
 
-## 后室游戏 (backrooms_game/) v2.1 记忆
-- **架构**：16 层级无缝探索（v2.0 的 12 + 新增 L12 泳池房间/L13 垂直公寓/L14 灰色城区/L15 派对间），无选关门槛；图鉴记录发现进度（Store.discovered[]，扩容保留旧记录）
-- **立体多层 v2.1**：cfg.stories/storyH 定义多层楼；Level.layers=[{y,cells,holes}]，groundAt(x,z,capY) 多层支撑查询（实体/黑影传 cap 0.5 锁地面层）；天梯 ladders[{x,z,y0,y1,ex,ez,scx,scy}]
-- **天梯物理**：按竖井整格捕获（pcx==scx&&pcz==scy 且高度区间内）；W/摇杆上、S 下、Space 也升、跳键跃离(_ladderCd=0.45 防重捕获)；顶/底自动沿 ex/ez 滑出井口——**必须按格捕获**，按点±0.55 捕获会在井格内失去支撑坠落
-- **六类穿越装置**：door(可 keycard 锁)/elevator(needsPower→L1 保险丝+配电箱)/pipe/glitch(靠近<1.05 自动)/hole(feetY<-3 坠落)/lightdoor(L11 终局 to:-1)
-- **关键 API**：level.js — groundAt(x,z,capY)/isHoleCell/holeCells/exits/items/setPower/unlockDoor/_ceilTopAt(cx,cy)/layers/ladders；player.js — feetY/vy/onGround/wantJump/noclip/onLadder；game.js — travelTo/_checkTransits/_useDevice/Game.ensureDiscovered/discoveredCount；_findInteractable 有垂差过滤(>1.6m 忽略)
-- **高度系统**：floorMap 高度场 + 跳跃(Space/⬆️按钮)；STEP_UP_MAX=0.72；楼梯每级≤0.5m 且最高阶贴平台；上层楼板护栏随机留 2 缺口(gapCells 局部变量未暴露)
-- **实体**：stalker/crawler/wraith 三形态；寻路过滤破洞(floorMap>HOLE_DEPTH/2)与高台(>0.5)格，只在地面层活动(mesh.y 用 cap 0.5)；L10 暴走者 alwaysChase
-- **秘籍**：仅主菜单标题连点5次入口；IDDQD/IDCLIP/IDKFA/IDLEVEL/unlockall
-- **测试要点**：Termux headless 用 agent_browser auto 会话（fresh 会因 socket 名超长失败；WebGL 上下文易耗尽→pkill chromium 重开）；服务器日志重定向 $HOME/httpd.log（无 /tmp）；缓存用 ?v=N（现 v12），测试加 ?nocache=N；**改 JS 后必须 bump v 否则浏览器吃旧缓存**；eval 测试用条件轮询 until() 而非固定 sleep（关卡加载耗时不定）
+## 后室游戏 (backrooms_game/) v2.2 记忆
+- **架构**：24 层级无缝探索（v2.1 的 16 + 新增 L16 楼梯间/L17 图书馆/L18 地铁站/L19 停尸间(-1)/L20 温室/L21 数据中心/L22 白色风暴/L23 镜像大厅）；图鉴动态扩容保留旧进度
+- **地形布局 v2.2**：LEVEL_LAYOUTS 表按层分配 5 种生成器——maze(传统)/rooms(BSP 房间群)/halls(中庭+环廊+放射路)/grid(街区网格)/organic(随机游走洞穴)；genMap 尾部必须 ensureConnected()（新布局出生点角易孤立→empties 空→_placeExits okCell(c.d) 崩溃）
+- **地标建筑**：cfg.landmark → _placeLandmark 在最大房间中心放喷泉/书塔/列车/抽屉墙/大树/服务器阵列/镜柱
+- **潜行玩法 v2.2**：G.throwBottle() 投玻璃瓶(Q/按钮)→落地 G.lastNoise={x,z,range,t}→实体 investigate 状态走向噪音点；items 类型 locker 藏身柜(E 进出,G.hiddenIn,UI.setHidden 遮罩)→实体感知失效(alwaysChase 仅近距例外)；player.crouching(Ctrl/C/按钮) 减速减可见；层级目标 HUD=G.currentGoal()+瓶子计数写入 objective-text；travelTo 后 UI.showLevelBanner 大字横幅
+- **立体多层 v2.1**：cfg.stories/storyH；Level.layers=[{y,cells,holes}]，groundAt(x,z,capY) 多层支撑（实体/黑影 cap 0.5 锁地面层）；天梯 ladders[{x,z,y0,y1,ex,ez,scx,scy}]——**抓握需靠近梯杆±0.9，已抓时井格内不脱手**（整格捕获会误吸路人/点捕获滑出坠落，两者都踩过坑）
+- **六类穿越装置**：door(keycard 锁)/elevator(needsPower)/pipe/glitch(<0.8 自动)/hole(feetY<-3)/lightdoor(to:-1)
+- **关键 API**：level.js — groundAt/isHoleCell/holeCells/exits/items/setPower/unlockDoor/_ceilTopAt/layers/ladders/rooms/empties；player.js — feetY/vy/onGround/wantJump/noclip/onLadder/crouching/_eyeH；game.js — travelTo/_checkTransits/_useDevice/throwBottle/_toggleHide/currentGoal/Game.ensureDiscovered
+- **秘籍**：仅主菜单标题连点5次；IDDQD/IDCLIP/IDKFA/IDLEVEL/unlockall
+- **测试要点**：agent_browser auto 会话（fresh socket 超长失败）；WebGL 上下文易耗尽→pkill chromium 重开；服务器日志 $HOME/httpd.log；改 JS 必须 bump ?v=N；eval 用条件轮询 until()；跨行字符串写 \n 会被工具转成真换行→用 python 状态机修复单引号字符串
 
 ## 常用命令
 ```bash

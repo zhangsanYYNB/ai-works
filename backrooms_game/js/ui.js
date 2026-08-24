@@ -221,6 +221,34 @@ const UI = {
     if (text) { this.els.interactPrompt.innerHTML = text; this.els.interactPrompt.classList.remove('hidden'); }
     else this.els.interactPrompt.classList.add('hidden');
   },
+  /** v2.2 穿越后的大字层级横幅 */
+  showLevelBanner(cfg, isNew) {
+    let el = document.getElementById('level-banner');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'level-banner';
+      document.body.appendChild(el);
+    }
+    el.innerHTML = `<div class="lb-name">${cfg.name}</div><div class="lb-sub">${isNew ? '✨ 首次发现' : ''}</div>`;
+    el.classList.add('show');
+    clearTimeout(this._bannerT);
+    this._bannerT = setTimeout(() => el.classList.remove('show'), 2600);
+  },
+
+  /** 藏身柜遮罩：暗角+缝隙视野 */
+  setHidden(v) {
+    let el = document.getElementById('hide-overlay');
+    if (v) {
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'hide-overlay';
+        el.innerHTML = '<div class="ho-vignette"></div><div class="ho-slit"></div>';
+        document.body.appendChild(el);
+      }
+      el.style.display = '';
+    } else if (el) el.style.display = 'none';
+  },
+
   showToast(html, dur) {
     const el = this.els.toast;
     el.innerHTML = html;

@@ -21,6 +21,7 @@ const LEVEL_CFGS = [
       { kind: 'hole', to: 1 },
       { kind: 'glitch', to: 2 },
       { kind: 'door', to: 4 },
+      { kind: 'door', to: 16 },
     ],
   },
   {
@@ -290,13 +291,373 @@ const LEVEL_CFGS = [
       { kind: 'glitch', to: 2 },
     ],
   },
+
+  /* ================= v2.2 新增层级 16-23 ================= */
+  {
+    id: 16, name: 'LEVEL 16 · 消防楼梯间', short: '楼梯间',
+    size: 19, wallH: 3.4,
+    fogColor: 0x1a0d0d, fogDensity: 0.075,
+    ambient: { sky: 0xff6a4a, ground: 0x331111, intensity: 0.5 },
+    textures: { wall: 'concreteWall', floor: 'wetFloor', ceil: 'garageCeil' },
+    lampsEvery: 6, pointLights: 3, rooms: 4, braid: 0.3,
+    props: { barrel: 5, crate: 3 },
+    goal: '沿楼梯间向下，找到通往图书馆的门',
+    hint: '红色应急灯永远亮着。这里听不到任何脚步声——<b>这不正常</b>',
+    introText: '无尽向下的消防楼梯。应急灯把一切染成铁锈色。安静得能听见自己的心跳。',
+    exits: [
+      { kind: 'door', to: 17 },
+      { kind: 'pipe', to: 0 },
+      { kind: 'hole', to: 18 },
+    ],
+  },
+  {
+    id: 17, name: 'LEVEL 17 · 无尽图书馆', short: '图书馆',
+    size: 27, wallH: 3.6,
+    fogColor: 0x171310, fogDensity: 0.05,
+    ambient: { sky: 0xd8c9a0, ground: 0x403422, intensity: 0.42 },
+    textures: { wall: 'officeWall', floor: 'officeFloor', ceil: 'ceiling' },
+    lampsEvery: 5, pointLights: 4, rooms: 8, braid: 0.12,
+    layout: 'rooms',
+    props: { shelf: 14, crate: 2 },
+    landmark: 'booktower', bottle: 3,
+    entity: { name: '书虫', look: 'crawler', speedPatrol: 1.7, speedChase: 3.6, sightRange: 12, hearingRange: 17, catchRange: 1.05, deathText: '书虫把你钉进了书脊之间。\n从此这座图书馆多了一本会呼吸的书。' },
+    goal: '在书架迷宫中找到检修门',
+    hint: '亿万本书，没有一本是重复的。<b>翻动声来自你身后</b>',
+    introText: '纸页的霉味。书架高得看不见顶。据说走完所有过道的人，都成了藏书的一部分。',
+    exits: [
+      { kind: 'door', to: 18 },
+      { kind: 'door', to: 4 },
+    ],
+  },
+  {
+    id: 18, name: 'LEVEL 18 · 废弃地铁站', short: '地铁站',
+    size: 25, wallH: 3.8,
+    fogColor: 0x0d1210, fogDensity: 0.085,
+    ambient: { sky: 0x7ab890, ground: 0x14261c, intensity: 0.38 },
+    textures: { wall: 'tileWall', floor: 'tileFloor', ceil: 'pipeWall' },
+    lampsEvery: 7, pointLights: 4, rooms: 5, braid: 0.24,
+    layout: 'grid', water: true, drip: true,
+    landmark: 'train', bottle: 3,
+    props: { barrel: 4, crate: 3, shelf: 2 },
+    entity: { name: '地铁鼠群', look: 'crawler', speedPatrol: 2.6, speedChase: 4.4, sightRange: 11, hearingRange: 20, catchRange: 1.0, deathText: '潮水般的老鼠漫过你的脚踝、膝盖、胸口……\n站台的末班车永远不会来了。' },
+    goal: '找到站台尽头的检修通道',
+    hint: '轨道里有水滴声。<b>那不是水</b>——扔个瓶子听听它往哪跑',
+    introText: '积水倒映着频闪的灯管。列车时刻表停在三十年前。隧道深处有细密的爪音。',
+    exits: [
+      { kind: 'hole', to: 19 },
+      { kind: 'glitch', to: 7 },
+      { kind: 'door', to: 2 },
+    ],
+  },
+  {
+    id: 19, name: 'LEVEL -1 · 停尸间', short: '停尸间',
+    size: 19, wallH: 3.0,
+    dark: true, fogColor: 0x000000, fogDensity: 0.16,
+    ambient: { sky: 0x223333, ground: 0x001111, intensity: 0.16 },
+    textures: { wall: 'tileWall', floor: 'tileFloor', ceil: 'tileWall' },
+    lampsEvery: 9, pointLights: 2, rooms: 6, braid: 0.15,
+    layout: 'rooms',
+    landmark: 'morgue', bottle: 2,
+    entity: { name: '抽屉里的东西', look: 'wraith', speedPatrol: 2.0, speedChase: 4.6, sightRange: 8, hearingRange: 22, catchRange: 1.0, deathText: '抽屉缓缓合上。\n标签栏写看你的名字——字迹是你自己的。' },
+    goal: '别出声。找到通风管道爬出去',
+    hint: '手电筒是唯一的 光源。<b>有些抽屉是虚掩的</b>——不要靠近看',
+    introText: '冷气、福尔马林、金属。墙上密密麻麻全是抽屉。你数到第一百个时，有一个自己开了。',
+    exits: [
+      { kind: 'pipe', to: 20 },
+      { kind: 'door', to: 5 },
+    ],
+  },
+  {
+    id: 20, name: 'LEVEL 20 · 温室花园', short: '温室',
+    size: 23, wallH: 4.2,
+    fogColor: 0x14210f, fogDensity: 0.04,
+    ambient: { sky: 0xaaffcc, ground: 0x1e3a1e, intensity: 0.62 },
+    textures: { wall: 'wallpaper', floor: 'carpet', ceil: 'ceiling' },
+    lampsEvery: 6, pointLights: 3, rooms: 6, braid: 0.28,
+    landmark: 'garden', bottle: 3,
+    props: { crate: 2, barrel: 2 },
+    safe: true,
+    goal: '给配电箱供电，启动温室电梯',
+    hint: '花香、鸟鸣（假的）、阳光（假的）。<b>这里是后室里唯一的绿洲</b>，好好休息',
+    introText: '玻璃穹顶漏下斑驳的光。植物疯长，藤蔓缠住了长椅。难得的、可以呼吸的地方。',
+    exits: [
+      { kind: 'elevator', needsPower: true, to: 21, label: '🛗 乘温室货梯下降' },
+      { kind: 'door', to: 3 },
+    ],
+  },
+  {
+    id: 21, name: 'LEVEL 21 · 数据中心', short: '数据中心',
+    size: 25, wallH: 3.6,
+    fogColor: 0x010814, fogDensity: 0.07,
+    ambient: { sky: 0x4488ff, ground: 0x0a1430, intensity: 0.35 },
+    textures: { wall: 'metal', floor: 'wetFloor', ceil: 'metal' },
+    lampsEvery: 5, pointLights: 4, rooms: 4, braid: 0.2,
+    pillars: true, layout: 'halls', electricHum: true,
+    landmark: 'server', bottle: 3,
+    entity: { name: '信号幽灵', look: 'wraith', speedPatrol: 2.3, speedChase: 4.5, sightRange: 14, hearingRange: 16, catchRange: 1.1, deathText: '最后一行日志：\n[ERROR] 访客 #4741 已归档。' },
+    goal: '拿到管理员卡，通过安全门',
+    hint: '机柜蓝光闪烁如星海。<b>电流嗡鸣突然停止时，屏住呼吸</b>',
+    introText: '服务器机柜延伸至视野尽头，蓝色 LED 如星海明灭。这里的温度常年十八度。',
+    exits: [
+      { kind: 'door', lock: 'keycard', to: 22 },
+      { kind: 'hole', to: 8 },
+    ],
+  },
+  {
+    id: 22, name: 'LEVEL 22 · 白色风暴', short: '白色风暴',
+    size: 23, wallH: 3.2,
+    fogColor: 0xdddddd, fogDensity: 0.14,
+    ambient: { sky: 0xffffff, ground: 0xbbbbbb, intensity: 0.95 },
+    textures: { wall: 'whiteVoid', floor: 'whiteVoid', ceil: 'whiteVoid' },
+    lampsEvery: 8, pointLights: 1, rooms: 3, braid: 0.4,
+    windStorm: true, safe: true,
+    goal: '在白茫茫的风暴中找到裂缝',
+    hint: '能见度三米。<b>跟着风声走</b>，裂缝处风声会变调',
+    introText: '白。除了白还是白。狂风卷着灰烬般的碎屑。你怀疑这个世界只剩你一个人了。',
+    exits: [
+      { kind: 'glitch', to: 23 },
+      { kind: 'door', to: 11 },
+    ],
+  },
+  {
+    id: 23, name: 'LEVEL 23 · 镜像大厅', short: '镜像大厅',
+    size: 23, wallH: 4.0,
+    fogColor: 0x101418, fogDensity: 0.06,
+    ambient: { sky: 0xbfd4e0, ground: 0x1a222a, intensity: 0.5 },
+    textures: { wall: 'hotelWall', floor: 'redCarpet', ceil: 'ceiling' },
+    lampsEvery: 4, pointLights: 4, rooms: 4, braid: 0.18,
+    layout: 'halls', water: true,
+    landmark: 'mirror', bottle: 2,
+    props: { table: 4, chair: 3 },
+    entity: { name: '镜中人', look: 'stalker', speedPatrol: 2.2, speedChase: 4.35, sightRange: 18, hearingRange: 13, catchRange: 1.1, nearStart: false, deathText: '镜子里的你笑了。\n然后它从里面走了出来。' },
+    goal: '穿过大厅，找到回到派对间的门',
+    hint: '浅浅的积水像镜面一样。<b>倒影比你多了一个人时，别回头验证</b>',
+    introText: '对称到诡异的大厅。每一根柱子、每一盏灯都在积水中有个完美的倒影。几乎完美。',
+    exits: [
+      { kind: 'door', to: 15 },
+      { kind: 'glitch', to: 0 },
+    ],
+  },
 ];
+
+/* v2.2 各层级地形布局分配（打破同质迷宫） */
+const LEVEL_LAYOUTS = {
+  0: 'halls',     // 黄色大厅：中庭+环廊
+  1: 'maze',      // 车库：传统迷宫+高台
+  2: 'organic',   // 管道长廊：洞穴式
+  3: 'rooms',     // 办公室：密集房间群
+  4: 'rooms',     // 酒店：客房群
+  5: 'maze',
+  6: 'organic',   // 水淹隧道
+  7: 'organic',   // 矿洞
+  8: 'halls',     // 仓库大厅
+  9: 'rooms',     // 病房
+  10: 'maze',
+  11: 'halls',    // 白色虚空
+  12: 'grid',     // 泳池：格状泳池区
+  13: 'rooms',    // 垂直公寓
+  14: 'grid',     // 城区街区
+  15: 'halls',    // 派对大厅
+};
 
 /* 挖洞/楼梯等高度数据 */
 // floorMap 值：>=0 为该格地面高度；-999 表示破洞（坠落）
 
-/* ---------- 迷宫生成 ---------- */
+/* ---------- 迷宫生成（多布局） ---------- */
+
+/** 房间群布局：BSP 式密集小房间+门洞（酒店/公寓/图书馆感） */
+function genRoomsLayout(rng, W, H, opts) {
+  const g = [];
+  for (let y = 0; y < H; y++) g.push(new Array(W).fill(1));
+  const rooms = [];
+  const split = (x0, y0, x1, y1, depth) => {
+    const w = x1 - x0, h = y1 - y0;
+    if (depth >= 4 || (w < 9 && h < 9) || rng.next() < 0.12) {
+      // 叶节点：开房间，留 1 格外墙
+      const rw = Math.max(3, w - rng.int(1, 2)), rh = Math.max(3, h - rng.int(1, 2));
+      const rx = x0 + rng.int(1, Math.max(1, w - rw - 1));
+      const ry = y0 + rng.int(1, Math.max(1, h - rh - 1));
+      for (let y = ry; y < ry + rh && y < H - 1; y++)
+        for (let x = rx; x < rx + rw && x < W - 1; x++) g[y][x] = 0;
+      rooms.push({ x: rx, y: ry, w: rw, h: rh });
+      return { cx: rx + (rw >> 1), cy: ry + (rh >> 1) };
+    }
+    let a, b;
+    if (w > h) {
+      const mx = x0 + (w >> 1);
+      a = split(x0, y0, mx, y1, depth + 1);
+      b = split(mx, y0, x1, y1, depth + 1);
+      // 门洞连接两半
+      const dy = Math.min(Math.max(a.cy, y0 + 2), y1 - 2);
+      for (let x = mx - 1; x <= mx + 1; x++) if (x > 0 && x < W - 1) g[dy][x] = 0;
+    } else {
+      const my = y0 + (h >> 1);
+      a = split(x0, y0, x1, my, depth + 1);
+      b = split(x0, my, x1, y1, depth + 1);
+      const dx = Math.min(Math.max(a.cx, x0 + 2), x1 - 2);
+      for (let y = my - 1; y <= my + 1; y++) if (y > 0 && y < H - 1) g[y][dx] = 0;
+    }
+    return { cx: (a.cx + b.cx) >> 1, cy: (a.cy + b.cy) >> 1 };
+  };
+  split(1, 1, W - 2, H - 2, 0);
+  // 保证连通：相邻房间链式打通
+  for (let i = 1; i < rooms.length; i++) {
+    const a = rooms[i - 1], b = rooms[i];
+    let x = a.x + (a.w >> 1), y = a.y + (a.h >> 1);
+    const tx = b.x + (b.w >> 1), ty = b.y + (b.h >> 1);
+    while (x !== tx) { x += Math.sign(tx - x); g[y][x] = 0; }
+    while (y !== ty) { y += Math.sign(ty - y); g[y][x] = 0; }
+  }
+  g[1][1] = 0; g[1][2] = 0; g[2][1] = 0;
+  return { grid: g, rooms };
+}
+
+/** 大厅布局：中央巨型开阔空间+环形走廊+放射支路（仓库/中庭感） */
+function genHallsLayout(rng, W, H, opts) {
+  const g = [];
+  for (let y = 0; y < H; y++) g.push(new Array(W).fill(1));
+  const cx0 = W >> 1, cy0 = H >> 1;
+  const hw = (W * 0.28) | 0, hh = (H * 0.28) | 0;
+  // 中央大厅
+  for (let y = cy0 - hh; y <= cy0 + hh; y++) for (let x = cx0 - hw; x <= cx0 + hw; x++)
+    if (x > 0 && y > 0 && x < W - 1 && y < H - 1) g[y][x] = 0;
+  // 环形走廊
+  const ringR = Math.min(W, H) * 0.38 | 0;
+  const steps = 48;
+  const pts = [];
+  for (let i = 0; i < steps; i++) {
+    const a = (i / steps) * Math.PI * 2;
+    const px = (cx0 + Math.cos(a) * ringR) | 0, py = (cy0 + Math.sin(a) * ringR) | 0;
+    if (px > 0 && py > 0 && px < W - 1 && py < H - 1) { g[py][px] = 0; pts.push([px, py]); }
+  }
+  // 放射支路 + 环与大厅连接
+  for (const [px, py] of pts) {
+    if (rng.next() < 0.14) {
+      let x = px, y = py;
+      while (x !== cx0) { x += Math.sign(cx0 - x); g[y][x] = 0; }
+      while (y !== cy0) { y += Math.sign(cy0 - y); g[y][x] = 0; }
+    }
+  }
+  let x = cx0, y = cy0 + hh;
+  while (y !== cy0 + ringR && y < H - 1) { y++; g[y][x] = 0; }
+  // 大厅内柱阵
+  if (opts.pillars) {
+    for (let y = cy0 - hh + 2; y < cy0 + hh - 1; y += 3)
+      for (let x = cx0 - hw + 2; x < cx0 + hw - 1; x += 3)
+        if (rng.next() < 0.55) g[y][x] = 1;
+  }
+  // 外围小房间
+  const rooms = [{ x: cx0 - hw, y: cy0 - hh, w: hw * 2, h: hh * 2 }];
+  for (let i = 0; i < (opts.rooms || 4); i++) {
+    const rw = rng.int(3, 5), rh = rng.int(3, 5);
+    const rx = rng.int(1, W - rw - 2), ry = rng.int(1, H - rh - 2);
+    for (let yy = ry; yy < ry + rh; yy++) for (let xx = rx; xx < rx + rw; xx++) g[yy][xx] = 0;
+    rooms.push({ x: rx, y: ry, w: rw, h: rh });
+    // 接入环廊
+    let bx = rx + (rw >> 1), by = ry + (rh >> 1);
+    while (bx !== cx0) { bx += Math.sign(cx0 - bx); g[by][bx] = 0; }
+    while (by !== cy0) { by += Math.sign(cy0 - by); g[by][bx] = 0; }
+  }
+  g[1][1] = 0; g[1][2] = 0; g[2][1] = 0;
+  return { grid: g, rooms };
+}
+
+/** 街区网格布局：横竖街道切出街区，部分街区有内院（城区/地铁站感） */
+function genGridLayout(rng, W, H, opts) {
+  const g = [];
+  for (let y = 0; y < H; y++) g.push(new Array(W).fill(1));
+  const blockW = 6, blockH = 6;
+  for (let by = 0; by < H; by += blockH)
+    for (let bx = 0; bx < W; bx += blockW)
+      for (let y = by; y < Math.min(by + blockH, H); y++)
+        for (let x = bx; x < Math.min(bx + blockW, W); x++) {
+          const edgeX = (x === bx || x === Math.min(bx + blockW, W) - 1);
+          const edgeY = (y === by || y === Math.min(by + blockH, H) - 1);
+          g[y][x] = (edgeX || edgeY) ? 0 : (rng.next() < 0.82 ? 1 : 0);
+        }
+  // 随机拆几段街墙形成路口
+  for (let i = 0; i < W * H / 30; i++) {
+    const x = rng.int(2, W - 3), y = rng.int(2, H - 3);
+    g[y][x] = 0;
+  }
+  const rooms = [{ x: 1, y: 1, w: blockW, h: blockH }];
+  g[1][1] = 0; g[1][2] = 0; g[2][1] = 0;
+  return { grid: g, rooms };
+}
+
+/** 洞穴有机布局：多随机游走者雕出不规则腔室（矿洞/隧道感） */
+function genOrganicLayout(rng, W, H, opts) {
+  const g = [];
+  for (let y = 0; y < H; y++) g.push(new Array(W).fill(1));
+  const walkers = 5 + (opts.rooms || 4);
+  for (let wi = 0; wi < walkers; wi++) {
+    let x = rng.int(2, W - 3), y = rng.int(2, H - 3);
+    const len = rng.int(40, 90);
+    for (let s = 0; s < len; s++) {
+      const r = rng.int(0, 2);
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx > 0 && ny > 0 && nx < W - 1 && ny < H - 1) g[ny][nx] = 0;
+      }
+      if (rng.next() < 0.65) x += rng.pick([-1, 0, 1]);
+      if (rng.next() < 0.65) y += rng.pick([-1, 0, 1]);
+      x = U.clamp(x, 2, W - 3); y = U.clamp(y, 2, H - 3);
+    }
+  }
+  // 连通性保障：从出生点 BFS，把孤立区打通到主区
+  let field = bfsField(g, 1, 1);
+  for (let pass = 0; pass < 6; pass++) {
+    let fixed = true;
+    outer:
+    for (let y = 2; y < H - 1; y++) for (let x = 2; x < W - 1; x++) {
+      if (g[y][x] === 0 && field[y][x] === -1) {
+        fixed = false;
+        let tx = x, ty = y;
+        while (field[ty][tx] === -1 && tx > 1) { tx--; g[ty][tx] = 0; }
+        while (field[ty][tx] === -1 && ty > 1) { ty--; g[ty][tx] = 0; }
+        break outer;
+      }
+    }
+    if (fixed) break;
+    field = bfsField(g, 1, 1);
+  }
+  const rooms = [{ x: 1, y: 1, w: 5, h: 5 }];
+  g[1][1] = 0; g[1][2] = 0; g[2][1] = 0;
+  return { grid: g, rooms };
+}
+
+/** 连通性保障：从出生点 BFS，把所有孤立开放区打通到主区 */
+function ensureConnected(g, W, H) {
+  let field = bfsField(g, 1, 1);
+  let guard = 0;
+  while (guard++ < 50) {
+    let tx = -1, ty = -1;
+    outer:
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      if (g[y][x] === 0 && field[y][x] === -1) { tx = x; ty = y; break outer; }
+    }
+    if (tx < 0) break;
+    let x = tx, y = ty;
+    while (x > 1) { x--; g[y][x] = 0; }
+    while (y > 1) { y--; g[y][x] = 0; }
+    field = bfsField(g, 1, 1);
+  }
+}
+
 function genMap(rng, W, H, opts) {
+  let res;
+  switch (opts.layout) {
+    case 'rooms': res = genRoomsLayout(rng, W, H, opts); break;
+    case 'halls': res = genHallsLayout(rng, W, H, opts); break;
+    case 'grid': res = genGridLayout(rng, W, H, opts); break;
+    case 'organic': res = genOrganicLayout(rng, W, H, opts); break;
+    default:
+      res = null;
+  }
+  if (res) {
+    ensureConnected(res.grid, W, H);
+    return res;
+  }
   const g = [];
   for (let y = 0; y < H; y++) { g.push(new Array(W).fill(1)); }
   const at = (x, y) => g[y][x];
@@ -419,6 +780,7 @@ function mergeGeoms(geos) {
 class Level {
   constructor(cfg, seed) {
     this.cfg = cfg;
+    cfg.layout = cfg.layout || LEVEL_LAYOUTS[cfg.id] || 'maze';   // v2.2 地形布局
     this.seed = seed >>> 0;
     this.rng = new RNG(this.seed);
     this.group = null;
@@ -529,7 +891,9 @@ class Level {
       rooms: cfg.rooms != null ? cfg.rooms : 5,
       braid: cfg.braid || (cfg.id === 0 ? 0.1 : 0.16),
       pillars: !!cfg.pillars,
+      layout: cfg.layout,
     });
+    this.rooms = rooms;
     this.grid = grid;
 
     /* 高度图初始化 */
@@ -622,11 +986,16 @@ class Level {
     }
     group.add(new THREE.Mesh(mergeBoxes(ceilBoxes), ceilMat));
 
-    /* ---- 水面（水淹隧道） ---- */
+    /* ---- 水面（水淹隧道 / 泳池 / 镜像大厅） ---- */
     if (cfg.water) {
+      const pool = !!cfg.poolrooms;
       const water = new THREE.Mesh(
         new THREE.PlaneGeometry(worldW, worldH),
-        new THREE.MeshLambertMaterial({ color: 0x0a1418, transparent: true, opacity: 0.62 })
+        new THREE.MeshLambertMaterial({
+          color: pool ? 0x2a8a9a : (cfg.id === 23 ? 0x1a2832 : 0x0a1418),
+          transparent: true, opacity: pool ? 0.5 : 0.62,
+          emissive: pool ? 0x0a3040 : 0x000000,
+        })
       );
       water.rotation.x = -Math.PI / 2;
       water.position.set(worldW / 2, 0.16, worldH / 2);
@@ -636,6 +1005,9 @@ class Level {
 
     /* ---- 物品放置 ---- */
     this._placeItems(group, empties, field);
+
+    /* ---- 地标建筑（导航参照物） ---- */
+    this._placeLandmark(group);
 
     /* ---- 场景道具 ---- */
     if (cfg.props) this._placeProps(group, empties);
@@ -988,8 +1360,9 @@ class Level {
     for (const exCfg of this.cfg.exits) {
       let spot = null, guard = 0;
       while (!spot && guard++ < 900) {
-        const c = empties[rng.int(2, empties.length - 1)];
-        if (!okCell(c)) continue;
+        const idx = empties.length > 3 ? rng.int(2, empties.length - 1) : rng.int(0, Math.max(0, empties.length - 1));
+        const c = empties[idx];
+        if (!c || !okCell(c)) continue;
         if ((exCfg.kind === 'door' || exCfg.kind === 'elevator' || exCfg.kind === 'pipe' || exCfg.kind === 'lightdoor') && !hasWallNeighbor(c)) continue;
         spot = c;
       }
@@ -1153,6 +1526,27 @@ class Level {
       m.rotation.x = -Math.PI / 2;
       m.rotation.z = Math.random() * Math.PI * 2;
       m.position.y = 0.015; g.add(m);
+    } else if (type === 'bottle') {
+      // 可投掷玻璃瓶：微微发光便于发现
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.24, 8),
+        new THREE.MeshLambertMaterial({ color: 0x9fd8b0, transparent: true, opacity: 0.85, emissive: 0x1e3a26 }));
+      b.rotation.z = Math.PI / 2.3; b.position.y = 0.07;
+      g.add(b);
+    } else if (type === 'locker') {
+      // 藏身柜：高身铁柜，带门缝
+      const bodyM = new THREE.Mesh(new THREE.BoxGeometry(0.95, 2.1, 0.7),
+        new THREE.MeshLambertMaterial({ color: 0x5a6a72 }));
+      bodyM.position.y = 1.05;
+      const doorLine = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.9, 0.02),
+        new THREE.MeshLambertMaterial({ color: 0x2a343a }));
+      doorLine.position.set(0, 1.05, 0.36);
+      const vent = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.02),
+        new THREE.MeshLambertMaterial({ color: 0x39454c }));
+      vent.position.set(-0.18, 1.75, 0.36);
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.04),
+        new THREE.MeshLambertMaterial({ color: 0xc8c8c8, emissive: 0x333333 }));
+      handle.position.set(0.32, 1.05, 0.37);
+      g.add(bodyM, doorLine, vent, handle);
     }
     return g;
   }
@@ -1180,6 +1574,9 @@ class Level {
     if (cfg.adrenaline) { for (let i = 0; i < cfg.adrenaline; i++) types.push('adrenaline'); }
     // 杏仁水：多数层 1-2 瓶
     if (![11].includes(cfg.id)) { types.push('almond'); if (cfg.size >= 25) types.push('almond'); }
+    // 玻璃瓶（投掷）：每层 2-3 个
+    const nBottle = cfg.bottle || 2;
+    for (let i = 0; i < nBottle; i++) types.push('bottle');
     // 配置的额外物品（如门禁卡）
     if (cfg.items) types.push(...cfg.items);
 
@@ -1199,6 +1596,25 @@ class Level {
       }
       this.items.push({ type: t, x: mesh.position.x, z: mesh.position.z, y: mesh.position.y, mesh, taken: false, title, body });
     });
+
+    /* 藏身柜：每层 2-4 个，靠近墙边 */
+    if (cfg.id !== 11) {
+      const nLocker = 2 + Math.floor(this.rng.next() * 3);
+      const lspots = this._pickSpots(empties, nLocker, 8);
+      for (const c of lspots) {
+        const [wx, wz] = this.cellToWorld(c.x, c.y);
+        const mesh = this._makeItemMesh('locker');
+        // 贴墙放置：找相邻实心方向偏移
+        let ox = 0, oz = 0;
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          if (this.isSolidCell(c.x + dx, c.y + dz)) { ox = dx * (CELL / 2 - 0.45); oz = dz * (CELL / 2 - 0.45); break; }
+        }
+        const gy = this.groundAt(wx + ox, wz + oz);
+        mesh.position.set(wx + ox, gy > HOLE_DEPTH / 2 ? gy : 0, wz + oz);
+        group.add(mesh);
+        this.items.push({ type: 'locker', x: mesh.position.x, z: mesh.position.z, y: mesh.position.y, mesh, taken: false, title: '', body: '' });
+      }
+    }
 
     /* L1 配电箱 */
     if (cfg.id === 1) {
@@ -1250,6 +1666,127 @@ class Level {
   }
 
   /* ---------------- 场景道具 ---------------- */
+  /** v2.2 地标建筑：每层视觉锚点/导航参照物 */
+  _placeLandmark(group) {
+    const cfg = this.cfg;
+    if (!cfg.landmark || !this.rooms || !this.rooms.length) return;
+    // 取最大房间中心
+    const r = this.rooms.reduce((a, b) => (a.w * a.h >= b.w * b.h ? a : b));
+    const [wx, wz] = this.cellToWorld(r.x + (r.w >> 1), r.y + (r.h >> 1));
+    const gy = this.groundAt(wx, wz);
+    const base = gy > HOLE_DEPTH / 2 ? gy : 0;
+    const g = new THREE.Group();
+    const mat = (c, e) => new THREE.MeshLambertMaterial({ color: c, emissive: e || 0x000000 });
+    switch (cfg.landmark) {
+      case 'fountain': {   // 泳池区中央喷泉水池
+        const rim = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.4, 0.5, 20), mat(0xb8c8c0));
+        rim.position.y = base + 0.25;
+        const wat = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.0, 0.4, 20),
+          new THREE.MeshLambertMaterial({ color: 0x3aa8b8, transparent: true, opacity: 0.75, emissive: 0x0a3440 }));
+        wat.position.y = base + 0.32;
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 1.6, 10), mat(0xa8bcbc));
+        col.position.y = base + 1.2;
+        g.add(rim, wat, col);
+        break;
+      }
+      case 'booktower': {  // 图书馆书塔
+        for (let i = 0; i < 7; i++) {
+          const h = 0.55;
+          const box = new THREE.Mesh(new THREE.BoxGeometry(1.6 - i * 0.12, h, 1.6 - i * 0.12),
+            mat(i % 2 ? 0x6a5232 : 0x59452a));
+          box.position.set((this.rng.next() - 0.5) * 0.25, base + 0.28 + i * h, (this.rng.next() - 0.5) * 0.25);
+          box.rotation.y = this.rng.range(-0.15, 0.15);
+          g.add(box);
+        }
+        break;
+      }
+      case 'train': {      // 地铁列车车厢
+        const body = new THREE.Mesh(new THREE.BoxGeometry(7.5, 2.6, 2.4), mat(0x3a4a44, 0x0a1410));
+        body.position.y = base + 1.7;
+        const skirt = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.5, 2.2), mat(0x222c28));
+        skirt.position.y = base + 0.45;
+        for (let i = -2; i <= 2; i++) {
+          const win = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.7, 0.06), mat(0xffe9a0, 0x666030));
+          win.position.set(i * 1.4, base + 2.1, 1.23);
+          g.add(win);
+        }
+        g.add(body, skirt);
+        break;
+      }
+      case 'morgue': {     // 停尸抽屉墙
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(4.5, 2.6, 0.5), mat(0x9ab0ac, 0x0a1512));
+        wall.position.y = base + 1.3;
+        g.add(wall);
+        for (let ry = 0; ry < 4; ry++) for (let rx = 0; rx < 6; rx++) {
+          if (this.rng.next() < 0.82) {
+            const d = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.5, 0.06), mat(0x7f9591));
+            d.position.set(-1.85 + rx * 0.74, base + 0.45 + ry * 0.62, 0.28);
+            g.add(d);
+            if (this.rng.next() < 0.12) {   // 虚掩的抽屉（微光）
+              d.position.z = 0.36; d.rotation.x = 0.18;
+              d.material = mat(0x30393b, 0x101a1c);
+            }
+          } else {
+            const hole = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.44, 0.08), mat(0x05090a));
+            hole.position.set(-1.85 + rx * 0.74, base + 0.45 + ry * 0.62, 0.26);
+            g.add(hole);
+          }
+        }
+        break;
+      }
+      case 'garden': {     // 温室大树+花坛
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.5, 2.6, 8), mat(0x5a4630));
+        trunk.position.y = base + 1.3;
+        const crown = new THREE.Mesh(new THREE.SphereGeometry(1.9, 12, 10), mat(0x3f7d3a, 0x0e240e));
+        crown.position.y = base + 3.3;
+        crown.scale.y = 0.85;
+        g.add(trunk, crown);
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 5) * Math.PI * 2;
+          const bed = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.8, 0.35, 10), mat(0x6a5638));
+          bed.position.set(wx === 0 ? 0 : Math.cos(a) * 3.2, base + 0.17, Math.sin(a) * 3.2);
+          const flower = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6),
+            mat([0xe86a8a, 0xe8c86a, 0x8a6ae8][i % 3], [0x401420, 0x403210, 0x201440][i % 3]));
+          flower.position.set(Math.cos(a) * 3.2, base + 0.55, Math.sin(a) * 3.2);
+          g.add(bed, flower);
+        }
+        break;
+      }
+      case 'server': {     // 数据中心核心机柜
+        for (let i = 0; i < 4; i++) {
+          const rack = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.4, 0.9), mat(0x14181f));
+          rack.position.set(i * 1.4, base + 1.2, 0);
+          g.add(rack);
+          for (let l = 0; l < 8; l++) {
+            const led = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.03),
+              mat(this.rng.next() < 0.7 ? 0x3a8aff : 0x27e07a, this.rng.next() < 0.7 ? 0x0a2a66 : 0x0a5030));
+            led.position.set(i * 1.4 + this.rng.range(-0.2, 0.2), base + 0.4 + l * 0.26, 0.47);
+            g.add(led);
+          }
+        }
+        break;
+      }
+      case 'mirror': {     // 镜面立柱群
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+          const mcol = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3.4, 0.5),
+            new THREE.MeshPhongMaterial({ color: 0xc8d8e0, shininess: 100, specular: 0xffffff }));
+          mcol.position.set(Math.cos(a) * 2.6, base + 1.7, Math.sin(a) * 2.6);
+          g.add(mcol);
+        }
+        break;
+      }
+      default: {           // 默认石碑
+        const mono = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.6, 0.5), mat(0x707870));
+        mono.position.y = base + 1.3;
+        g.add(mono);
+      }
+    }
+    g.position.set(wx, 0, wz);
+    group.add(g);
+    this.landmarkPos = { x: wx, z: wz };
+  }
+
   _placeProps(group, empties) {
     const cfg = this.cfg;
     const rng = this.rng;
@@ -1509,5 +2046,37 @@ const NOTE_TEXTS = {
   15: [
     { t: '气球上的字条', b: '=) 你来啦！派对刚开始！蛋糕在楼上！游戏在楼下！\n\n出口？聚会进行到天亮哦。这里的“天亮”还没被发明出来呢 =)' },
     { t: '一张被踩过的邀请函', b: '诚挚邀请您参加永不散场派对\n着装要求：随意（反正之后也会一样）\n伴手礼：永久的微笑 =)\n\n注：不接受拒绝，不接受提前离场' },
+  ],
+  16: [
+    { t: '消防演练记录', b: '第 9,341 次演练。全员到楼梯间集合。\n没有人记得清点人数是从哪一次开始变成奇数的。\n\n继续往下走。别回头数台阶。' },
+    { t: '写在墙上的粉笔字', b: '向下 17 层 → 出口\n向下 41 层 → 出口\n向下 ??? 层 → 真正的出口\n\n下面有人用红笔补了一句：都是骗人的，但楼梯是真的' },
+  ],
+  17: [
+    { t: '借书卡（背面）', b: '《后室建筑学（残卷）》\n最后借阅人：（名字被水渍泡开了）\n应还日期：昨天\n\n逾期罚则：成为馆藏。' },
+    { t: '夹在书里的信', b: '我在 J 区书架第七排发现一条规律：所有关于“出口”的书都是空白的。\n除了最后一页有一行小字：出口不是找到的，是走到累的那一步时它自己出现。\n\n我不信。我还在走。' },
+  ],
+  18: [
+    { t: '末班车站牌', b: '首班 05:30 / 末班 ——:——\n本站停运通知：因“结构原因”无限期停运。\n\n站务员留言：如果你必须在隧道里过夜，睡在高台上。水涨的时候它们游得快。' },
+    { t: '湿透的工作证', b: '检修工 第7号\n负责区间：K线全段\n备注：听到轨道传来广播声时，不要答应任何问题。它们会问你的名字。' },
+  ],
+  19: [
+    { t: '值班护士的手记', b: '夜班守则第一条：不要数抽屉。\n第二条：如果一定要数，从右边开始。左边那几个有主了。\n\n今晚 3 排 14 号又开着。我用听诊器贴上去听了。\n我再也不带听诊器上夜班了。' },
+    { t: '一张标签纸', b: '编号 0-0-0\n姓名：（空白）\n死因：看见了自己\n\n处理意见：待观察。它在等下一个看见自己的人。' },
+  ],
+  20: [
+    { t: '温室养护日志', b: '第 412 天：番茄结果了。真的结果了！\n这里和其他地方不一样。土是真的，光是暖的。\n\n如果你找到了这里，先深呼吸十次。然后帮我把左二花坛浇了。' },
+    { t: '挂在藤架上的木牌', b: '欢迎来到花园。\n规矩只有一条：可以摘果子，不可以挖土。\n\n土下面埋着的不是种子。是我们想忘掉的东西。' },
+  ],
+  21: [
+    { t: '机房巡检单', b: '机柜 A-01 至 A-4096：正常。\n温湿度：正常。\n噪音：正常。\n异常：B 区走廊尽头多了一台没有接入任何线路的服务器。\n它的指示灯在闪。像摩尔斯电码。翻译过来是：“我也想出去。”' },
+    { t: '打印出来的邮件', b: '发件人：系统管理员\n收件人：全体员工\n主题：关于深夜蓝光\n\n最近有同事反映凌晨的机房里有人影走动。\n监控回放显示那只是 LED 呼吸灯。\n\n请勿在回放时倒带三遍以上。' },
+  ],
+  22: [
+    { t: '风暴中捡到的笔记', b: '白色风暴的第 ? 天。我的影子被吹丢了。\n\n在这里迷路不可怕，可怕的是你身后突然出现一串脚印——和你鞋底花纹一样，但方向相反。' },
+    { t: '灰烬里的卡片', b: '白噪疗法 · 患者须知\n请在纯白环境中放松身心，想象自己回到出生之前的宁静。\n\n副作用：部分患者表示“回不来了”。' },
+  ],
+  23: [
+    { t: '大厅迎宾词（对折的）', b: '欢迎光临镜像大厅。\n本厅采用完美对称设计：左侧有什么，右侧就有什么。\n\n如果发现不对称的地方——那是你带来的。离开前请务必带走。' },
+    { t: '湿掉的导览图', b: '① 入口喷泉（干涸）\n② 镜柱广场\n③ 宴会厅遗址\n④ ——这行字后面全是水彩晕开的痕迹，隐约画着一个小人，站在你现在的位置。' },
   ],
 };
