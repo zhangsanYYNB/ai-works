@@ -181,10 +181,10 @@ const Sound = {
     o1.start(); o2.start(); n.start();
     // 水滴声（地下/潮湿层）
     let dripTimer = null;
-    if ([1, 5, 6, 7, 9].includes(level)) {
+    if ([1, 5, 6, 7, 9, 12].includes(level)) {
       dripTimer = setInterval(() => {
-        if (Math.random() < (level === 6 ? 0.75 : 0.5)) this._tone(this.ctx ? 1400 + Math.random() * 800 : 1500, 0.15, 0.05, 'sine', 500);
-      }, level === 6 ? 3000 : 4000);
+        if (Math.random() < (level === 6 ? 0.75 : (level === 12 ? 0.65 : 0.5))) this._tone(this.ctx ? 1400 + Math.random() * 800 : 1500, 0.15, 0.05, 'sine', 500);
+      }, level === 6 ? 3000 : (level === 12 ? 3600 : 4000));
     }
     // 警笛（深红警报）
     let siren = null;
