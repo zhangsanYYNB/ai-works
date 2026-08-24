@@ -18,6 +18,8 @@ class Player {
     this.radius = 0.34;
     this.speedWalk = 3.0;
     this.speedRun = 5.1;
+    this.crouching = false;   // 蹲行：慢速+低噪音
+    this._eyeH = EYE_H;
     this.stamina = 100;
     this.running = false;
     this.moving = false;
@@ -71,6 +73,7 @@ class Player {
       if (!G) return;
       if (e.code === 'KeyE') G.tryInteract();
       if (e.code === 'KeyF') G.toggleFlashlight();
+      if (e.code === 'KeyQ') G.throwBottle();
       if (e.code === 'Space') { this.wantJump = true; e.preventDefault(); }
     });
     document.addEventListener('keyup', e => { this.keys[e.code] = false; });
@@ -169,6 +172,10 @@ class Player {
     bindBtn(els.btnFlashlight, () => window.GAME && window.GAME.toggleFlashlight());
     bindBtn(els.btnSprint, () => { this.touchSprint = true; }, () => { this.touchSprint = false; });
     bindBtn(els.btnJump, () => { this.wantJump = true; });
+    bindBtn(els.btnThrow, () => window.GAME && window.GAME.throwBottle());
+    if (els.btnCrouch) {
+      els.btnCrouch.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); this.touchCrouch = !this.touchCrouch; els.btnCrouch.classList.toggle('pressed', this.touchCrouch); }, { passive: false });
+    }
   }
 
   _updateJoy(x, y, cx, cy, R, out, setThumb) {
@@ -224,12 +231,16 @@ class Player {
 
     /* ---- 天梯检测与攀爬 ---- */
     if (this._ladderCd > 0) this._ladderCd -= dt;
+    const prevLadder = this.onLadder;
     this.onLadder = null;
     if (!this.noclip && this._ladderCd <= 0 && level && level.ladders && level.ladders.length) {
       const pcx = Math.floor(this.pos.x / CELL), pcz = Math.floor(this.pos.z / CELL);
       for (const L of level.ladders) {
-        // 按竖井整格捕获：在井格内且高度合适即视为在天梯上
-        if (pcx === L.scx && pcz === L.scy &&
+        // 抓握：需靠近梯杆本体（±0.9），避免路过井口被误吸
+        const near = Math.abs(this.pos.x - L.x) < 0.9 && Math.abs(this.pos.z - L.z) < 0.9;
+        // 已在梯上时：整个竖井格内都不脱手（防滑出途中坠落）
+        const inShaft = pcx === L.scx && pcz === L.scy;
+        if ((near || (prevLadder === L && inShaft)) &&
             this.feetY > L.y0 - 0.7 && this.feetY < L.y1 + 0.45) { this.onLadder = L; break; }
       }
     }
@@ -322,7 +333,7 @@ class Player {
 
     // 世界空间移动
     if (this.moving && !paused) {
-      const speed = (this.running ? this.speedRun : this.speedWalk) * mag * (this.boostT > 0 ? 1.22 : 1) * (this.onLadder ? 0.35 : 1);
+      const speed = (this.running ? this.speedRun : this.speedWalk) * mag * (this.boostT > 0 ? 1.22 : 1) * (this.onLadder ? 0.35 : 1) * (this.crouching ? 0.5 : 1);
       const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
       // 前方向（yaw=0 时面向 -Z）
       const fx = -sin, fz = -cos;
@@ -358,7 +369,12 @@ class Player {
     // 相机同步（含垂直位置）
     const bobY = Math.sin(this._bobT) * (this.moving ? 0.035 : 0.008);
     const bobX = Math.cos(this._bobT * 0.5) * (this.moving ? 0.02 : 0);
-    this.camera.position.set(this.pos.x + bobX, this.feetY + EYE_H + bobY, this.pos.z);
+    // 蹲行状态（Ctrl/C/触屏按钮）；奔跑与蹲互斥
+    this.crouching = !!(this.keys['ControlLeft'] || this.keys['ControlRight'] || this.keys['KeyC'] || this.touchCrouch) && !this.running && !this.onLadder;
+    // 镜头高度平滑过渡（蹲下压低视角）
+    const targetEye = this.crouching ? EYE_H * 0.55 : EYE_H;
+    this._eyeH += (targetEye - this._eyeH) * Math.min(1, dt * 10);
+    this.camera.position.set(this.pos.x + bobX, this.feetY + this._eyeH + bobY, this.pos.z);
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.y = this.yaw;
     this.camera.rotation.x = this.pitch;

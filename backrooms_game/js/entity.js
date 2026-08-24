@@ -110,22 +110,39 @@ class Entity {
     return [px, py];
   }
 
-  update(dt, playerPos, playerRunning, flashlightOn, onCatch) {
+  update(dt, playerPos, playerRunning, flashlightOn, onCatch, playerCrouch) {
     const L = this.level;
     const distP = Math.sqrt(U.dist2(this.pos.x, this.pos.y, playerPos.x, playerPos.z));
 
     /* ---- 感知 ---- */
     let sees = false, hears = false;
+    const hidden = !!(window.GAME && window.GAME.hiddenIn);
     if (this.cfg.alwaysChase) {
-      // 无限追杀模式：永远知道玩家位置
-      sees = distP < 80;
-    } else {
+      // 无限追杀模式：永远知道玩家位置（藏身也逃不掉，但距离限制）
+      sees = distP < 80 && !(hidden && distP > 2.5);
+    } else if (!hidden) {
       if (distP < this.cfg.sightRange && L.losClear(this.pos.x, this.pos.y, playerPos.x, playerPos.z)) {
         sees = true;
-        // 黑暗中手电筒会暴露玩家（距离加成），关手电则感知减半
+        // 黑暗中手电筒会暴露玩家（距离加成），关手电则感知减半；蹲行更难被看见
         if (!flashlightOn && L.cfg.dark && distP > this.cfg.sightRange * 0.45) sees = false;
+        if (playerCrouch && distP > this.cfg.sightRange * 0.55) sees = false;
       }
       if (playerRunning && distP < (flashlightOn ? this.cfg.hearingRange : this.cfg.hearingRange * 1.25)) hears = true;
+    }
+
+    // 噪音调查：投掷瓶等声源引开实体
+    if (!this.cfg.alwaysChase) {
+      const nz = window.GAME && window.GAME.lastNoise;
+      if (nz && nz.t > 0) {
+        nz.t -= dt;
+        const dn = Math.sqrt(U.dist2(this.pos.x, this.pos.y, nz.x, nz.z));
+        if (dn < nz.range && this.state !== 'chase') {
+          this.state = 'investigate';
+          this.investPt = { x: nz.x, z: nz.z };
+          this.investTimer = 7;
+          nz.t = 0;
+        }
+      }
     }
 
     if (sees || hears) {
@@ -155,12 +172,21 @@ class Entity {
       let target = null;
       if ((this.state === 'chase' || this.state === 'search') && this.lastKnown) {
         target = this._cellOf(new THREE.Vector2(this.lastKnown.x, this.lastKnown.z));
+      } else if (this.state === 'investigate' && this.investPt) {
+        target = this._cellOf(new THREE.Vector2(this.investPt.x, this.investPt.z));
       } else {
         if (!this.targetCell || this.pathIdx >= this.path.length) this.targetCell = this._pickPatrolTarget();
         target = this.targetCell;
       }
       this.path = this.findPath(ex, ey, target[0], target[1]);
       this.pathIdx = 0;
+    }
+
+    /* ---- 调查噪音：到达后徘徊，超时回巡逻 ---- */
+    if (this.state === 'investigate') {
+      this.investTimer -= dt;
+      const atPt = this.investPt && U.dist2(this.pos.x, this.pos.y, this.investPt.x, this.investPt.z) < 1.2;
+      if (this.investTimer <= 0) { this.state = 'patrol'; this.investPt = null; }
     }
 
     /* ---- 移动 ---- */

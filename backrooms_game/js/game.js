@@ -22,6 +22,10 @@ class Game {
     this.hasKeycard = false;
     this.hasFuse = false;
     this.fuseUsed = false;
+    this.bottles = 0;          // 玻璃瓶（投掷声东击西）
+    this.hiddenIn = null;      // 藏身柜引用
+    this.lastNoise = null;     // 最近噪音事件 {x,z,range,t}
+    this._bottleFly = [];      // 飞行中的瓶子
 
     /* 渲染器 */
     const canvas = document.getElementById('game-canvas');
@@ -56,6 +60,8 @@ class Game {
         btnFlashlight: document.getElementById('btn-flashlight'),
         btnSprint: document.getElementById('btn-sprint'),
         btnJump: document.getElementById('btn-jump'),
+        btnThrow: document.getElementById('btn-throw'),
+        btnCrouch: document.getElementById('btn-crouch'),
       });
     }
 
@@ -167,6 +173,11 @@ class Game {
         this.startTime = performance.now();
         this.elapsed = 0;
         this._deathHandled = false;
+        // 清除藏身/飞行瓶状态
+        if (this.hiddenIn) { this.hiddenIn = null; UI.setHidden(false); }
+        this._bottleFly.forEach(b => this.level.group.remove(b.mesh));
+        this._bottleFly.length = 0;
+        this.lastNoise = null;
         this.travelCooldown = 1.4;
         this.player.boostT = 0;
         this.player.noclip = this.cheats.noclip;
@@ -246,10 +257,11 @@ class Game {
     const fromName = this.level.cfg.short;
     setTimeout(() => {
       this.startLevel(U.clamp(levelId, 0, LEVEL_CFGS.length - 1));
-      const toName = LEVEL_CFGS[levelId].short;
+      const toCfg = LEVEL_CFGS[levelId];
       const first = Game.ensureDiscovered()[levelId];
+      UI.showLevelBanner(toCfg, first);
       setTimeout(() => {
-        UI.showToast(`⬇ ${viaLabel || '穿行'}：<b>${fromName}</b> → <b>${toName}</b>${first ? '　✨ 新层级！' : ''}`, 3000);
+        UI.showToast(`⬇ ${viaLabel || '穿行'}：<b>${fromName}</b> → <b>${toCfg.short}</b>${first ? '　✨ 新层级！' : ''}`, 3000);
       }, 600);
     }, 420);
   }
@@ -269,7 +281,7 @@ class Game {
     // 现实裂缝：直接走入
     for (const dev of L.exits) {
       if (dev.kind !== 'glitch' || dev.used) continue;
-      if (U.dist2(p.pos.x, p.pos.z, dev.x, dev.z) < 1.05 * 1.05) {
+      if (U.dist2(p.pos.x, p.pos.z, dev.x, dev.z) < 0.8 * 0.8) {
         dev.used = true;
         this.travelTo(dev.to, '⚡ 穿过现实裂缝');
         return;
@@ -322,8 +334,91 @@ class Game {
     return best;
   }
 
+  /** 当前层级目标提示 */
+  currentGoal() {
+    const L = this.level;
+    if (!L || !L.exits) return '';
+    if (L.cfg.id === 11) return '🚪 穿过光之门，逃离后室！';
+    if (this.hasFuse && !L.powerOn) return '⚡ 把保险丝装上配电箱';
+    const dev = L.exits.find(e => !e.used);
+    if (!dev) return '🔍 寻找出口……';
+    if (dev.needsPower && !L.powerOn) return '🔌 找到保险丝给装置供电';
+    if (dev.lock === 'keycard' && !this.hasKeycard) return '🔑 找一张门禁卡';
+    if (L.cfg.goal) return L.cfg.goal;
+    return '🚪 前往出口装置';
+  }
+
+  /** 投掷玻璃瓶：声东击西 */
+  throwBottle() {
+    if (this.state !== 'playing' || this.hiddenIn) return;
+    if (this.bottles <= 0) { UI.showToast('🎒 没有瓶子了——留意地上发亮的东西', 1800); return; }
+    this.bottles--;
+    UI.updateHUD && UI.updateHUD();
+    const p = this.player;
+    const dir = new THREE.Vector3();
+    p.camera.getWorldDirection(dir);
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.06, 0.22, 6),
+      new THREE.MeshBasicMaterial({ color: 0x9fd8b0 })
+    );
+    mesh.position.set(p.pos.x + dir.x * 0.4, p.pos.y - 0.1, p.pos.z + dir.z * 0.4);
+    this.level.group.add(mesh);
+    this._bottleFly.push({
+      mesh,
+      vx: dir.x * 7.5, vy: Math.max(2, dir.y * 7.5) + 2.5, vz: dir.z * 7.5,
+      y: p.feetY + 1.4,
+    });
+    Sound.throwWhoosh && Sound.throwWhoosh();
+  }
+
+  _updateBottles(dt) {
+    for (let i = this._bottleFly.length - 1; i >= 0; i--) {
+      const b = this._bottleFly[i];
+      b.vy += GRAVITY * dt * 0.85;
+      b.mesh.position.x += b.vx * dt;
+      b.mesh.position.z += b.vz * dt;
+      b.y += b.vy * dt;
+      b.mesh.rotation.x += dt * 12; b.mesh.rotation.z += dt * 9;
+      const g = this.level.groundAt(b.mesh.position.x, b.mesh.position.z, b.y + 0.05);
+      const floorY = g > HOLE_DEPTH / 2 ? g : 0;
+      if (b.y <= floorY + 0.08) {
+        // 落地：碎裂声 + 噪音吸引实体
+        Sound.glassBreak && Sound.glassBreak();
+        this.lastNoise = { x: b.mesh.position.x, z: b.mesh.position.z, range: 15, t: 0.4 };
+        this.level.group.remove(b.mesh);
+        this._bottleFly.splice(i, 1);
+      }
+    }
+  }
+
+  /** 进入/离开藏身柜 */
+  _toggleHide(locker) {
+    const P = this.player;
+    if (this.hiddenIn) {
+      // 出柜：沿玩家朝向退出一小段
+      this.hiddenIn.inUse = false;
+      const dir = new THREE.Vector3(); P.camera.getWorldDirection(dir);
+      const ox = this.hiddenIn.x - dir.x * 0.9, oz = this.hiddenIn.z - dir.z * 0.9;
+      if (!this.level.circleHitsWall(ox, oz, P.radius)) { P.pos.x = ox; P.pos.z = oz; }
+      this.hiddenIn = null;
+      this.travelCooldown = Math.max(this.travelCooldown, 0.5);
+      UI.setHidden(false);
+      Sound.doorOpen();
+    } else if (locker && !locker.inUse) {
+      locker.inUse = true;
+      this.hiddenIn = locker;
+      P.pos.set(locker.x, P.pos.y, locker.z);
+      P.feetY = locker.y != null ? locker.y : P.feetY;
+      P.keys['KeyW'] = P.keys['KeyS'] = P.keys['KeyA'] = P.keys['KeyD'] = false;
+      UI.setHidden(true);
+      UI.showToast('🚪 已藏入柜中。它看不见你……按 E 离开', 2600);
+      Sound.doorLocked();
+    }
+  }
+
   tryInteract() {
     if (this.state !== 'playing') return;
+    if (this.hiddenIn) { this._toggleHide(null); return; }   // 藏身中按 E 出来
     const target = this._findInteractable();
     if (!target) return;
 
@@ -358,6 +453,16 @@ class Game {
         this.itemsGot++;
         Sound.pickup();
         UI.showToast('💉 <b>肾上腺素！</b>8 秒爆发加速', 2400);
+        break;
+      case 'bottle':
+        target.taken = true; target.mesh.visible = false;
+        this.bottles++;
+        this.itemsGot++;
+        Sound.pickup();
+        UI.showToast(`🍾 拾取玻璃瓶（×${this.bottles}）——按 <b>Q</b> 投掷，声音能引开它`, 2600);
+        break;
+      case 'locker':
+        this._toggleHide(target);
         break;
       case 'note':
         target.taken = true; target.mesh.visible = false;
@@ -506,7 +611,7 @@ class Game {
       const pausedLike = this.state !== 'playing';
       this.elapsed += dt;
 
-      this.player.update(dt, this.level, pausedLike);
+      this.player.update(dt, this.level, pausedLike || !!this.hiddenIn);
       this.level.update(dt);
 
       if (!pausedLike) this._checkTransits(dt);
@@ -515,8 +620,11 @@ class Game {
         this.entity.update(dt, this.player.pos, this.player.running, this.player.flashlightOn, () => {
           if (!this.cheats.god) this.onDeath();
           else if (Math.random() < dt * 2) UI.showToast('👻 它穿过了你……但抓不住你', 1200);
-        });
+        }, this.player.crouching);
       }
+
+      // 投掷瓶飞行物理
+      this._updateBottles(dt);
 
       // 探索标记（小地图）
       const [pcx, pcy] = this.level.worldToCell(this.player.pos.x, this.player.pos.z);
@@ -552,6 +660,8 @@ class Game {
                 almond: '🧴 喝下杏仁水',
                 adrenaline: '💉 注射肾上腺素',
                 note: '📄 阅读纸条',
+                bottle: '🍾 捡起玻璃瓶',
+                locker: '🚪 藏进柜子',
                 powerbox: this.hasFuse && !this.fuseUsed ? '💡 安装保险丝' : '⚡ 检查配电箱',
               }[t.type] || '互动';
             }
@@ -612,6 +722,13 @@ class Game {
       }
 
       UI.setStamina(this.player.stamina, this.player.running);
+      // 目标 HUD + 瓶子计数（每 ~0.5s 刷新一次）
+      this._hudT = (this._hudT || 0) - dt;
+      if (this._hudT <= 0) {
+        this._hudT = 0.5;
+        const goal = this.currentGoal();
+        UI.setObjective(`${goal}<br><span style="opacity:.75">🍾 ×${this.bottles}${this.hiddenIn ? ' · 🚪 藏身中' : ''}</span>`);
+      }
       UI.drawMinimap(this.level, this.player, this.visited, this.entity);
     }
 
