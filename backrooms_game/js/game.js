@@ -73,13 +73,11 @@ class Game {
   static ensureDiscovered() {
     let d = Store.get('discovered', null);
     if (!d || d.length !== LEVEL_CFGS.length) {
-      d = LEVEL_CFGS.map((c, i) => {
-        if (i === 0) return true;
-        // 迁移旧存档：unlocked>0 表示老玩家进度
-        return false;
-      });
+      // 扩容时保留旧发现记录
+      const nd = LEVEL_CFGS.map((c, i) => !!(d && d[i]) || i === 0);
       const un = Store.get('unlocked', 0);
-      if (un > 0) for (let i = 0; i <= Math.min(un, LEVEL_CFGS.length - 1); i++) d[i] = true;
+      if (!d && un > 0) for (let i = 0; i <= Math.min(un, LEVEL_CFGS.length - 1); i++) nd[i] = true;
+      d = nd;
       Store.set('discovered', d);
     }
     return d;
@@ -316,7 +314,10 @@ class Game {
     for (const it of this.level.items) {
       if (it.taken) continue;
       const d = U.dist2(p.x, p.z, it.x, it.z);
-      if (d < bestD) { best = it; bestD = d; }
+      if (d >= bestD) continue;
+      // 多层：上层物品不能隔着楼板被拾取（垂差超过 1.6m 忽略）
+      if (it.y != null && Math.abs((it.y + 0.5) - (p.y - EYE_H)) > 1.6) continue;
+      best = it; bestD = d;
     }
     return best;
   }
@@ -595,9 +596,9 @@ class Game {
             const dist = 9 + Math.random() * 5;
             const gx = this.player.pos.x + fx * dist, gz = this.player.pos.z + fz * dist;
             const cx = Math.floor(gx / CELL), cy = Math.floor(gz / CELL);
-            if (!sfL.isSolidCell(cx, cy) && sfL.groundAt(gx, gz) > HOLE_DEPTH / 2 &&
+            if (!sfL.isSolidCell(cx, cy) && sfL.groundAt(gx, gz, 0.5) > HOLE_DEPTH / 2 &&
                 sfL.losClear(this.player.pos.x, this.player.pos.z, (cx + 0.5) * CELL, (cy + 0.5) * CELL)) {
-              const gy = sfL.groundAt((cx + 0.5) * CELL, (cy + 0.5) * CELL);
+              const gy = sfL.groundAt((cx + 0.5) * CELL, (cy + 0.5) * CELL, 0.5);
               sf.position.set((cx + 0.5) * CELL, gy > HOLE_DEPTH / 2 ? gy : 0, (cy + 0.5) * CELL);
               sf.lookAt(this.player.pos.x, sf.position.y, this.player.pos.z);
               sf.visible = true;

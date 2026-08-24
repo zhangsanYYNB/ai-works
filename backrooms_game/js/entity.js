@@ -196,7 +196,7 @@ class Entity {
 
     /* ---- 动画 & 同步 ---- */
     this.bob += dt * (this.state === 'chase' ? 11 : 5);
-    const gy = L.groundAt(this.pos.x, this.pos.y);
+    const gy = L.groundAt(this.pos.x, this.pos.y, 0.5);
     const baseY = gy > HOLE_DEPTH / 2 ? gy : 0;
     this.mesh.position.set(this.pos.x, baseY + Math.abs(Math.sin(this.bob)) * 0.06, this.pos.y);
     this.mesh.rotation.y = this.dir;

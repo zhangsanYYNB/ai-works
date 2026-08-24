@@ -43,6 +43,8 @@ class Player {
     this._stepT = 0;
     this.boostT = 0;   // 肾上腺素加速剩余时间
     this.noclip = false; // 作弊：穿墙（飞行）
+    this._ladderCd = 0;  // 天梯脱离冷却
+    this.onLadder = null;
 
     this._bindDesktop();
   }
@@ -220,6 +222,58 @@ class Player {
       }
     }
 
+    /* ---- 天梯检测与攀爬 ---- */
+    if (this._ladderCd > 0) this._ladderCd -= dt;
+    this.onLadder = null;
+    if (!this.noclip && this._ladderCd <= 0 && level && level.ladders && level.ladders.length) {
+      const pcx = Math.floor(this.pos.x / CELL), pcz = Math.floor(this.pos.z / CELL);
+      for (const L of level.ladders) {
+        // 按竖井整格捕获：在井格内且高度合适即视为在天梯上
+        if (pcx === L.scx && pcz === L.scy &&
+            this.feetY > L.y0 - 0.7 && this.feetY < L.y1 + 0.45) { this.onLadder = L; break; }
+      }
+    }
+    let climbing = false;
+    if (this.onLadder && !this.noclip) {
+      const Ld = this.onLadder;
+      const botMin = Math.max(Ld.y0, 0);
+      const atTop = this.feetY >= Ld.y1 - 0.03;
+      const atBottom = this.feetY <= botMin + 0.08;
+      const wantUp = mz > 0.05 || this.keys['Space'];
+      const wantDown = mz < -0.05;
+      let cvy = 0;
+      if (!atTop && !atBottom) {
+        if (wantUp) cvy = 2.35;
+        else if (wantDown) cvy = -2.1;
+      } else if (atBottom && wantUp) {
+        cvy = 2.35;                                   // 底部向上爬
+      } else if (atTop && wantDown) {
+        cvy = -2.1;                                    // 顶部向下爬
+      }
+      if (cvy !== 0) {
+        this.feetY += cvy * dt;
+        this._stepT -= dt * 1.7;
+        if (this._stepT <= 0) { Sound.step(false); this._stepT = 0.42; }
+        climbing = true;
+      }
+      if (this.feetY >= Ld.y1) this.feetY = Ld.y1;          // 到顶限位
+      if (this.feetY <= botMin) this.feetY = botMin;
+      // 顶部（未按下）或底部（后退）且在移动 → 沿出口方向自动滑出井口
+      const slideOut = ((atTop && !wantDown) || (atBottom && !wantUp)) && this.moving;
+      if (slideOut && Ld.ex != null) {
+        this.pos.x += Ld.ex * 2.4 * dt;
+        this.pos.z += Ld.ez * 2.4 * dt;
+        climbing = true;
+        this.vy = 0;
+      }
+      if (this.wantJump && !paused) {                        // 跳离天梯
+        this.vy = 3.4;
+        this.onLadder = null;
+        this._ladderCd = 0.45;
+      }
+      this.onGround = false;
+    }
+
     /* ---- 垂直物理 ---- */
     if (this.noclip) {
       // 穿墙模式：悬浮飞行，不受重力
@@ -227,9 +281,9 @@ class Player {
       const gHere = level ? level.groundAt(this.pos.x, this.pos.z) : 0;
       this.feetY = Math.max(this.feetY, (gHere > HOLE_DEPTH / 2 ? gHere : 0));
       this.onGround = false;
-    } else if (level) {
+    } else if (level && !climbing) {
       if (this.onGround) {
-        const g = level.groundAt(this.pos.x, this.pos.z);
+        const g = level.groundAt(this.pos.x, this.pos.z, this.feetY + STEP_UP_MAX);
         if (g <= HOLE_DEPTH / 2 || g < this.feetY - 0.02) {
           // 走出边缘 → 开始下落
           this.onGround = false;
@@ -248,7 +302,7 @@ class Player {
         this.vy += GRAVITY * dt;
         if (this.vy < -30) this.vy = -30;
         this.feetY += this.vy * dt;
-        const g = level.groundAt(this.pos.x, this.pos.z);
+        const g = level.groundAt(this.pos.x, this.pos.z, this.feetY + 0.05);
         if (this.vy <= 0 && g > HOLE_DEPTH / 2 && this.feetY <= g) {
           this.feetY = g;
           this.vy = 0;
@@ -256,13 +310,19 @@ class Player {
           Sound.land && Sound.land();
         }
       }
+    } else if (level && climbing) {
+      // 攀爬中：不吸地不重置，仅检查是否已站上楼面
+      const gTop = level.groundAt(this.pos.x, this.pos.z, this.feetY + 0.1);
+      if (!this.onLadder && gTop > HOLE_DEPTH / 2 && Math.abs(gTop - this.feetY) < 0.15) {
+        this.feetY = gTop; this.vy = 0; this.onGround = true;
+      }
     }
     this.wantJump = false;
     if (this.boostT > 0) this.boostT -= dt;
 
     // 世界空间移动
     if (this.moving && !paused) {
-      const speed = (this.running ? this.speedRun : this.speedWalk) * mag * (this.boostT > 0 ? 1.22 : 1);
+      const speed = (this.running ? this.speedRun : this.speedWalk) * mag * (this.boostT > 0 ? 1.22 : 1) * (this.onLadder ? 0.35 : 1);
       const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
       // 前方向（yaw=0 时面向 -Z）
       const fx = -sin, fz = -cos;
@@ -305,12 +365,17 @@ class Player {
     this.camera.rotation.z = Math.sin(this._bobT * 0.5) * 0.006;
   }
 
-  /** 该目标点是否可以走过去（含高差判定） */
+  /** 该目标点是否可以走过去（含高差/楼层判定） */
   _passable(level, x, z) {
-    const g = level.groundAt(x, z);
-    if (g <= HOLE_DEPTH / 2) return true;              // 破洞：允许走出去然后坠落
-    if (this.onGround && g > this.feetY + STEP_UP_MAX) return false;  // 台阶太高
-    if (!this.onGround && this.vy <= 0 && g > this.feetY + 0.05 && this.feetY + 0.25 < g) return false; // 空中撞台侧壁
+    if (this.onGround) {
+      const g = level.groundAt(x, z, this.feetY + STEP_UP_MAX);
+      if (g <= HOLE_DEPTH / 2) return true;              // 破洞/井口：允许走出去然后坠落
+      if (g > this.feetY + STEP_UP_MAX) return false;    // 台阶太高
+      return true;
+    }
+    // 空中：不能水平撞进高于脚底的楼板区域
+    const gAll = level.groundAt(x, z);
+    if (this.vy <= 0 && gAll > this.feetY + 0.05 && this.feetY + 0.25 < gAll) return false;
     return true;
   }
 

@@ -73,6 +73,7 @@ const LEVEL_CFGS = [
       { kind: 'door', to: 9 },
       { kind: 'pipe', to: 7 },
       { kind: 'elevator', to: 1 },
+      { kind: 'door', to: 13 },
     ],
   },
   {
@@ -127,6 +128,7 @@ const LEVEL_CFGS = [
       { kind: 'pipe', to: 2 },
       { kind: 'door', to: 7 },
       { kind: 'glitch', to: 3 },
+      { kind: 'door', to: 12 },
     ],
   },
   {
@@ -143,6 +145,7 @@ const LEVEL_CFGS = [
       { kind: 'hole', to: 6 },
       { kind: 'door', to: 8 },
       { kind: 'pipe', to: 1 },
+      { kind: 'glitch', to: 14 },
     ],
   },
   {
@@ -213,6 +216,78 @@ const LEVEL_CFGS = [
     exits: [
       { kind: 'lightdoor', to: -1, ending: true, glowName: '逃出后室' },
       { kind: 'glitch', to: 0 },
+    ],
+  },
+  {
+    id: 12, name: 'LEVEL 37 · 泳池房间', short: '泳池房间',
+    size: 25, wallH: 3.4,
+    fogColor: 0xd8e8e6, fogDensity: 0.045,
+    ambient: { sky: 0xeafaf6, ground: 0x9fc8c0, intensity: 0.85 },
+    textures: { wall: 'tileWall', floor: 'tileFloor', ceil: 'tileWall' },
+    lampsEvery: 4, pointLights: 5, rooms: 7, braid: 0.3,
+    props: { plant: 3, chair: 2 },
+    water: true, poolrooms: true,
+    entity: null,
+    hint: '鸽笼般安静的泳池。水声不像是回声，倒像有什么在模仿水声',
+    introText: '无尽的白瓷砖与浅水池。阳光不知道从哪里来，但处处都是波光。这里是少数没有“它们”的地方。',
+    exits: [
+      { kind: 'door', to: 6 },
+      { kind: 'door', to: 14 },
+      { kind: 'glitch', to: 9 },
+    ],
+  },
+  {
+    id: 13, name: 'LEVEL 13 · 垂直公寓', short: '垂直公寓',
+    size: 23, wallH: 2.9, stories: 3, storyH: 3.8,
+    fogColor: 0x12100c, fogDensity: 0.06,
+    ambient: { sky: 0x8a7a5a, ground: 0x2a241a, intensity: 0.38 },
+    textures: { wall: 'hotelWall', floor: 'redCarpet', ceil: 'woodCeil' },
+    lampsEvery: 3, pointLights: 5, rooms: 5, braid: 0.14,
+    props: { bed: 4, locker: 3, desk: 3, plant: 2 },
+    adrenaline: 1,
+    entity: { name: '房东', look: 'stalker', speedPatrol: 2.0, speedChase: 4.2, sightRange: 15, hearingRange: 14, catchRange: 1.15, deathText: '房租到期了。它收走了你的一切，包括尖叫的权限。' },
+    hint: '天梯通向楼上。每一层都一模一样——除了它也在爬楼',
+    introText: '永远在装修中的公寓楼。天梯摇摇晃晃地通向黑暗的楼上。<b>它在楼层间巡逻。</b>',
+    exits: [
+      { kind: 'door', to: 3 },
+      { kind: 'elevator', to: 8 },
+      { kind: 'pipe', to: 5 },
+    ],
+  },
+  {
+    id: 14, name: 'LEVEL 11 · 灰色城区', short: '灰色城区',
+    size: 27, wallH: 4.4,
+    fogColor: 0x8d9296, fogDensity: 0.05,
+    ambient: { sky: 0xb8bfc4, ground: 0x4a4f52, intensity: 0.55 },
+    textures: { wall: 'concreteWall', floor: 'concreteWall', ceil: 'garageCeil' },
+    lampsEvery: 5, pointLights: 4, rooms: 4, braid: 0.28, pillars: true,
+    props: { barrel: 8, crate: 7, pallet: 5, shelf: 4 },
+    platformH: 2.0,
+    entity: { name: '守夜人', look: 'wraith', speedPatrol: 2.2, speedChase: 4.35, sightRange: 18, hearingRange: 11, catchRange: 1.15, deathText: '守夜人从不说晚安。他只负责让你永远留在夜里。' },
+    hint: '开阔得反常。雾墙之外什么都没有——别试图验证这件事',
+    introText: '灰色混凝土构成的巨大街区状空间。这里太开阔了，开阔到让人想找个柜子躲起来。',
+    exits: [
+      { kind: 'door', to: 12 },
+      { kind: 'glitch', to: 15 },
+      { kind: 'hole', to: 7 },
+    ],
+  },
+  {
+    id: 15, name: 'LEVEL Fun · 派对间 =)', short: '派对间',
+    size: 21, wallH: 3.0,
+    fogColor: 0x2a1620, fogDensity: 0.06,
+    ambient: { sky: 0xff9ad5, ground: 0x5a2440, intensity: 0.45 },
+    textures: { wall: 'wallpaper', floor: 'carpet', ceil: 'ceiling' },
+    lampsEvery: 3, pointLights: 4, rooms: 5, braid: 0.22,
+    props: { crate: 4, barrel: 3 },
+    partyLights: true, adrenaline: 2,
+    entity: { name: '派对宾客', look: 'stalker', speedPatrol: 2.4, speedChase: 4.25, sightRange: 16, hearingRange: 15, catchRange: 1.15, nearStart: true, deathText: '=) =) =) =) =)\n派对永不散场。现在你也是其中之一了。' },
+    hint: '彩灯、气球、蛋糕味。宾客们很想让你加入——<b>永久地</b>',
+    introText: '=) 欢迎来到派对间！彩灯转啊转，音乐停不了。宾客们已经等你很久很久啦 =)',
+    exits: [
+      { kind: 'door', to: 14 },
+      { kind: 'hole', to: 10 },
+      { kind: 'glitch', to: 2 },
     ],
   },
 ];
@@ -360,6 +435,10 @@ class Level {
     this.floorMap = null;     // Float32Array W*H 地面高度
     this.holeCells = [];      // {cx,cy,to}
     this.platformCells = new Set();
+    this.stories = cfg.stories || 1;      // 楼层数（≥2 启用多层）
+    this.storyH = cfg.storyH || 3.8;      // 层高
+    this.layers = [];         // 上层楼層 [{y, cells:Set, holes:Set}]（s≥1）
+    this.ladders = [];        // 天梯 {x,z,y0,y1}
     this.powerOn = !((cfg.id === 1));
     this.time = 0;
     this._lampPhase = Math.random() * 10;
@@ -373,12 +452,36 @@ class Level {
   }
   isHoleCell(cx, cy) { return this.floorMap && this.floorMap[cy * this.W + cx] <= HOLE_DEPTH / 2; }
 
-  /** 该点的地面高度（破洞返回极深值） */
-  groundAt(x, z) {
+  /** 该点的支撑地面高度（多层：capY 缺省取最高层；传入参考高度则取 ≤capY 的最高层） */
+  groundAt(x, z, capY) {
     const [cx, cy] = this.worldToCell(x, z);
     if (cx < 0 || cy < 0 || cx >= this.W || cy >= this.H) return 0;
-    const f = this.floorMap[cy * this.W + cx];
-    return f <= HOLE_DEPTH / 2 ? HOLE_DEPTH : f;
+    const i = cy * this.W + cx;
+    let best = -Infinity;
+    const g = this.floorMap[i];
+    if (g > HOLE_DEPTH / 2) best = g;
+    if (this.layers && this.layers.length)
+      for (const L of this.layers)
+        if (L.cells.has(i) && !L.holes.has(i)) best = Math.max(best, L.y);
+    if (best === -Infinity) best = HOLE_DEPTH;
+    if (capY != null && best > capY) {
+      let b2 = -Infinity;
+      if (g > HOLE_DEPTH / 2) b2 = g;
+      if (this.layers && this.layers.length)
+        for (const L of this.layers)
+          if (L.cells.has(i) && !L.holes.has(i) && L.y <= capY) b2 = Math.max(b2, L.y);
+      if (b2 === -Infinity) b2 = HOLE_DEPTH;
+      return b2;
+    }
+    return best;
+  }
+
+  /** 该格头顶封闭面高度（灯贴其下方） */
+  _ceilTopAt(cx, cy) {
+    const i = cy * this.W + cx;
+    let h = this.cfg.wallH;
+    for (const L of this.layers) if (L.cells.has(i)) h = L.y + this.cfg.wallH;
+    return h;
   }
 
   /** 圆形玩家与实心格碰撞检测（含道具障碍物） */
@@ -477,30 +580,47 @@ class Level {
       this.entitySpawn = this.cellToWorld(cand.x, cand.y);
     }
 
+    /* ---- 多层楼层（天梯互联）---- */
+    if ((cfg.stories || 1) >= 2) this._buildStories(group);
+
     /* ---- 墙体（从 -2 到 wallH，覆盖坑洞侧壁） ---- */
     const wallBoxes = [];
+    const upWallH = (cfg.stories >= 2 ? (cfg.stories - 1) * cfg.storyH : 0);
     for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) {
       if (grid[y][x] !== 1) continue;
       const [wx, wz] = this.cellToWorld(x, y);
-      wallBoxes.push({ w: CELL, h: cfg.wallH + 2, d: CELL, x: wx, y: (cfg.wallH - 2) / 2, z: wz, uOff: rng.int(0, 3) });
+      wallBoxes.push({ w: CELL, h: cfg.wallH + 2 + upWallH, d: CELL, x: wx, y: (cfg.wallH - 2 + upWallH) / 2, z: wz, uOff: rng.int(0, 3) });
     }
     group.add(new THREE.Mesh(mergeBoxes(wallBoxes), this.wallMat));
 
     /* ---- 地板：逐格合并（跳过破洞，支持高差） ---- */
     this._buildFloors(group);
 
-    /* ---- 天花板 ---- */
+    /* ---- 天花板：逐格合并（被上层楼板覆盖的格子跳过）---- */
     const worldW = this.W * CELL, worldH = this.H * CELL;
     const ceilTexKey = cfg.textures.ceil === 'dirtWall' ? Tex.dirtWall() : (cfg.textures.ceil === 'woodCeil' ? Tex.wood() : (cfg.textures.ceil === 'whiteVoidC' ? Tex.whiteVoid('c') : Tex[cfg.textures.ceil]()));
-    const ceilTex = Tex.toTexture(ceilTexKey, this.W, this.H);
-    ceilTex.encoding = THREE.sRGBEncoding;
-    const ceil = new THREE.Mesh(
-      new THREE.PlaneGeometry(worldW, worldH),
-      new THREE.MeshLambertMaterial({ map: ceilTex })
-    );
-    ceil.rotation.x = Math.PI / 2;
-    ceil.position.set(worldW / 2, cfg.wallH, worldH / 2);
-    group.add(ceil);
+    const ceilMat = new THREE.MeshLambertMaterial({ map: Tex.toTexture(ceilTexKey) });
+    const ceilBoxes = [];
+    // 底层：开放格且无第一上层覆盖
+    for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) {
+      if (grid[y][x] !== 0) continue;
+      const i = y * this.W + x;
+      if (this.layers.length && this.layers[0].cells.has(i)) continue;
+      const [wx, wz] = this.cellToWorld(x, y);
+      ceilBoxes.push({ w: CELL, h: 0.16, d: CELL, x: wx, y: cfg.wallH + 0.08, z: wz });
+    }
+    // 上层各层的顶（无更高层覆盖时）
+    for (let s = 0; s < this.layers.length; s++) {
+      const Ly = this.layers[s], above = this.layers[s + 1] || null;
+      for (const i of Ly.cells) {
+        if (Ly.holes.has(i)) continue;
+        if (above && above.cells.has(i)) continue;
+        const x = i % this.W, y = (i / this.W) | 0;
+        const [wx, wz] = this.cellToWorld(x, y);
+        ceilBoxes.push({ w: CELL, h: 0.16, d: CELL, x: wx, y: Ly.y + cfg.wallH + 0.08, z: wz });
+      }
+    }
+    group.add(new THREE.Mesh(mergeBoxes(ceilBoxes), ceilMat));
 
     /* ---- 水面（水淹隧道） ---- */
     if (cfg.water) {
@@ -540,7 +660,8 @@ class Level {
     group.add(hemi);
     this.hemi = hemi;
 
-    const lampMatOn = new THREE.MeshBasicMaterial({ color: 0xfff2cc });
+    const partyCols = cfg.partyLights ? [0xff5ad0, 0x5aff8a, 0xffb85a, 0x5ab8ff] : null;
+    const lampMatOn = new THREE.MeshBasicMaterial({ color: cfg.id === 12 ? 0xeafff8 : 0xfff2cc });
     const lampMatFlicker = new THREE.MeshBasicMaterial({ color: 0xffedb8 });
     this.flickerMats.push(lampMatFlicker);
     let li = 0;
@@ -548,19 +669,33 @@ class Level {
     for (let y = 1; y < this.H - 1; y += cfg.lampsEvery) for (let x = 1; x < this.W - 1; x += cfg.lampsEvery) {
       if (grid[y][x] !== 0) continue;
       const [wx, wz] = this.cellToWorld(x, y);
-      const mat = (li % 5 === 3) ? lampMatFlicker : lampMatOn;
+      const mat = partyCols ? new THREE.MeshBasicMaterial({ color: partyCols[li % 4] }) : ((li % 5 === 3) ? lampMatFlicker : lampMatOn);
       const lamp = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.85), mat);
       lamp.rotation.x = Math.PI / 2;
-      lamp.position.set(wx, cfg.wallH - 0.02, wz);
+      lamp.position.set(wx, this._ceilTopAt(x, y) - 0.03, wz);
       group.add(lamp);
-      lightSpots.push({ x: wx, z: wz });
+      lightSpots.push({ x: wx, z: wz, cx: x, cy: y });
       li++;
+    }
+    // 上层灯（稀疏）
+    for (const Ly of this.layers) {
+      let lu = 0;
+      for (const i of Ly.cells) {
+        if (Ly.holes.has(i)) continue;
+        if (++lu % (cfg.lampsEvery + 3) !== 0) continue;
+        const x = i % this.W, y = (i / this.W) | 0;
+        const [wx, wz] = this.cellToWorld(x, y);
+        const lamp = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.85), (lu % 7 === 5) ? lampMatFlicker : lampMatOn);
+        lamp.rotation.x = Math.PI / 2;
+        lamp.position.set(wx, Ly.y + cfg.wallH - 0.03, wz);
+        group.add(lamp);
+      }
     }
     const nPL = cfg.pointLights;
     for (let i = 0; i < Math.min(nPL, lightSpots.length); i++) {
       const s = lightSpots[Math.floor(i * lightSpots.length / nPL)];
       const pl = new THREE.PointLight(cfg.id === 0 ? 0xffe9b0 : (cfg.id === 11 ? 0xffffff : 0xcfe8ff), cfg.dark ? 0 : 0.55, 18, 1.6);
-      pl.position.set(s.x, cfg.wallH - 0.5, s.z);
+      pl.position.set(s.x, this._ceilTopAt(s.cx, s.cy) - 0.5, s.z);
       group.add(pl);
       this.pointLights.push(pl);
     }
@@ -571,7 +706,7 @@ class Level {
       for (let i = 0; i < nAL; i++) {
         const s = lightSpots[Math.floor(i * lightSpots.length / nAL)];
         const al = new THREE.PointLight(0xff2a1a, 0.8, 22, 1.4);
-        al.position.set(s.x, cfg.wallH - 0.4, s.z);
+        al.position.set(s.x, this._ceilTopAt(s.cx, s.cy) - 0.4, s.z);
         group.add(al);
         this.alarmLights.push(al);
       }
@@ -584,7 +719,7 @@ class Level {
       const dp = new Float32Array(DN * 3);
       for (let i = 0; i < DN; i++) {
         dp[i * 3] = rng.range(0, worldW);
-        dp[i * 3 + 1] = rng.range(0.2, cfg.wallH);
+        dp[i * 3 + 1] = rng.range(0.2, this.layers.length ? (this.layers.length) * cfg.storyH + cfg.wallH : cfg.wallH);
         dp[i * 3 + 2] = rng.range(0, worldH);
       }
       dustGeo.setAttribute('position', new THREE.BufferAttribute(dp, 3));
@@ -598,6 +733,147 @@ class Level {
     scene.background = new THREE.Color(cfg.fogColor);
     this.sceneRef = scene;
     scene.add(group);
+  }
+
+  /* ---------------- 多层楼层与天梯 ---------------- */
+  _buildStories(group) {
+    const rng = this.rng, cfg = this.cfg;
+    const S = cfg.stories, SH = cfg.storyH;
+    // 上层区域：随机扩张出连通块（占开放格 ~52%），避开装置/出生点/高台/破洞
+    const banned = new Set();
+    for (const e of this.exits) { const [cx, cy] = this.worldToCell(e.x, e.z); banned.add(cy * this.W + cx); }
+    {
+      const [sx, sz] = this.playerStart; const [scx, scy] = this.worldToCell(sx, sz); banned.add(scy * this.W + scx);
+    }
+    let openN = 0;
+    for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++)
+      if (this.grid[y][x] === 0 && this.floorMap[y * this.W + x] > HOLE_DEPTH / 2) openN++;
+    if (openN < 30) { this.stories = 1; return; }
+    const quota = Math.floor(openN * 0.52);
+    const seedC = this.empties[0];
+    const inUp = new Set([seedC.y * this.W + seedC.x]);
+    const dq = [seedC.y * this.W + seedC.x];
+    let guard = 0;
+    while (inUp.size < quota && guard++ < 8000 && dq.length) {
+      const i = dq[Math.floor(rng.next() * dq.length)];
+      const x = i % this.W, y = (i / this.W) | 0;
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      for (let t = 0; t < 4 && inUp.size < quota; t++) {
+        const [dx, dy] = dirs[Math.floor(rng.next() * 4)];
+        const nx = x + dx, ny = y + dy, ni = ny * this.W + nx;
+        if (nx < 1 || ny < 1 || nx >= this.W - 1 || ny >= this.H - 1) continue;
+        if (this.grid[ny][nx] !== 0) continue;
+        if (this.floorMap[ni] > 0.4 || this.floorMap[ni] <= HOLE_DEPTH / 2) continue;
+        if (banned.has(ni) || inUp.has(ni)) continue;
+        inUp.add(ni); dq.push(ni);
+      }
+    }
+    // 楼层数据（生长完后再剔除禁用格）
+    for (const i of [...inUp]) if (banned.has(i)) inUp.delete(i);
+    if (inUp.size < 12) { this.stories = 1; this.layers = []; return; }
+    this.layers = [];
+    for (let s = 1; s < S; s++) this.layers.push({ y: s * SH, cells: new Set(inUp), holes: new Set() });
+
+    // 天梯：每层间隙选若干贴墙格，井口穿透上方各层
+    const railMat = new THREE.MeshLambertMaterial({ color: 0x3c4046 });
+    const usedShafts = new Set();
+    for (let t = 0; t < S - 1; t++) {
+      const cand = [];
+      for (const i of inUp) {
+        if (usedShafts.has(i)) continue;
+        const x = i % this.W, y = (i / this.W) | 0;
+        // 顶端必须至少有一个同层相邻格供走出井口
+        const hasUpNb = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx2, dy2]) => {
+          const nx = x + dx2, ny = y + dy2;
+          if (nx < 0 || ny < 0 || nx >= this.W || ny >= this.H) return false;
+          return this.grid[ny][nx] === 0 && inUp.has(ny * this.W + nx);
+        });
+        if (!hasUpNb) continue;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          if (this.isSolidCell(x + dx, y + dy)) { cand.push({ i, x, y, dx, dy }); break; }
+        }
+      }
+      cand.sort(() => rng.next() - 0.5);
+      const K = Math.min(S === 2 ? 3 : 4, cand.length);
+      const picked = [];
+      for (const c of cand) {
+        if (picked.length >= K) break;
+        if (picked.some(sp => Math.abs(sp.x - c.x) + Math.abs(sp.y - c.y) < 7)) continue;
+        picked.push(c);
+      }
+      for (const sp of picked) {
+        usedShafts.add(sp.i);
+        const [wx, wz] = this.cellToWorld(sp.x, sp.y);
+        const y0 = t * SH, y1 = (t + 1) * SH + 0.02;
+        // 出口方向：指向某个同层相邻格中心（顶端/底端自动滑出用）
+        let exd = null;
+        for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]].sort(() => rng.next() - 0.5)) {
+          const nx = sp.x + ddx, ny = sp.y + ddy;
+          if (nx < 0 || ny < 0 || nx >= this.W || ny >= this.H) continue;
+          if (this.grid[ny][nx] === 0 && inUp.has(ny * this.W + nx)) { exd = [ddx, ddy]; break; }
+        }
+        if (!exd) continue;
+        const lx = wx + sp.dx * (CELL / 2 - 0.26), lz = wz + sp.dy * (CELL / 2 - 0.26);
+        const ecx = (sp.x + exd[0] + 0.5) * CELL, ecz = (sp.y + exd[1] + 0.5) * CELL;
+        const vx = ecx - lx, vz = ecz - lz, vl = Math.sqrt(vx * vx + vz * vz) || 1;
+        this.ladders.push({ x: lx, z: lz, y0, y1, ex: vx / vl, ez: vz / vl, scx: sp.x, scy: sp.y });
+        this.layers[t].holes.add(sp.i);   // 井口：上层该格无楼板
+        // 梯子网格：双轨 + 横档
+        const lg = new THREE.Group();
+        const cxp = lx, czp = lz;
+        const tx = -sp.dy, tz = sp.dx;
+        for (const sgn of [-1, 1]) {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, SH + 0.55, 0.07), railMat);
+          rail.position.set(cxp + tx * 0.24 * sgn, y0 + (SH + 0.55) / 2 - 0.12, czp + tz * 0.24 * sgn);
+          lg.add(rail);
+        }
+        const nr = Math.ceil((SH + 0.2) / 0.38);
+        for (let r2 = 0; r2 < nr; r2++) {
+          const rung = new THREE.Mesh(new THREE.BoxGeometry(tx !== 0 ? 0.06 : 0.56, 0.05, tz !== 0 ? 0.06 : 0.56), railMat);
+          rung.position.set(cxp, y0 + 0.28 + r2 * 0.38, czp);
+          lg.add(rung);
+        }
+        group.add(lg);
+      }
+    }
+
+    // 上层楼板 + 边缘护栏（随机留 2 个危险缺口）
+    const slabMat = new THREE.MeshLambertMaterial({ map: Tex.toTexture(cfg.textures.ceil === 'dirtWall' ? Tex.dirtWall() : (cfg.textures.ceil === 'woodCeil' ? Tex.wood() : Tex[cfg.textures.ceil]())) });
+    const slabBoxes = [], lipBoxes = [];
+    const gapCells = new Set();
+    {
+      const edgeAll = [];
+      for (const i of inUp) {
+        const x = i % this.W, y = (i / this.W) | 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= this.W || ny >= this.H) continue;
+          if (this.grid[ny][nx] === 0 && !inUp.has(ny * this.W + nx)) { edgeAll.push(i); break; }
+        }
+      }
+      edgeAll.sort(() => rng.next() - 0.5);
+      for (const i of edgeAll.slice(0, 2)) gapCells.add(i);
+    }
+    for (const Ly of this.layers) {
+      for (const i of Ly.cells) {
+        if (Ly.holes.has(i)) continue;
+        const x = i % this.W, y = (i / this.W) | 0;
+        const [wx, wz] = this.cellToWorld(x, y);
+        slabBoxes.push({ w: CELL, h: 0.3, d: CELL, x: wx, y: Ly.y - 0.15, z: wz });
+        if (gapCells.has(i)) continue;   // 危险缺口：不加护栏
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= this.W || ny >= this.H) continue;
+          if (!(this.grid[ny][nx] === 0 && !Ly.cells.has(ny * this.W + nx))) continue;
+          lipBoxes.push({
+            w: dx !== 0 ? 0.12 : CELL, h: 0.45, d: dx !== 0 ? CELL : 0.12,
+            x: wx + dx * (CELL / 2 - 0.06), y: Ly.y + 0.225, z: wz + dy * (CELL / 2 - 0.06),
+          });
+        }
+      }
+    }
+    group.add(new THREE.Mesh(mergeBoxes(slabBoxes), slabMat));
+    group.add(new THREE.Mesh(mergeBoxes(lipBoxes), railMat));
   }
 
   /* ---------------- 高台与楼梯 ---------------- */
@@ -933,6 +1209,25 @@ class Level {
       group.add(box);
       this.items.push({ type: 'powerbox', x: bx, z: bz, mesh: box, taken: false, title: '', body: '' });
     }
+
+    /* 上层奖励物品（多层关卡） */
+    if (this.layers.length) {
+      const top = this.layers[this.layers.length - 1];
+      const cellsUp = [...top.cells].filter(i => !top.holes.has(i));
+      const upTypes = ['note', 'almond', 'adrenaline'];
+      for (let k = 0; k < Math.min(3, cellsUp.length); k++) {
+        const i = cellsUp.splice(Math.floor(this.rng.next() * cellsUp.length), 1)[0];
+        const x = i % this.W, y = (i / this.W) | 0;
+        const [wx, wz] = this.cellToWorld(x, y);
+        const t2 = upTypes[k % upTypes.length];
+        const mesh = this._makeItemMesh(t2);
+        mesh.position.set(wx + this.rng.range(-1, 1), top.y + 0.12, wz + this.rng.range(-1, 1));
+        group.add(mesh);
+        const NOTES = NOTE_TEXTS[cfg.id] || [];
+        const n = NOTES[(k + 1) % Math.max(1, NOTES.length)];
+        this.items.push({ type: t2, x: mesh.position.x, z: mesh.position.z, y: mesh.position.y, mesh, taken: false, title: t2 === 'note' && n ? n.t : '', body: t2 === 'note' && n ? n.b : '', upper: true });
+      }
+    }
   }
 
   _makePowerBox() {
@@ -1198,5 +1493,21 @@ const NOTE_TEXTS = {
   11: [
     { t: '白色的第一页', b: '这里什么都没有。\n没有墙纸，没有水滴，没有脚步声。\n\n我居然开始想念那些嗡嗡声了。人真的是种很贱的东西。' },
     { t: '门边的刻字', b: '光门的另一边是天空。我发誓这次是真的。\n\n——第 7 批探索队 全员\n（下面还有一行小字：除了老王，他说他想留下看看还有没有别人。）' },
+  ],
+  12: [
+    { t: '池边的防水袋', b: '泳池房间是安全的。我们在这里补给、睡觉、甚至敢脱下鞋走两步。\n\n但昨晚水面的波纹停了一秒。整层楼的水。同时。一秒。' },
+    { t: '瓷砖上的涂鸦', b: '“别喝池水”\n下面有人补了一句：' },
+  ],
+  13: [
+    { t: '房门背后的便签', b: '这栋楼的楼层比从外面看到的多得多。天梯是唯一的路——它不喜欢电梯井。\n\n爬楼时数着层数。如果你数到十三，假装什么都没发生。' },
+    { t: '物业通知', b: '《关于禁止在楼层间奔跑的温馨提示》\n各位住户：近期有住户反映夜间听到快速脚步声逐层上楼。物业提醒：本公寓没有楼梯间。\n\n——物业管理处（电话永远占线）' },
+  ],
+  14: [
+    { t: '路口的路牌', b: '灰色城区的路牌全是空白的。雾把街道切成了方块，每个方块都一样。\n\n守夜人只有在你跑的时候才会追。走路。像本地人一样走路。' },
+    { t: '值班室日志', b: '第 ?? 夜。灯又亮了一排。数了下是四千零九十六盏，和昨天一样。\n\n如果哪天数出别的数字，我就去巷子口看看那个和我长得一样的家伙到底是谁。' },
+  ],
+  15: [
+    { t: '气球上的字条', b: '=) 你来啦！派对刚开始！蛋糕在楼上！游戏在楼下！\n\n出口？聚会进行到天亮哦。这里的“天亮”还没被发明出来呢 =)' },
+    { t: '一张被踩过的邀请函', b: '诚挚邀请您参加永不散场派对\n着装要求：随意（反正之后也会一样）\n伴手礼：永久的微笑 =)\n\n注：不接受拒绝，不接受提前离场' },
   ],
 };
