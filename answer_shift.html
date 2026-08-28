@@ -14,7 +14,7 @@ body{font-family:system-ui,-apple-system,"HarmonyOS Sans SC","Noto Sans SC","Pin
 .top h1{margin:0;font-size:16.5px;letter-spacing:2px}
 .top h1 small{display:block;font-size:10px;letter-spacing:3px;opacity:.85;font-weight:400}
 .top select{margin-left:auto;max-width:46vw;padding:8px 10px;border:none;border-radius:8px;font-size:12px;color:var(--ink);background:#fffdf8;box-shadow:0 1px 4px rgba(0,0,0,.15);display:none}
-.settings{max-width:720px;margin:12px auto 0;padding:0 14px;display:none}
+.settings{max-width:720px;margin:12px auto 0;padding:0 14px}
 .settings details{background:#fffdf8;border-radius:9px;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:12.5px}
 .settings summary{padding:9px 12px;cursor:pointer;color:#5c564a;font-weight:700}
 .setbody{padding:0 12px 12px;line-height:2.1;color:#5c564a}
@@ -109,8 +109,8 @@ main{max-width:720px;margin:0 auto;padding:12px 14px 120px}
 整理规则:
 1. sections 的每一项 = 一个大题。ty 填题型名称(如:完形填空、阅读理解、七选五、5选1、任务型阅读等,以答案原文的叫法为准)。
 2. 同一个大题的答案若分多段(如 1~5、6~10、11~15),写进同一个 groups 数组,按原顺序排列。
-3. opts = 该组每道题的选项个数:完形/阅读一般填 4;七选五(7选5)填 7;选项多于 4 个(如 5 选 1)按实际个数填。
-4. answers 只保留大写字母 A~G,去掉题号、标点、空格;字母个数必须与题号段的题量一致。
+3. opts = 该组每道题的选项个数:完形/阅读一般填 4;七选五(7选5)填 7;选项多于 4 个(如 5 选 1)按实际个数填;判断题填 2。
+4. 判断题的 answers 只用 T(正确)和 F(错误),不要用 √、×、对、错、A、B 表示;如果判断题和其它选择题混在同一段答案里,必须拆成单独的 section。其它选择题的 answers 只保留大写字母 A~G。均需去掉题号、标点、空格,字母个数与题号段的题量一致。
 5. tag 为可选字段:如果答案带有页码、天次、题组编号等(如 P169、DAY1、Test2),填进去,没有就省略。
 6. 语法填空、应用文写作等非选择题不要收录;看不清的字母按最可能的处理。</pre>
         <div class="row"><button id="btnCopyPrompt" class="blue">📋 复制提示词</button><button id="btnDemo" class="blue" style="background:#8a8577">✏️ 填入示例</button></div>
@@ -138,6 +138,8 @@ function isSharedUnit(u){
   if(u.ty.indexOf("七选五")>=0||u.ty.indexOf("7选5")>=0||u.ty.indexOf("选句")>=0)return true;
   return (u.opts|0)>4;
 }
+/* 单题字母平移:T/F 判断题只能翻转,其余按字母表循环平移 */
+function shiftOne(ch,d,m){if(ch==="T"||ch==="F")return ch==="T"?"F":"T";return LET[(LET.indexOf(ch)+d)%m];}
 /* 确定性偏移:同一种子+百分比 ⇒ 同样的偏移记录 */
 function computeAll(units,seed,pct){
   var rng=mulberry32(seed);
@@ -149,7 +151,7 @@ function computeAll(units,seed,pct){
         var d=1+Math.floor(rng()*2);
         disp=u.g.map(function(g){
           var m=g[2]||u.opts||7;
-          return g[1].split("").map(function(ch){return LET[(LET.indexOf(ch)+d)%m];}).join("");
+          return g[1].split("").map(function(ch){return shiftOne(ch,d,m);}).join("");
         });
         shifts=u.g.map(function(g,gi){return{gi:gi,whole:true,delta:d,range:g[0]};});
       }
@@ -163,7 +165,7 @@ function computeAll(units,seed,pct){
         for(var i=idx.length-1;i>0;i--){var j=Math.floor(rng()*(i+1));var t=idx[i];idx[i]=idx[j];idx[j]=t;}
         idx.slice(0,k).sort(function(a,b){return a-b;}).forEach(function(qi){
           var f=flat[qi],g=u.g[f.gi],m=g[2]||u.opts||4,oi=LET.indexOf(g[1][f.i]),dd=1+Math.floor(rng()*2);
-          var nl=LET[(oi+dd)%m],arr=disp[f.gi].split("");
+          var nl=shiftOne(g[1][f.i],dd,m),arr=disp[f.gi].split("");
           arr[f.i]=nl;disp[f.gi]=arr.join("");
           shifts.push({gi:f.gi,pos:f.i,from:g[1][f.i],to:nl,range:g[0]});
         });
@@ -203,10 +205,11 @@ function normSections(obj){
     var m=s.opts|0;if(!(m>=2&&m<=7))m=4;
     var u={ty:s.ty.trim(),opts:m,tag:(typeof s.tag==="string"?s.tag.trim():""),g:[]};
     s.groups.forEach(function(g,j){
-      if(!Array.isArray(g)||g.length<2||!/^[A-G]+$/.test(String(g[1]).toUpperCase()))throw new Error("sections["+i+"] 的 groups["+j+"] 答案无效(只允许大写字母 A~G)。");
+      if(!Array.isArray(g)||g.length<2||!/^[A-Z]+$/.test(String(g[1]).toUpperCase()))throw new Error("sections["+i+"] 的 groups["+j+"] 答案无效(判断题只用 T/F,其余题型只允许大写字母 A~G)。");
       var ans=String(g[1]).toUpperCase();
-      for(var q=0;q<ans.length;q++){if(LET.indexOf(ans[q])>=m)throw new Error('sections['+i+'] 出现超出选项数('+m+')的字母 "'+ans[q]+'",请检查 opts 是否填对。');}
-      u.g.push([String(g[0]),ans,m]);
+      var ans=String(g[1]).toUpperCase(),isTF=/^[TF]+$/.test(ans);
+      if(!isTF){for(var q=0;q<ans.length;q++){if(LET.indexOf(ans[q])<0||LET.indexOf(ans[q])>=m)throw new Error('sections['+i+'] 出现无效或超出选项数('+m+')的字母 "'+ans[q]+'"(只允许 A~G;判断题请只用 T/F,并单独拆成 section)。');}}
+      u.g.push([String(g[0]),ans,isTF?2:m]);
     });
     if(isSharedUnit(u)){
       u.g.forEach(function(g,j){
@@ -245,7 +248,6 @@ function mkRow(range,letters,diff,isCorr){
 function render(){
   var has=!!UNITS;
   card.style.display=has?"flex":"none";
-  settingsBox.style.display=has?"block":"none";
   jump.style.display=has?"block":"none";
   impbar.style.display=(has&&!reOpen)?"flex":"none";
   importBox.style.display=(!has||reOpen)?"block":"none";
@@ -295,7 +297,11 @@ function buildJump(){
 }
 function buildPctRow(){
   pctRow.innerHTML="";
-  if(!UNITS)return;
+  if(!UNITS){
+    var h=document.createElement("span");h.className="hint";
+    h.textContent="导入题库后,这里会按题型自动生成可调的偏移百分比(判断题按 T↔F 翻转计)。";
+    pctRow.appendChild(h);return;
+  }
   var seen=[];
   UNITS.forEach(function(u){if(seen.indexOf(u.ty)<0)seen.push(u.ty);});
   seen.forEach(function(ty){
@@ -346,6 +352,7 @@ document.getElementById("btnDemo").addEventListener("click",function(){
   +'  {"ty":"完形填空","opts":4,"tag":"DAY1","groups":[["1~5","DACBC"],["6~10","ABDCA"],["11~15","CBBDA"]]},\n'
   +'  {"ty":"七选五","opts":7,"groups":[["1~5","BAGCF"]]},\n'
   +'  {"ty":"阅读理解","opts":4,"groups":[["1~4","CBAC"],["1~3","BDA"]]},\n'
+  +'  {"ty":"判断题","opts":2,"groups":[["1~5","TFTFT"]]},\n'
   +'  {"ty":"5选1","opts":5,"groups":[["1~10","ABCDEABCDE"]]}\n'
   +']}';
 });
@@ -360,7 +367,8 @@ document.getElementById("btnParse").addEventListener("click",function(){
   UNITS=res.units;IMP={title:(typeof obj.title==="string"&&obj.title.trim())?obj.title.trim():"我的题库",sections:obj.sections,savedAt:Date.now()};
   localStorage.setItem("asfix2_import",JSON.stringify({title:IMP.title,sections:IMP.sections}));
   st.ix=0;ensurePct();reshuffle();reOpen=false;taJson.value="";
-  showMsg(true,"导入成功:"+IMP.title+",共 "+UNITS.length+" 个大题。"+(res.warn.length?(" ⚠ "+res.warn.join(";")):""));
+  showMsg(true,"导入成功:"+IMP.title+",共 "+UNITS.length+" 个大题;各题型偏移百分比可在上方 ⚙ 面板调整。"+(res.warn.length?(" ⚠ "+res.warn.join(";")):""));
+  document.getElementById("setBox").open=true;
   render();window.scrollTo({top:0});
 });
 document.getElementById("btnReimport").addEventListener("click",function(){reOpen=true;render();importBox.scrollIntoView({behavior:"smooth"});});
