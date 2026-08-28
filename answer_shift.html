@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>答案速查 · 选择题偏移版(高二五合一)</title>
+<style>
+:root{--teal:#0f8f8f;--teal2:#0b6f74;--blue:#3f6fb5;--ink:#22343c;--mut:#8a8577;--line:#e6e1d4}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"HarmonyOS Sans SC","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;background:#e8e4da;color:var(--ink)}
+.top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(135deg,#14969a,#0b6b70);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.top .logo{flex:0 0 auto;width:36px;height:36px;border-radius:9px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:19px}
+.top h1{margin:0;font-size:16.5px;letter-spacing:2px}
+.top h1 small{display:block;font-size:10px;letter-spacing:3px;opacity:.85;font-weight:400}
+.top select{margin-left:auto;max-width:48vw;padding:8px 10px;border:none;border-radius:8px;font-size:12px;color:var(--ink);background:#fffdf8;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.info{max-width:720px;margin:12px auto 0;padding:0 14px;font-size:11.5px;color:#7a7466;text-align:center;line-height:1.7}
+main{max-width:720px;margin:0 auto;padding:12px 14px 120px}
+.card{position:relative;background:#fffdf8;border-radius:12px;box-shadow:0 8px 28px rgba(70,60,35,.14);padding:24px 24px 16px;min-height:560px;display:flex;flex-direction:column}
+.tagver{position:absolute;top:14px;right:14px;font-size:10.5px;color:#fff;background:var(--blue);padding:3px 9px;border-radius:999px;letter-spacing:2px;opacity:.9}
+.part{width:max-content;margin:2px auto 16px;background:var(--teal);color:#fff;font-size:12.5px;letter-spacing:3px;padding:5px 20px;border-radius:999px}
+.zu{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:14px}
+.zu .znum{width:27px;height:27px;background:var(--blue);color:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
+.zu .ztext{font-weight:800;font-size:18px;letter-spacing:4px}
+.testname{text-align:center;font-weight:800;font-size:20px;letter-spacing:2px;color:var(--blue);margin-bottom:12px}
+.dayline{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:6px;flex-wrap:wrap}
+.daychip{background:linear-gradient(135deg,#14a3a3,#0d8489);color:#fff;font-weight:800;font-size:12.5px;letter-spacing:1.5px;padding:3px 11px;border-radius:5px}
+.ty{color:#0b7285;font-weight:700;font-size:15.5px}
+.aline{display:flex;align-items:baseline;gap:16px;padding:11px 6px;border-bottom:1px dashed var(--line)}
+.aline .range{flex:0 0 3.4em;color:var(--mut);font-size:13.5px;text-align:right}
+.letters{display:flex;gap:15px;font-weight:800;font-size:19.5px;color:#1d2f36}
+.note{font-size:11.5px;color:#a39c8b;margin-top:10px;text-align:center}
+.spacer{flex:1;min-height:18px}
+.pagefoot{border-top:1px solid var(--line);margin-top:14px;padding-top:9px;text-align:center}
+.pagefoot .pagenum{font-size:16px;letter-spacing:7px;color:#5c564a;font-weight:600}
+.pagefoot .cap{font-size:10px;color:#aba48f;margin-top:2px;letter-spacing:1px}
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#fffdf8;border-top:1px solid #ddd7c8}
+.nav button{border:none;border-radius:9px;background:var(--teal);color:#fff;font-size:14px;font-weight:700;padding:11px 18px;letter-spacing:1px}
+.nav button:disabled{background:#c9c3b4}
+.nav .mid{text-align:center;min-width:130px}
+.nav .mid .p{font-size:13.5px;font-weight:700}
+.nav .mid .b{font-size:10.5px;color:var(--mut);margin-top:1px}
+.keybtn{position:fixed;right:16px;bottom:86px;z-index:31;width:48px;height:48px;border-radius:50%;border:none;background:var(--blue);color:#fff;font-size:21px;box-shadow:0 4px 14px rgba(63,111,181,.45)}
+.mask{position:fixed;inset:0;background:rgba(20,25,30,.45);z-index:40;opacity:0;pointer-events:none;transition:.25s}
+.mask.on{opacity:1;pointer-events:auto}
+.panel{position:fixed;left:0;right:0;bottom:0;z-index:41;background:#fff;border-radius:18px 18px 0 0;max-height:74vh;display:flex;flex-direction:column;transform:translateY(105%);transition:.28s;box-shadow:0 -8px 30px rgba(0,0,0,.25)}
+.panel.on{transform:translateY(0)}
+.phead{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid #eee}
+.phead b{font-size:15px}
+.phead .cnt{margin-left:8px;font-size:11px;color:#fff;background:var(--blue);border-radius:999px;padding:2px 9px}
+.phead button{margin-left:auto;border:none;background:#f0ede4;border-radius:8px;width:30px;height:30px;font-size:14px}
+.pbody{overflow:auto;padding:14px 18px calc(18px + env(safe-area-inset-bottom))}
+.expl{font-size:11.5px;color:#8a8577;background:#f7f4ec;border-radius:8px;padding:8px 10px;margin-bottom:12px;line-height:1.7}
+.expl b{color:#0b6f74}
+.curtitle{font-size:13.5px;font-weight:800;margin-bottom:8px}
+.sh{font-size:13.5px;padding:7px 10px;border-left:3px solid var(--teal);background:#f2faf9;margin-bottom:6px;border-radius:0 8px 8px 0}
+.sh b{color:#0b6f74}
+.diff{font-size:12px;color:#7a7466;margin:2px 0 10px;padding-left:10px;line-height:1.8}
+.diff .o{color:#b5533f;text-decoration:line-through;text-decoration-color:rgba(181,83,63,.5)}
+.diff .n{color:#0b6f74;font-weight:700}
+.pbtns{display:flex;gap:10px;margin:12px 0}
+.pbtns button{flex:1;border:none;border-radius:9px;padding:11px;font-size:13.5px;font-weight:700}
+#pallbtn{background:#eef2fa;color:var(--blue)}
+#pcopy{background:var(--blue);color:#fff}
+#pfull{border-top:1px dashed var(--line);padding-top:10px}
+.fitem{font-size:12.5px;padding:6px 2px;border-bottom:1px dashed #efece2;line-height:1.7}
+.fitem b{color:var(--blue)}
+.toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);background:rgba(30,40,45,.92);color:#fff;font-size:13px;padding:9px 18px;border-radius:999px;z-index:60;opacity:0;transition:.3s;pointer-events:none}
+.toast.on{opacity:1}
+@media (max-width:420px){.card{padding:18px 16px 12px;min-height:520px}.letters{gap:11px;font-size:18px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo">⚡</div>
+  <h1>答案速查<small>选择题 · 选项偏移版 · 高二五合一</small></h1>
+  <select id="jump"></select>
+</header>
+<div class="info">仅收录选择题(阅读理解 / 七选五 / 完形填空);每个大题随机 1~2 题的选项被平移 1~2 位,<b>平移后的字母即现行正确答案</b>;卡片底部为原书页码(169~174)。教师请点右下角 🔑 查看偏移记录。</div>
+<main><div class="card" id="card"></div></main>
+<nav class="nav">
+  <button id="prev">◀ 上一题</button>
+  <div class="mid"><div class="p" id="prog"></div><div class="b" id="pbadge"></div></div>
+  <button id="next">下一题 ▶</button>
+</nav>
+<button class="keybtn" id="keybtn" title="偏移记录">🔑</button>
+<div class="mask" id="mask"></div>
+<div class="panel" id="panel">
+  <div class="phead"><b>🔑 教师参考 · 偏移记录</b><span class="cnt" id="cnt"></span><button id="pclose">✕</button></div>
+  <div class="pbody">
+    <div class="expl">偏移方式:每个大题随机抽 1~2 题,其选项字母整体平移 1~2 位(循环),其余题与原书完全一致;<b>平移后的字母就是现在试卷上的正确答案</b>。下方「整行对照」可用来核对批改。</div>
+    <div class="curtitle" id="curtitle"></div>
+    <div id="curbody"></div>
+    <div class="pbtns"><button id="pallbtn">展开全部记录</button><button id="pcopy">复制本大题记录</button></div>
+    <div id="pfull" style="display:none"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+/*DATA-START*/
+var PARTNAMES={1:"第一部分 · 名校模拟训练",2:"第二部分 · 素养提升训练",3:"第三部分 · 阶段巩固训练",4:"第四部分 · 考前冲刺训练"};
+/* g: [题号段, 原答案, 选项数(默认4,七选五为7)]  n:1=本节还含语法填空未收录 */
+var DATA=[
+/* 1*/{pg:169,pt:1,zn:1,day:"DAY 1",ty:"阅读理解",g:[["1~3","CCB"]]},
+/* 2*/{pg:169,pt:1,zn:1,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","BAGCF",7],["1~4","CBAC"]]},
+/* 3*/{pg:169,pt:1,zn:1,day:"DAY 3",ty:"阅读理解 + 完形填空",g:[["1~4","DCAB"],["1~5","BACBD"],["6~10","DBACC"],["11~15","DADBA"]]},
+/* 4*/{pg:169,pt:1,zn:1,day:"DAY 4",ty:"完形填空 + 语法填空",n:1,g:[["1~5","DCCBA"],["6~10","ACABB"],["11~15","CABBD"]]},
+/* 5*/{pg:169,pt:1,zn:1,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","GFEAD",7]]},
+/* 6*/{pg:169,pt:1,zn:2,day:"DAY 1",ty:"完形填空",g:[["1~5","BDCAD"],["6~10","BCADB"],["11~15","BADCA"]]},
+/* 7*/{pg:169,pt:1,zn:2,day:"DAY 2",ty:"阅读理解A + 阅读理解B",g:[["1~3","BDB"],["1~4","CDBB"]]},
+/* 8*/{pg:169,pt:1,zn:2,day:"DAY 3",ty:"完形填空",g:[["1~5","ABABD"],["6~10","DCACD"],["11~15","CBADC"]]},
+/* 9*/{pg:169,pt:1,zn:2,day:"DAY 4",ty:"完形填空",g:[["1~5","BCAAB"],["6~10","DACDB"],["11~15","CADBD"]]},
+/*10*/{pg:169,pt:1,zn:2,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","ECDGA",7]]},
+/*11*/{pg:169,pt:1,zn:2,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","GAEDB",7]]},
+/*12*/{pg:169,pt:1,zn:3,day:"DAY 1",ty:"阅读理解",g:[["1~4","DABC"]]},
+/*13*/{pg:169,pt:1,zn:3,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","DEAGF",7],["1~4","DCAD"]]},
+/*14*/{pg:169,pt:1,zn:3,day:"DAY 3",ty:"阅读理解",g:[["1~4","DBAC"]]},
+/*15*/{pg:170,pt:1,zn:3,day:"DAY 4",ty:"完形填空",g:[["1~5","ADCDB"],["6~10","CBAAC"],["11~15","CBBAD"]]},
+/*16*/{pg:170,pt:1,zn:3,day:"DAY 5",ty:"完形填空 + 语法填空",n:1,g:[["1~5","DADCB"],["6~10","BCABD"],["11~15","ACADB"]]},
+/*17*/{pg:170,pt:1,zn:3,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","DECBG",7]]},
+/*18*/{pg:170,pt:1,zn:4,day:"DAY 1",ty:"完形填空",g:[["1~5","BCABD"],["6~10","BADCA"],["11~15","BACDD"]]},
+/*19*/{pg:170,pt:1,zn:4,day:"DAY 2",ty:"阅读理解A + 阅读理解B",g:[["1~4","CADA"],["1~4","ACDC"]]},
+/*20*/{pg:170,pt:1,zn:4,day:"DAY 3",ty:"完形填空",g:[["1~5","BADCB"],["6~10","ADBAC"],["11~15","BCACD"]]},
+/*21*/{pg:170,pt:1,zn:4,day:"DAY 4",ty:"完形填空",g:[["1~5","ADCBB"],["6~10","ACDBA"],["11~15","DCCDB"]]},
+/*22*/{pg:170,pt:1,zn:4,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","BAEFG",7]]},
+/*23*/{pg:170,pt:1,zn:4,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","GFBAD",7]]},
+/*24*/{pg:170,pt:2,zn:1,day:"DAY 1",ty:"阅读理解",g:[["1~3","ADB"]]},
+/*25*/{pg:170,pt:2,zn:1,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","DEBFG",7],["1~4","DCBC"]]},
+/*26*/{pg:170,pt:2,zn:1,day:"DAY 3",ty:"阅读理解 + 完形填空",g:[["1~4","CADD"],["1~5","CBDBA"],["6~10","CBACD"],["11~15","ABCAD"]]},
+/*27*/{pg:170,pt:2,zn:1,day:"DAY 4",ty:"完形填空 + 语法填空",n:1,g:[["1~5","DADBC"],["6~10","DABCC"],["11~15","AADCB"]]},
+/*28*/{pg:170,pt:2,zn:1,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","GDCFA",7]]},
+/*29*/{pg:171,pt:2,zn:2,day:"DAY 1",ty:"完形填空",g:[["1~5","DACBC"],["6~10","ABDDC"],["11~15","BDBCA"]]},
+/*30*/{pg:171,pt:2,zn:2,day:"DAY 2",ty:"阅读理解 + 七选五",g:[["1~3","CCD"],["1~4","EDGFB",7]]},
+/*31*/{pg:171,pt:2,zn:2,day:"DAY 3",ty:"完形填空 + 阅读理解",g:[["1~5","CBDBA"],["6~10","CAACC"],["11~15","BDBAD"],["1~3","CCD"]]},
+/*32*/{pg:171,pt:2,zn:2,day:"DAY 4",ty:"阅读理解",g:[["1~4","CADC"]]},
+/*33*/{pg:171,pt:2,zn:2,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","FECDA",7]]},
+/*34*/{pg:171,pt:2,zn:2,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","GDBEA",7]]},
+/*35*/{pg:171,pt:2,zn:3,day:"DAY 1",ty:"阅读理解",g:[["1~4","ACBD"]]},
+/*36*/{pg:171,pt:2,zn:3,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","EBFDC",7],["1~4","BBDC"]]},
+/*37*/{pg:171,pt:2,zn:3,day:"DAY 3",ty:"阅读理解",g:[["1~4","ABCA"]]},
+/*38*/{pg:171,pt:2,zn:3,day:"DAY 4",ty:"完形填空",g:[["1~5","CBACB"],["6~10","ADCBB"],["11~15","DACDD"]]},
+/*39*/{pg:171,pt:2,zn:3,day:"DAY 5",ty:"完形填空 + 语法填空",n:1,g:[["1~5","DACBC"],["6~10","DBADC"],["11~15","ABABD"]]},
+/*40*/{pg:171,pt:2,zn:3,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","DCFBC",7]]},
+/*41*/{pg:171,pt:2,zn:4,day:"DAY 1",ty:"完形填空",g:[["1~5","BDABC"],["6~10","CADBC"],["11~15","ABCDC"]]},
+/*42*/{pg:171,pt:2,zn:4,day:"DAY 2",ty:"阅读理解 + 七选五",g:[["1~4","DDAB"],["1~5","BEFGC",7]]},
+/*43*/{pg:171,pt:2,zn:4,day:"DAY 3",ty:"完形填空 + 阅读理解",g:[["1~5","DABCB"],["6~10","CADAC"],["11~15","BADBD"],["1~4","ADBC"]]},
+/*44*/{pg:171,pt:2,zn:4,day:"DAY 4",ty:"阅读理解",g:[["1~4","DCDA"]]},
+/*45*/{pg:171,pt:2,zn:4,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","AECBD",7]]},
+/*46*/{pg:171,pt:2,zn:4,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","BADFG",7]]},
+/*47*/{pg:171,pt:2,zn:5,day:"DAY 1",ty:"阅读理解",g:[["1~4","ACCD"]]},
+/*48*/{pg:171,pt:2,zn:5,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","CFDAG",7],["1~4","DCBC"]]},
+/*49*/{pg:172,pt:2,zn:5,day:"DAY 3",ty:"阅读理解 + 完形填空",g:[["1~4","DCDA"],["1~5","BACDA"],["6~10","BBCAD"],["11~15","BCCDD"]]},
+/*50*/{pg:172,pt:2,zn:5,day:"DAY 4",ty:"完形填空 + 语法填空",n:1,g:[["1~5","BDCAD"],["6~10","CBADC"],["11~15","AADCB"]]},
+/*51*/{pg:172,pt:2,zn:5,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","CGFAE",7]]},
+/*52*/{pg:172,pt:2,zn:6,day:"DAY 1",ty:"完形填空",g:[["1~5","CBBDA"],["6~10","CDACB"],["11~15","DDABC"]]},
+/*53*/{pg:172,pt:2,zn:6,day:"DAY 2",ty:"阅读理解 + 七选五",g:[["1~4","ACDA"],["1~5","AEDCF",7]]},
+/*54*/{pg:172,pt:2,zn:6,day:"DAY 3",ty:"完形填空 + 阅读理解",g:[["1~5","CABDA"],["6~10","BBADC"],["11~15","DCABC"],["1~3","DAC"]]},
+/*55*/{pg:172,pt:2,zn:6,day:"DAY 4",ty:"阅读理解",g:[["1~4","CABA"]]},
+/*56*/{pg:172,pt:2,zn:6,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","EFDCG",7]]},
+/*57*/{pg:172,pt:2,zn:6,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","CFBGD",7]]},
+/*58*/{pg:172,pt:3,zn:1,day:"DAY 1",ty:"阅读理解",g:[["1~3","BDA"]]},
+/*59*/{pg:172,pt:3,zn:1,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","EGFCA",7],["1~4","DBBA"]]},
+/*60*/{pg:172,pt:3,zn:1,day:"DAY 3",ty:"阅读理解",g:[["1~4","BBAD"]]},
+/*61*/{pg:172,pt:3,zn:1,day:"DAY 4",ty:"完形填空",g:[["1~5","DBADB"],["6~10","CBCAB"],["11~15","DADCA"]]},
+/*62*/{pg:172,pt:3,zn:1,day:"DAY 5",ty:"完形填空 + 语法填空",n:1,g:[["1~5","DDACA"],["6~10","BDBCA"],["11~15","BDCBC"]]},
+/*63*/{pg:172,pt:3,zn:1,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","DBFAC",7]]},
+/*64*/{pg:173,pt:3,zn:2,day:"DAY 1",ty:"完形填空",g:[["1~5","DACBA"],["6~10","DBCDA"],["11~15","BCADB"]]},
+/*65*/{pg:173,pt:3,zn:2,day:"DAY 2",ty:"阅读理解A + 阅读理解B",g:[["1~4","CBAC"],["1~4","CCBD"]]},
+/*66*/{pg:173,pt:3,zn:2,day:"DAY 3",ty:"完形填空",g:[["1~5","BCADB"],["6~10","ADACB"],["11~15","DCABD"]]},
+/*67*/{pg:173,pt:3,zn:2,day:"DAY 4",ty:"阅读理解",g:[["1~4","ABCB"]]},
+/*68*/{pg:173,pt:3,zn:2,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","GFEAC",7]]},
+/*69*/{pg:173,pt:3,zn:2,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","BEGCF",7]]},
+/*70*/{pg:173,pt:3,zn:3,day:"DAY 1",ty:"阅读理解",g:[["1~4","ACDB"]]},
+/*71*/{pg:173,pt:3,zn:3,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","BCAGE",7],["1~4","DCAB"]]},
+/*72*/{pg:173,pt:3,zn:3,day:"DAY 3",ty:"阅读理解 + 完形填空",g:[["1~4","DBDC"],["1~5","BCCCA"],["6~10","DBCAD"],["11~15","BDACB"]]},
+/*73*/{pg:173,pt:3,zn:3,day:"DAY 4",ty:"完形填空 + 语法填空",n:1,g:[["1~5","ACBDD"],["6~10","CADAC"],["11~15","BBADC"]]},
+/*74*/{pg:173,pt:3,zn:3,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","CFBGE",7]]},
+/*75*/{pg:173,pt:3,zn:4,day:"DAY 1",ty:"完形填空",g:[["1~5","CDCBA"],["6~10","DBADA"],["11~15","DABAC"]]},
+/*76*/{pg:173,pt:3,zn:4,day:"DAY 2",ty:"阅读理解A + 阅读理解B",g:[["1~4","BDCA"],["1~4","BADB"]]},
+/*77*/{pg:173,pt:3,zn:4,day:"DAY 3",ty:"完形填空",g:[["1~5","CDABB"],["6~10","ADBAC"],["11~15","DCABD"]]},
+/*78*/{pg:173,pt:3,zn:4,day:"DAY 4",ty:"阅读理解",g:[["1~4","BCBA"]]},
+/*79*/{pg:173,pt:3,zn:4,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","GAEDF",7]]},
+/*80*/{pg:174,pt:3,zn:4,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","CGEBF",7]]},
+/*81*/{pg:174,pt:4,zn:0,zu:"Test 1",ty:"阅读理解",g:[["1~3","DBC"],["4~7","BCAD"],["8~11","ADBC"],["12~15","BDCA"]]},
+/*82*/{pg:174,pt:4,zn:0,zu:"Test 1",ty:"七选五",g:[["1~5","GFEBD",7]]},
+/*83*/{pg:174,pt:4,zn:0,zu:"Test 1",ty:"完形填空",g:[["1~5","CBDCA"],["6~10","CBDAC"],["11~15","BDADB"]]},
+/*84*/{pg:174,pt:4,zn:0,zu:"Test 2",ty:"阅读理解",g:[["1~3","BAD"],["4~7","ACDC"],["8~11","ACBD"],["12~15","BCBD"]]},
+/*85*/{pg:174,pt:4,zn:0,zu:"Test 2",ty:"七选五",g:[["1~5","ECAFB",7]]},
+/*86*/{pg:174,pt:4,zn:0,zu:"Test 2",ty:"完形填空",g:[["1~5","BCABD"],["6~10","BADAC"],["11~15","CADBC"]]},
+/*87*/{pg:174,pt:4,zn:0,zu:"Test 3",ty:"阅读理解",note:"原书此页 Test 3 仅列出阅读理解,其余题型在下一页(未提供)",g:[["1~3","DBC"],["4~7","DBAD"],["8~11","ACCD"],["12~15","BAAC"]]}
+];
+var SEED=20260815;
+/*DATA-END*/
+/*ALGO-START*/
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+var LET="ABCDEFG";
+var rng=mulberry32(SEED);
+var RESULT=DATA.map(function(b){
+  var flat=[];
+  b.g.forEach(function(grp,gi){var m=grp[2]||4;for(var i=0;i<grp[1].length;i++){flat.push({gi:gi,i:i,ch:grp[1][i],m:m});}});
+  var cnt=(rng()<0.45?2:1);if(cnt>flat.length)cnt=flat.length;
+  var idxs=flat.map(function(_,k){return k;});
+  for(var i=idxs.length-1;i>0;i--){var j=Math.floor(rng()*(i+1));var t=idxs[i];idxs[i]=idxs[j];idxs[j]=t;}
+  var picks=idxs.slice(0,cnt).sort(function(a,b){return a-b;});
+  var grid=b.g.map(function(grp){return grp[1].split("");});
+  var shifts=[];
+  picks.forEach(function(qi){
+    var q=flat[qi],oi=LET.indexOf(q.ch),d=1+Math.floor(rng()*2),ni=(oi+d)%q.m,to=LET[ni];
+    grid[q.gi][q.i]=to;
+    shifts.push({gi:q.gi,pos:q.i,from:q.ch,to:to,range:b.g[q.gi][0]});
+  });
+  return {b:b,disp:grid.map(function(c){return c.join("");}),shifts:shifts};
+});
+/*ALGO-END*/
+(function(){
+var card=document.getElementById("card"),prog=document.getElementById("prog"),pbadge=document.getElementById("pbadge"),
+    jump=document.getElementById("jump"),panel=document.getElementById("panel"),mask=document.getElementById("mask"),
+    curtitle=document.getElementById("curtitle"),curbody=document.getElementById("curbody"),pfull=document.getElementById("pfull"),
+    toast=document.getElementById("toast"),prev=document.getElementById("prev"),next=document.getElementById("next");
+var CIRC=["①","②","③","④"];
+var cur=parseInt(localStorage.getItem("asfix_idx")||"0",10);
+if(!(cur>=0&&cur<RESULT.length))cur=0;
+document.getElementById("cnt").textContent="共 "+RESULT.length+" 个大题 / "+RESULT.reduce(function(a,r){return a+r.shifts.length;},0)+" 处偏移";
+/* 跳转下拉 */
+(function(){
+  var groups={};
+  RESULT.forEach(function(r,i){(groups[r.b.pt]=groups[r.b.pt]||[]).push(i);});
+  Object.keys(groups).forEach(function(pt){
+    var og=document.createElement("optgroup");og.label=PARTNAMES[pt];
+    groups[pt].forEach(function(i){
+      var b=RESULT[i].b,o=document.createElement("option");
+      o.value=i;o.textContent="P"+b.pg+" "+(b.zn>0?("题组"+b.zn):b.zu)+(b.day?"·"+b.day.replace(" ",""):"")+" "+b.ty.replace(/ \+ /g,"+");
+      og.appendChild(o);
+    });
+    jump.appendChild(og);
+  });
+})();
+jump.addEventListener("change",function(){cur=+jump.value;render();});
+function zuName(b){return b.zn>0?"题组训练"+b.zn:b.zu;}
+function title(b){return PARTNAMES[b.pt]+" · "+zuName(b)+(b.day?" · "+b.day:"")+" · "+b.ty;}
+function render(){
+  var r=RESULT[cur],b=r.b;
+  card.innerHTML="";
+  var tv=document.createElement("div");tv.className="tagver";tv.textContent="偏移版";card.appendChild(tv);
+  var pt=document.createElement("div");pt.className="part";pt.textContent=PARTNAMES[b.pt];card.appendChild(pt);
+  if(b.zn>0){
+    var z=document.createElement("div");z.className="zu";
+    z.innerHTML='<span class="znum">'+b.zn+'</span><span class="ztext">题组训练</span>';
+    card.appendChild(z);
+  }else{
+    var tn=document.createElement("div");tn.className="testname";tn.textContent=b.zu;card.appendChild(tn);
+  }
+  var dl=document.createElement("div");dl.className="dayline";
+  if(b.day){var dc=document.createElement("span");dc.className="daychip";dc.textContent=b.day;dl.appendChild(dc);}
+  var ty=document.createElement("span");ty.className="ty";ty.textContent="/ "+b.ty+" /";dl.appendChild(ty);
+  card.appendChild(dl);
+  r.disp.forEach(function(s,gi){
+    var line=document.createElement("div");line.className="aline";
+    var rg=document.createElement("span");rg.className="range";rg.textContent=b.g[gi][0];line.appendChild(rg);
+    var ls=document.createElement("span");ls.className="letters";
+    s.split("").forEach(function(ch){var sp=document.createElement("span");sp.textContent=ch;ls.appendChild(sp);});
+    line.appendChild(ls);card.appendChild(line);
+  });
+  if(b.n){var n1=document.createElement("div");n1.className="note";n1.textContent="※ 本节还含语法填空(非选择题),未收录";card.appendChild(n1);}
+  if(b.note){var n2=document.createElement("div");n2.className="note";n2.textContent="※ "+b.note;card.appendChild(n2);}
+  var sp=document.createElement("div");sp.className="spacer";card.appendChild(sp);
+  var pf=document.createElement("div");pf.className="pagefoot";
+  pf.innerHTML='<div class="pagenum">· '+b.pg+' ·</div><div class="cap">原书第 '+b.pg+' 页</div>';
+  card.appendChild(pf);
+  prog.textContent="第 "+(cur+1)+" / "+RESULT.length+" 个大题";
+  pbadge.textContent="原书 P"+b.pg;
+  prev.disabled=(cur===0);next.disabled=(cur===RESULT.length-1);
+  jump.value=cur;
+  localStorage.setItem("asfix_idx",cur);
+  fillPanel();
+}
+function shDesc(b,r,s){
+  var pre=(b.g.length>1?("组"+CIRC[s.gi]+" "):"");
+  return pre+"「"+s.range+"」第 "+(s.pos+1)+" 题:原 <b>"+s.from+"</b> → 现 <b>"+s.to+"</b>(正确答案:"+s.to+")";
+}
+function fillPanel(){
+  var r=RESULT[cur],b=r.b;
+  curtitle.textContent="第 "+(cur+1)+" 个大题:"+title(b);
+  var html="";
+  if(!r.shifts.length){html='<div class="sh">本大题无偏移,与原书一致。</div>';}
+  r.shifts.forEach(function(s){html+='<div class="sh">'+shDesc(b,r,s)+'</div>';});
+  var seen={};
+  r.shifts.forEach(function(s){
+    if(seen[s.gi])return;seen[s.gi]=1;
+    html+='<div class="diff">整行对照:原 <span class="o">'+b.g[s.gi][0]+' '+b.g[s.gi][1]+'</span> → 现 <span class="n">'+b.g[s.gi][0]+' '+r.disp[s.gi]+'</span></div>';
+  });
+  curbody.innerHTML=html;
+  pfull.style.display="none";
+  document.getElementById("pallbtn").textContent="展开全部记录";
+}
+function go(d){
+  var n=cur+d;if(n<0||n>=RESULT.length)return;
+  cur=n;render();window.scrollTo({top:0});
+}
+prev.addEventListener("click",function(){go(-1);});
+next.addEventListener("click",function(){go(1);});
+document.getElementById("keybtn").addEventListener("click",function(){panel.classList.add("on");mask.classList.add("on");});
+function closePanel(){panel.classList.remove("on");mask.classList.remove("on");}
+document.getElementById("pclose").addEventListener("click",closePanel);
+mask.addEventListener("click",closePanel);
+document.addEventListener("keydown",function(e){
+  if(e.key==="ArrowRight")go(1);else if(e.key==="ArrowLeft")go(-1);else if(e.key==="Escape")closePanel();
+});
+document.getElementById("pallbtn").addEventListener("click",function(){
+  if(pfull.style.display==="none"){
+    var h="";
+    RESULT.forEach(function(r,i){
+      var b=r.b;
+      var d=r.shifts.map(function(s){return (b.g.length>1?("组"+CIRC[s.gi]):"")+"「"+s.range+"」第"+(s.pos+1)+"题 "+s.from+"→"+s.to;}).join("; ");
+      h+='<div class="fitem"><b>#'+(i+1)+'</b> P'+b.pg+' '+zuName(b)+(b.day?"·"+b.day:"")+' '+b.ty+':'+d+'</div>';
+    });
+    pfull.innerHTML=h;pfull.style.display="block";this.textContent="收起全部记录";
+  }else{pfull.style.display="none";this.textContent="展开全部记录";}
+});
+function toastMsg(m){toast.textContent=m;toast.classList.add("on");setTimeout(function(){toast.classList.remove("on");},1500);}
+document.getElementById("pcopy").addEventListener("click",function(){
+  var r=RESULT[cur],b=r.b;
+  var t=title(b)+"\n"+r.shifts.map(function(s){
+    return (b.g.length>1?("组"+CIRC[s.gi]):"")+"「"+s.range+"」第"+(s.pos+1)+"题:原"+s.from+"→现"+s.to+"(正确答案"+s.to+")";
+  }).join("\n");
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){toastMsg("已复制本大题记录");},function(){toastMsg("复制失败,请手动记录");});
+  }else{toastMsg("当前环境不支持复制,请手动记录");}
+});
+render();
+})();
+</script>
+</body>
+</html>
