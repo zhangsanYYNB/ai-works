@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>答案速查 · 选择题偏移版(高二五合一)</title>
+<title>答案速查 · 选择题偏移(通用导入版)</title>
 <style>
-:root{--teal:#0f8f8f;--teal2:#0b6f74;--blue:#3f6fb5;--ink:#22343c;--mut:#8a8577;--line:#e6e1d4}
+:root{--teal:#0f8f8f;--teal2:#0b6f74;--blue:#3f6fb5;--ink:#22343c;--mut:#8a8577;--line:#e6e1d4;--red:#c0392b}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
 body{font-family:system-ui,-apple-system,"HarmonyOS Sans SC","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;background:#e8e4da;color:var(--ink)}
@@ -13,32 +13,52 @@ body{font-family:system-ui,-apple-system,"HarmonyOS Sans SC","Noto Sans SC","Pin
 .top .logo{flex:0 0 auto;width:36px;height:36px;border-radius:9px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:19px}
 .top h1{margin:0;font-size:16.5px;letter-spacing:2px}
 .top h1 small{display:block;font-size:10px;letter-spacing:3px;opacity:.85;font-weight:400}
-.top select{margin-left:auto;max-width:48vw;padding:8px 10px;border:none;border-radius:8px;font-size:12px;color:var(--ink);background:#fffdf8;box-shadow:0 1px 4px rgba(0,0,0,.15)}
-.info{max-width:720px;margin:12px auto 0;padding:0 14px;font-size:11.5px;color:#7a7466;text-align:center;line-height:1.7}
+.top select{margin-left:auto;max-width:46vw;padding:8px 10px;border:none;border-radius:8px;font-size:12px;color:var(--ink);background:#fffdf8;box-shadow:0 1px 4px rgba(0,0,0,.15);display:none}
+.settings{max-width:720px;margin:12px auto 0;padding:0 14px;display:none}
+.settings details{background:#fffdf8;border-radius:9px;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:12.5px}
+.settings summary{padding:9px 12px;cursor:pointer;color:#5c564a;font-weight:700}
+.setbody{padding:0 12px 12px;line-height:2.1;color:#5c564a}
+.setbody input{width:54px;padding:4px 6px;border:1px solid #d8d2c2;border-radius:6px;font-size:13px;text-align:center}
+.setbody button{border:none;border-radius:7px;background:var(--teal);color:#fff;font-weight:700;padding:6px 12px;font-size:12.5px;margin-left:6px}
+.setbody button.ghost{background:#8a8577}
+.setbody .hint{font-size:11px;color:#a39c8b;line-height:1.7;display:block}
+.setbody .hint b{color:#0b6f74}
+.seed{color:#0b6f74;font-weight:700}
+.info{max-width:720px;margin:10px auto 0;padding:0 14px;font-size:11.5px;color:#7a7466;text-align:center;line-height:1.8}
+.importwrap{max-width:720px;margin:10px auto 0;padding:0 14px}
+.impbar{background:#fffdf8;border-radius:9px;padding:10px 12px;font-size:12.5px;color:#5c564a;display:flex;align-items:center;gap:8px;flex-wrap:wrap;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.impbar button{border:none;border-radius:7px;background:var(--blue);color:#fff;font-weight:700;padding:6px 10px;font-size:12px}
+.impbar button.ghost{background:#8a8577}
+.importbox{background:#fffdf8;border-radius:9px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.importbox h3{margin:0 0 6px;font-size:13.5px;color:var(--ink)}
+.importbox textarea{width:100%;height:150px;border:1px solid #d8d2c2;border-radius:8px;padding:8px;font-size:12px;font-family:ui-monospace,Consolas,monospace;box-sizing:border-box}
+.importbox .row{display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap}
+.importbox .row button{border:none;border-radius:8px;background:var(--teal);color:#fff;font-weight:700;padding:9px 16px;font-size:13px}
+.importbox .row button.blue{background:var(--blue)}
+.prompt{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+.prompt summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--blue)}
+.prompt pre{white-space:pre-wrap;background:#f7f4ec;border-radius:8px;padding:10px;font-size:11.5px;line-height:1.8;color:#444;user-select:all}
+.imsg{font-size:12px}
+.imsg.err{color:var(--red)}.imsg.ok{color:#0b6f74}
 main{max-width:720px;margin:0 auto;padding:12px 14px 120px}
-.card{position:relative;background:#fffdf8;border-radius:12px;box-shadow:0 8px 28px rgba(70,60,35,.14);padding:24px 24px 16px;min-height:560px;display:flex;flex-direction:column}
+.card{position:relative;background:#fffdf8;border-radius:12px;box-shadow:0 8px 28px rgba(70,60,35,.14);padding:24px 24px 16px;min-height:480px;display:flex;flex-direction:column}
 .tagver{position:absolute;top:14px;right:14px;font-size:10.5px;color:#fff;background:var(--blue);padding:3px 9px;border-radius:999px;letter-spacing:2px;opacity:.9}
-.part{width:max-content;margin:2px auto 16px;background:var(--teal);color:#fff;font-size:12.5px;letter-spacing:3px;padding:5px 20px;border-radius:999px}
-.zu{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:14px}
-.zu .znum{width:27px;height:27px;background:var(--blue);color:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
-.zu .ztext{font-weight:800;font-size:18px;letter-spacing:4px}
-.testname{text-align:center;font-weight:800;font-size:20px;letter-spacing:2px;color:var(--blue);margin-bottom:12px}
-.dayline{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:6px;flex-wrap:wrap}
-.daychip{background:linear-gradient(135deg,#14a3a3,#0d8489);color:#fff;font-weight:800;font-size:12.5px;letter-spacing:1.5px;padding:3px 11px;border-radius:5px}
-.ty{color:#0b7285;font-weight:700;font-size:15.5px}
+.tagchip{background:linear-gradient(135deg,#14a3a3,#0d8489);color:#fff;font-weight:800;font-size:12.5px;letter-spacing:1.5px;padding:3px 11px;border-radius:5px}
+.dayline{display:flex;align-items:center;justify-content:center;gap:10px;margin:4px 0 10px;flex-wrap:wrap}
+.ty{color:#0b7285;font-weight:700;font-size:16.5px;letter-spacing:1px}
 .gblock{border-bottom:1px dashed var(--line);padding:9px 6px 7px}
 .aline{display:flex;align-items:baseline;gap:16px;padding:3px 0}
 .aline .range{flex:0 0 3.4em;color:var(--mut);font-size:13.5px;text-align:right}
 .letters{display:flex}
 .col{display:inline-block;min-width:1.35em;text-align:center;font-weight:800;font-size:19.5px;color:#1d2f36;border-radius:5px}
-.corr .range{color:#c0392b;font-weight:700}
-.corr .col{font-size:15px;color:#c0392b;font-weight:700}
+.corr .range{color:var(--red);font-weight:700}
+.corr .col{font-size:15px;color:var(--red);font-weight:700}
 .col.d{background:#ffefc2}
 .corr .col.d{font-weight:800;text-decoration:underline 2px}
 .note{font-size:11.5px;color:#a39c8b;margin-top:10px;text-align:center}
 .spacer{flex:1;min-height:18px}
 .pagefoot{border-top:1px solid var(--line);margin-top:14px;padding-top:9px;text-align:center}
-.pagefoot .pagenum{font-size:16px;letter-spacing:7px;color:#5c564a;font-weight:600}
+.pagefoot .pagenum{font-size:15px;letter-spacing:3px;color:#5c564a;font-weight:600}
 .pagefoot .cap{font-size:10px;color:#aba48f;margin-top:2px;letter-spacing:1px}
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#fffdf8;border-top:1px solid #ddd7c8}
 .nav button{border:none;border-radius:9px;background:var(--teal);color:#fff;font-size:14px;font-weight:700;padding:11px 18px;letter-spacing:1px}
@@ -46,216 +66,311 @@ main{max-width:720px;margin:0 auto;padding:12px 14px 120px}
 .nav .mid{text-align:center;min-width:130px}
 .nav .mid .p{font-size:13.5px;font-weight:700}
 .nav .mid .b{font-size:10.5px;color:var(--mut);margin-top:1px}
-@media (max-width:420px){.card{padding:18px 16px 12px;min-height:520px}.col{min-width:1.22em;font-size:18px}}
+@media (max-width:420px){.card{padding:18px 16px 12px;min-height:440px}.col{min-width:1.22em;font-size:18px}}
 </style>
 </head>
 <body>
 <header class="top">
   <div class="logo">⚡</div>
-  <h1>答案速查<small>选择题 · 选项偏移版 · 高二五合一</small></h1>
+  <h1>答案速查<small>选择题 · 选项偏移 · 通用导入版</small></h1>
   <select id="jump"></select>
 </header>
-<div class="info">仅收录选择题(阅读理解 / 七选五 / 完形填空)。每个大题随机 1~2 题被偏移:每行<b>上排为展示答案,下排红字为原书正确答案</b>,<span style="background:#ffefc2;padding:0 4px;border-radius:3px">黄色高亮列</span>即被偏移的题;卡片底部为原书页码(169~174)。<b id="cntinfo"></b></div>
-<main><div class="card" id="card"></div></main>
+<div class="info">每行<b>上排 = 展示答案,下排红字 = 正确答案</b>,<span style="background:#ffefc2;padding:0 4px;border-radius:3px">黄色高亮列</span> = 被偏移的题。七选五等共享选项题型<b>整组循环平移</b>,保证答案字母不重复。<b id="cntinfo"></b></div>
+<div class="settings" id="settingsBox">
+  <details id="setBox">
+    <summary>⚙ 偏移设置与记录(种子与百分比存于浏览器 Cookie,下次打开自动恢复)</summary>
+    <div class="setbody">
+      <div id="pctRow"></div>
+      <button id="btnApply">应用</button><button id="btnReseed">🎲 重新随机</button><button id="btnReset" class="ghost">重置</button>
+      <span class="hint">普通题型(选项 ≤4):每个大题按百分比随机抽题,逐题平移 1~2 位;共享选项题型(七选五/7选5/选项&gt;4 个):按百分比为概率<b>整组循环平移 1~2 位</b>,数学上保证各空答案字母不重复。<br>
+      当前随机种子:<span class="seed" id="seedSpan"></span> · 记录写入 Cookie(asfix2),同一种子+百分比 = 同样的偏移结果;题库数据存于本机 localStorage,不会上传。</span>
+    </div>
+  </details>
+</div>
+<main>
+  <div class="importwrap" id="importWrap">
+    <div class="impbar" id="impbar" style="display:none">
+      <span id="impTitle"></span>
+      <button id="btnReimport">↻ 重新导入(覆盖)</button>
+      <button id="btnClearImport" class="ghost">🗑 清空题库</button>
+    </div>
+    <div class="importbox" id="importBox">
+      <h3>📥 导入任意选择题答案(三步)</h3>
+      <div style="font-size:12px;color:#7a7466;line-height:1.8">
+        ① 点开下方「AI 提示词」并复制 → ② 在手机上发给任意聊天 AI(豆包 / ChatGPT / 通义 / Kimi 等),再把自己的答案文本(或图片)发给它 → ③ 把 AI 输出的 JSON 粘贴到下面框里,点「解析并导入」。<br>
+        题型名称、题号段、选项个数完全自由:完形填空、阅读理解、七选五、5选1、判断选择……都支持;语法填空、应用文等非选择题不要导入。
+      </div>
+      <details class="prompt" id="promptBox">
+        <summary>📋 AI 提示词(点开复制)</summary>
+        <pre id="promptText">你是"答案速查录入助手"。请把用户发给你的选择题答案文本(或图片内容)整理成下面的 JSON,只输出 JSON,不要任何解释,不要代码块:
+
+{"title":"题库名称","sections":[{"ty":"题型名","opts":4,"tag":"可选标签","groups":[["1~5","DACBC"],["6~10","ABDCA"]]}]}
+
+整理规则:
+1. sections 的每一项 = 一个大题。ty 填题型名称(如:完形填空、阅读理解、七选五、5选1、任务型阅读等,以答案原文的叫法为准)。
+2. 同一个大题的答案若分多段(如 1~5、6~10、11~15),写进同一个 groups 数组,按原顺序排列。
+3. opts = 该组每道题的选项个数:完形/阅读一般填 4;七选五(7选5)填 7;选项多于 4 个(如 5 选 1)按实际个数填。
+4. answers 只保留大写字母 A~G,去掉题号、标点、空格;字母个数必须与题号段的题量一致。
+5. tag 为可选字段:如果答案带有页码、天次、题组编号等(如 P169、DAY1、Test2),填进去,没有就省略。
+6. 语法填空、应用文写作等非选择题不要收录;看不清的字母按最可能的处理。</pre>
+        <div class="row"><button id="btnCopyPrompt" class="blue">📋 复制提示词</button><button id="btnDemo" class="blue" style="background:#8a8577">✏️ 填入示例</button></div>
+      </details>
+      <div class="row" id="importFormRow">
+        <textarea id="taJson" placeholder='把 AI 输出的 JSON 粘贴到这里,例如:
+{"title":"班级专属题库","sections":[{"ty":"完形填空","opts":4,"tag":"P1","groups":[["1~15","DACBCABDEACBBDA"]]}]}'></textarea>
+        <div class="row"><button id="btnParse">✅ 解析并导入</button><span class="imsg" id="impMsg"></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" id="card" style="display:none"></div>
+</main>
 <nav class="nav">
   <button id="prev">◀ 上一题</button>
   <div class="mid"><div class="p" id="prog"></div><div class="b" id="pbadge"></div></div>
   <button id="next">下一题 ▶</button>
 </nav>
 <script>
-/*DATA-START*/
-var PARTNAMES={1:"第一部分 · 名校模拟训练",2:"第二部分 · 素养提升训练",3:"第三部分 · 阶段巩固训练",4:"第四部分 · 考前冲刺训练"};
-/* g: [题号段, 原答案, 选项数(默认4,七选五为7)]  n:1=本节还含语法填空未收录 */
-var DATA=[
-/* 1*/{pg:169,pt:1,zn:1,day:"DAY 1",ty:"阅读理解",g:[["1~3","CCB"]]},
-/* 2*/{pg:169,pt:1,zn:1,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","BAGCF",7],["1~4","CBAC"]]},
-/* 3*/{pg:169,pt:1,zn:1,day:"DAY 3",ty:"阅读理解 + 完形填空",g:[["1~4","DCAB"],["1~5","BACBD"],["6~10","DBACC"],["11~15","DADBA"]]},
-/* 4*/{pg:169,pt:1,zn:1,day:"DAY 4",ty:"完形填空 + 语法填空",n:1,g:[["1~5","DCCBA"],["6~10","ACABB"],["11~15","CABBD"]]},
-/* 5*/{pg:169,pt:1,zn:1,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","GFEAD",7]]},
-/* 6*/{pg:169,pt:1,zn:2,day:"DAY 1",ty:"完形填空",g:[["1~5","BDCAD"],["6~10","BCADB"],["11~15","BADCA"]]},
-/* 7*/{pg:169,pt:1,zn:2,day:"DAY 2",ty:"阅读理解A + 阅读理解B",g:[["1~3","BDB"],["1~4","CDBB"]]},
-/* 8*/{pg:169,pt:1,zn:2,day:"DAY 3",ty:"完形填空",g:[["1~5","ABABD"],["6~10","DCACD"],["11~15","CBADC"]]},
-/* 9*/{pg:169,pt:1,zn:2,day:"DAY 4",ty:"完形填空",g:[["1~5","BCAAB"],["6~10","DACDB"],["11~15","CADBD"]]},
-/*10*/{pg:169,pt:1,zn:2,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","ECDGA",7]]},
-/*11*/{pg:169,pt:1,zn:2,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","GAEDB",7]]},
-/*12*/{pg:169,pt:1,zn:3,day:"DAY 1",ty:"阅读理解",g:[["1~4","DABC"]]},
-/*13*/{pg:169,pt:1,zn:3,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","DEAGF",7],["1~4","DCAD"]]},
-/*14*/{pg:169,pt:1,zn:3,day:"DAY 3",ty:"阅读理解",g:[["1~4","DBAC"]]},
-/*15*/{pg:170,pt:1,zn:3,day:"DAY 4",ty:"完形填空",g:[["1~5","ADCDB"],["6~10","CBAAC"],["11~15","CBBAD"]]},
-/*16*/{pg:170,pt:1,zn:3,day:"DAY 5",ty:"完形填空 + 语法填空",n:1,g:[["1~5","DADCB"],["6~10","BCABD"],["11~15","ACADB"]]},
-/*17*/{pg:170,pt:1,zn:3,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","DECBG",7]]},
-/*18*/{pg:170,pt:1,zn:4,day:"DAY 1",ty:"完形填空",g:[["1~5","BCABD"],["6~10","BADCA"],["11~15","BACDD"]]},
-/*19*/{pg:170,pt:1,zn:4,day:"DAY 2",ty:"阅读理解A + 阅读理解B",g:[["1~4","CADA"],["1~4","ACDC"]]},
-/*20*/{pg:170,pt:1,zn:4,day:"DAY 3",ty:"完形填空",g:[["1~5","BADCB"],["6~10","ADBAC"],["11~15","BCACD"]]},
-/*21*/{pg:170,pt:1,zn:4,day:"DAY 4",ty:"完形填空",g:[["1~5","ADCBB"],["6~10","ACDBA"],["11~15","DCCDB"]]},
-/*22*/{pg:170,pt:1,zn:4,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","BAEFG",7]]},
-/*23*/{pg:170,pt:1,zn:4,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","GFBAD",7]]},
-/*24*/{pg:170,pt:2,zn:1,day:"DAY 1",ty:"阅读理解",g:[["1~3","ADB"]]},
-/*25*/{pg:170,pt:2,zn:1,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","DEBFG",7],["1~4","DCBC"]]},
-/*26*/{pg:170,pt:2,zn:1,day:"DAY 3",ty:"阅读理解 + 完形填空",g:[["1~4","CADD"],["1~5","CBDBA"],["6~10","CBACD"],["11~15","ABCAD"]]},
-/*27*/{pg:170,pt:2,zn:1,day:"DAY 4",ty:"完形填空 + 语法填空",n:1,g:[["1~5","DADBC"],["6~10","DABCC"],["11~15","AADCB"]]},
-/*28*/{pg:170,pt:2,zn:1,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","GDCFA",7]]},
-/*29*/{pg:171,pt:2,zn:2,day:"DAY 1",ty:"完形填空",g:[["1~5","DACBC"],["6~10","ABDDC"],["11~15","BDBCA"]]},
-/*30*/{pg:171,pt:2,zn:2,day:"DAY 2",ty:"阅读理解 + 七选五",g:[["1~3","CCD"],["1~4","EDGFB",7]]},
-/*31*/{pg:171,pt:2,zn:2,day:"DAY 3",ty:"完形填空 + 阅读理解",g:[["1~5","CBDBA"],["6~10","CAACC"],["11~15","BDBAD"],["1~3","CCD"]]},
-/*32*/{pg:171,pt:2,zn:2,day:"DAY 4",ty:"阅读理解",g:[["1~4","CADC"]]},
-/*33*/{pg:171,pt:2,zn:2,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","FECDA",7]]},
-/*34*/{pg:171,pt:2,zn:2,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","GDBEA",7]]},
-/*35*/{pg:171,pt:2,zn:3,day:"DAY 1",ty:"阅读理解",g:[["1~4","ACBD"]]},
-/*36*/{pg:171,pt:2,zn:3,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","EBFDC",7],["1~4","BBDC"]]},
-/*37*/{pg:171,pt:2,zn:3,day:"DAY 3",ty:"阅读理解",g:[["1~4","ABCA"]]},
-/*38*/{pg:171,pt:2,zn:3,day:"DAY 4",ty:"完形填空",g:[["1~5","CBACB"],["6~10","ADCBB"],["11~15","DACDD"]]},
-/*39*/{pg:171,pt:2,zn:3,day:"DAY 5",ty:"完形填空 + 语法填空",n:1,g:[["1~5","DACBC"],["6~10","DBADC"],["11~15","ABABD"]]},
-/*40*/{pg:171,pt:2,zn:3,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","DCFBC",7]]},
-/*41*/{pg:171,pt:2,zn:4,day:"DAY 1",ty:"完形填空",g:[["1~5","BDABC"],["6~10","CADBC"],["11~15","ABCDC"]]},
-/*42*/{pg:171,pt:2,zn:4,day:"DAY 2",ty:"阅读理解 + 七选五",g:[["1~4","DDAB"],["1~5","BEFGC",7]]},
-/*43*/{pg:171,pt:2,zn:4,day:"DAY 3",ty:"完形填空 + 阅读理解",g:[["1~5","DABCB"],["6~10","CADAC"],["11~15","BADBD"],["1~4","ADBC"]]},
-/*44*/{pg:171,pt:2,zn:4,day:"DAY 4",ty:"阅读理解",g:[["1~4","DCDA"]]},
-/*45*/{pg:171,pt:2,zn:4,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","AECBD",7]]},
-/*46*/{pg:171,pt:2,zn:4,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","BADFG",7]]},
-/*47*/{pg:171,pt:2,zn:5,day:"DAY 1",ty:"阅读理解",g:[["1~4","ACCD"]]},
-/*48*/{pg:171,pt:2,zn:5,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","CFDAG",7],["1~4","DCBC"]]},
-/*49*/{pg:172,pt:2,zn:5,day:"DAY 3",ty:"阅读理解 + 完形填空",g:[["1~4","DCDA"],["1~5","BACDA"],["6~10","BBCAD"],["11~15","BCCDD"]]},
-/*50*/{pg:172,pt:2,zn:5,day:"DAY 4",ty:"完形填空 + 语法填空",n:1,g:[["1~5","BDCAD"],["6~10","CBADC"],["11~15","AADCB"]]},
-/*51*/{pg:172,pt:2,zn:5,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","CGFAE",7]]},
-/*52*/{pg:172,pt:2,zn:6,day:"DAY 1",ty:"完形填空",g:[["1~5","CBBDA"],["6~10","CDACB"],["11~15","DDABC"]]},
-/*53*/{pg:172,pt:2,zn:6,day:"DAY 2",ty:"阅读理解 + 七选五",g:[["1~4","ACDA"],["1~5","AEDCF",7]]},
-/*54*/{pg:172,pt:2,zn:6,day:"DAY 3",ty:"完形填空 + 阅读理解",g:[["1~5","CABDA"],["6~10","BBADC"],["11~15","DCABC"],["1~3","DAC"]]},
-/*55*/{pg:172,pt:2,zn:6,day:"DAY 4",ty:"阅读理解",g:[["1~4","CABA"]]},
-/*56*/{pg:172,pt:2,zn:6,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","EFDCG",7]]},
-/*57*/{pg:172,pt:2,zn:6,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","CFBGD",7]]},
-/*58*/{pg:172,pt:3,zn:1,day:"DAY 1",ty:"阅读理解",g:[["1~3","BDA"]]},
-/*59*/{pg:172,pt:3,zn:1,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","EGFCA",7],["1~4","DBBA"]]},
-/*60*/{pg:172,pt:3,zn:1,day:"DAY 3",ty:"阅读理解",g:[["1~4","BBAD"]]},
-/*61*/{pg:172,pt:3,zn:1,day:"DAY 4",ty:"完形填空",g:[["1~5","DBADB"],["6~10","CBCAB"],["11~15","DADCA"]]},
-/*62*/{pg:172,pt:3,zn:1,day:"DAY 5",ty:"完形填空 + 语法填空",n:1,g:[["1~5","DDACA"],["6~10","BDBCA"],["11~15","BDCBC"]]},
-/*63*/{pg:172,pt:3,zn:1,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","DBFAC",7]]},
-/*64*/{pg:173,pt:3,zn:2,day:"DAY 1",ty:"完形填空",g:[["1~5","DACBA"],["6~10","DBCDA"],["11~15","BCADB"]]},
-/*65*/{pg:173,pt:3,zn:2,day:"DAY 2",ty:"阅读理解A + 阅读理解B",g:[["1~4","CBAC"],["1~4","CCBD"]]},
-/*66*/{pg:173,pt:3,zn:2,day:"DAY 3",ty:"完形填空",g:[["1~5","BCADB"],["6~10","ADACB"],["11~15","DCABD"]]},
-/*67*/{pg:173,pt:3,zn:2,day:"DAY 4",ty:"阅读理解",g:[["1~4","ABCB"]]},
-/*68*/{pg:173,pt:3,zn:2,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","GFEAC",7]]},
-/*69*/{pg:173,pt:3,zn:2,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","BEGCF",7]]},
-/*70*/{pg:173,pt:3,zn:3,day:"DAY 1",ty:"阅读理解",g:[["1~4","ACDB"]]},
-/*71*/{pg:173,pt:3,zn:3,day:"DAY 2",ty:"七选五 + 阅读理解",g:[["1~5","BCAGE",7],["1~4","DCAB"]]},
-/*72*/{pg:173,pt:3,zn:3,day:"DAY 3",ty:"阅读理解 + 完形填空",g:[["1~4","DBDC"],["1~5","BCCCA"],["6~10","DBCAD"],["11~15","BDACB"]]},
-/*73*/{pg:173,pt:3,zn:3,day:"DAY 4",ty:"完形填空 + 语法填空",n:1,g:[["1~5","ACBDD"],["6~10","CADAC"],["11~15","BBADC"]]},
-/*74*/{pg:173,pt:3,zn:3,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","CFBGE",7]]},
-/*75*/{pg:173,pt:3,zn:4,day:"DAY 1",ty:"完形填空",g:[["1~5","CDCBA"],["6~10","DBADA"],["11~15","DABAC"]]},
-/*76*/{pg:173,pt:3,zn:4,day:"DAY 2",ty:"阅读理解A + 阅读理解B",g:[["1~4","BDCA"],["1~4","BADB"]]},
-/*77*/{pg:173,pt:3,zn:4,day:"DAY 3",ty:"完形填空",g:[["1~5","CDABB"],["6~10","ADBAC"],["11~15","DCABD"]]},
-/*78*/{pg:173,pt:3,zn:4,day:"DAY 4",ty:"阅读理解",g:[["1~4","BCBA"]]},
-/*79*/{pg:173,pt:3,zn:4,day:"DAY 5",ty:"七选五 + 语法填空",n:1,g:[["1~5","GAEDF",7]]},
-/*80*/{pg:174,pt:3,zn:4,day:"DAY 6",ty:"七选五 + 语法填空",n:1,g:[["1~5","CGEBF",7]]},
-/*81*/{pg:174,pt:4,zn:0,zu:"Test 1",ty:"阅读理解",g:[["1~3","DBC"],["4~7","BCAD"],["8~11","ADBC"],["12~15","BDCA"]]},
-/*82*/{pg:174,pt:4,zn:0,zu:"Test 1",ty:"七选五",g:[["1~5","GFEBD",7]]},
-/*83*/{pg:174,pt:4,zn:0,zu:"Test 1",ty:"完形填空",g:[["1~5","CBDCA"],["6~10","CBDAC"],["11~15","BDADB"]]},
-/*84*/{pg:174,pt:4,zn:0,zu:"Test 2",ty:"阅读理解",g:[["1~3","BAD"],["4~7","ACDC"],["8~11","ACBD"],["12~15","BCBD"]]},
-/*85*/{pg:174,pt:4,zn:0,zu:"Test 2",ty:"七选五",g:[["1~5","ECAFB",7]]},
-/*86*/{pg:174,pt:4,zn:0,zu:"Test 2",ty:"完形填空",g:[["1~5","BCABD"],["6~10","BADAC"],["11~15","CADBC"]]},
-/*87*/{pg:174,pt:4,zn:0,zu:"Test 3",ty:"阅读理解",note:"原书此页 Test 3 仅列出阅读理解,其余题型在下一页(未提供)",g:[["1~3","DBC"],["4~7","DBAD"],["8~11","ACCD"],["12~15","BAAC"]]}
-];
-var SEED=20260815;
-/*DATA-END*/
 /*ALGO-START*/
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 var LET="ABCDEFG";
-var rng=mulberry32(SEED);
-var RESULT=DATA.map(function(b){
-  var flat=[];
-  b.g.forEach(function(grp,gi){var m=grp[2]||4;for(var i=0;i<grp[1].length;i++){flat.push({gi:gi,i:i,ch:grp[1][i],m:m});}});
-  var cnt=(rng()<0.45?2:1);if(cnt>flat.length)cnt=flat.length;
-  var idxs=flat.map(function(_,k){return k;});
-  for(var i=idxs.length-1;i>0;i--){var j=Math.floor(rng()*(i+1));var t=idxs[i];idxs[i]=idxs[j];idxs[j]=t;}
-  var picks=idxs.slice(0,cnt).sort(function(a,b){return a-b;});
-  var grid=b.g.map(function(grp){return grp[1].split("");});
-  var shifts=[];
-  picks.forEach(function(qi){
-    var q=flat[qi],oi=LET.indexOf(q.ch),d=1+Math.floor(rng()*2),ni=(oi+d)%q.m,to=LET[ni];
-    grid[q.gi][q.i]=to;
-    shifts.push({gi:q.gi,pos:q.i,from:q.ch,to:to,range:b.g[q.gi][0]});
+/* 共享选项题型(七选五/7选5/选项>4):整组循环平移,保证各空答案字母不重复 */
+function isSharedUnit(u){
+  if(u.ty.indexOf("七选五")>=0||u.ty.indexOf("7选5")>=0||u.ty.indexOf("选句")>=0)return true;
+  return (u.opts|0)>4;
+}
+/* 确定性偏移:同一种子+百分比 ⇒ 同样的偏移记录 */
+function computeAll(units,seed,pct){
+  var rng=mulberry32(seed);
+  return units.map(function(u){
+    var disp=u.g.map(function(g){return g[1];}),shifts=[];
+    if(isSharedUnit(u)){
+      var p=(pct[u.ty]==null?100:pct[u.ty]);
+      if(rng()*100<p){
+        var d=1+Math.floor(rng()*2);
+        disp=u.g.map(function(g){
+          var m=g[2]||u.opts||7;
+          return g[1].split("").map(function(ch){return LET[(LET.indexOf(ch)+d)%m];}).join("");
+        });
+        shifts=u.g.map(function(g,gi){return{gi:gi,whole:true,delta:d,range:g[0]};});
+      }
+    }else{
+      var p2=(pct[u.ty]==null?20:pct[u.ty]);
+      var total=0;u.g.forEach(function(g){total+=g[1].length;});
+      var k=Math.round(total*p2/100);
+      if(k>0){
+        var flat=[];u.g.forEach(function(g,gi){for(var i=0;i<g[1].length;i++)flat.push({gi:gi,i:i});});
+        var idx=flat.map(function(_,x){return x;});
+        for(var i=idx.length-1;i>0;i--){var j=Math.floor(rng()*(i+1));var t=idx[i];idx[i]=idx[j];idx[j]=t;}
+        idx.slice(0,k).sort(function(a,b){return a-b;}).forEach(function(qi){
+          var f=flat[qi],g=u.g[f.gi],m=g[2]||u.opts||4,oi=LET.indexOf(g[1][f.i]),dd=1+Math.floor(rng()*2);
+          var nl=LET[(oi+dd)%m],arr=disp[f.gi].split("");
+          arr[f.i]=nl;disp[f.gi]=arr.join("");
+          shifts.push({gi:f.gi,pos:f.i,from:g[1][f.i],to:nl,range:g[0]});
+        });
+      }
+    }
+    return{u:u,disp:disp,shifts:shifts};
   });
-  return {b:b,disp:grid.map(function(c){return c.join("");}),shifts:shifts};
-});
+}
 /*ALGO-END*/
 (function(){
+/* ---------- Cookie 工具 ---------- */
+function setCookie(n,v,days){var d=new Date();d.setTime(d.getTime()+days*864e5);document.cookie=n+"="+encodeURIComponent(v)+";expires="+d.toUTCString()+";path=/";}
+function getCookie(n){var m=document.cookie.match(new RegExp("(?:^|; )"+n+"=([^;]*)"));return m?decodeURIComponent(m[1]):null;}
+/* ---------- 状态 ---------- */
+var DEFAULT_SEED=20260815;
+var UNITS=null,SH=null,IMP=null,reOpen=false;
+var st={seed:DEFAULT_SEED,pct:{},ix:0};
+try{var s=JSON.parse(getCookie("asfix2")||"null");
+  if(s){if(s.s>=0)st.seed=s.s;if(s.p&&typeof s.p==="object")st.pct=s.p;if(s.ix>=0)st.ix=s.ix;}
+}catch(e){}
+try{IMP=JSON.parse(localStorage.getItem("asfix2_import")||"null");}catch(e){IMP=null;}
+function saveState(){setCookie("asfix2",JSON.stringify({s:st.seed,p:st.pct,ix:st.ix}),365);}
+function reshuffle(){if(UNITS)SH=computeAll(UNITS,st.seed,st.pct);}
+/* ---------- DOM ---------- */
 var card=document.getElementById("card"),prog=document.getElementById("prog"),pbadge=document.getElementById("pbadge"),
-    jump=document.getElementById("jump"),prev=document.getElementById("prev"),next=document.getElementById("next");
-var cur=parseInt(localStorage.getItem("asfix_idx")||"0",10);
-if(!(cur>=0&&cur<RESULT.length))cur=0;
-document.getElementById("cntinfo").textContent="共 "+RESULT.length+" 个大题 / "+RESULT.reduce(function(a,r){return a+r.shifts.length;},0)+" 处偏移。";
-/* 跳转下拉 */
-(function(){
-  var groups={};
-  RESULT.forEach(function(r,i){(groups[r.b.pt]=groups[r.b.pt]||[]).push(i);});
-  Object.keys(groups).forEach(function(pt){
-    var og=document.createElement("optgroup");og.label=PARTNAMES[pt];
-    groups[pt].forEach(function(i){
-      var b=RESULT[i].b,o=document.createElement("option");
-      o.value=i;o.textContent="P"+b.pg+" "+(b.zn>0?("题组"+b.zn):b.zu)+(b.day?"·"+b.day.replace(" ",""):"")+" "+b.ty.replace(/ \+ /g,"+");
-      og.appendChild(o);
+    jump=document.getElementById("jump"),prev=document.getElementById("prev"),next=document.getElementById("next"),
+    importWrap=document.getElementById("importWrap"),impbar=document.getElementById("impbar"),
+    importBox=document.getElementById("importBox"),impTitle=document.getElementById("impTitle"),
+    taJson=document.getElementById("taJson"),impMsg=document.getElementById("impMsg"),
+    seedSpan=document.getElementById("seedSpan"),cntinfo=document.getElementById("cntinfo"),
+    settingsBox=document.getElementById("settingsBox"),pctRow=document.getElementById("pctRow");
+/* ---------- 解析导入 ---------- */
+function normSections(obj){
+  var us=[],warn=[];
+  obj.sections.forEach(function(s,i){
+    if(!s||typeof s.ty!=="string"||!s.ty.trim()||!Array.isArray(s.groups)||!s.groups.length)throw new Error("第 "+(i+1)+" 个 section 格式有误(需要 ty 与非空 groups)。");
+    var m=s.opts|0;if(!(m>=2&&m<=7))m=4;
+    var u={ty:s.ty.trim(),opts:m,tag:(typeof s.tag==="string"?s.tag.trim():""),g:[]};
+    s.groups.forEach(function(g,j){
+      if(!Array.isArray(g)||g.length<2||!/^[A-G]+$/.test(String(g[1]).toUpperCase()))throw new Error("sections["+i+"] 的 groups["+j+"] 答案无效(只允许大写字母 A~G)。");
+      var ans=String(g[1]).toUpperCase();
+      for(var q=0;q<ans.length;q++){if(LET.indexOf(ans[q])>=m)throw new Error('sections['+i+'] 出现超出选项数('+m+')的字母 "'+ans[q]+'",请检查 opts 是否填对。');}
+      u.g.push([String(g[0]),ans,m]);
     });
-    jump.appendChild(og);
+    if(isSharedUnit(u)){
+      u.g.forEach(function(g,j){
+        var seen={};g[1].split("").forEach(function(ch){seen[ch]=(seen[ch]||0)+1;});
+        var dup=Object.keys(seen).filter(function(k){return seen[k]>1;});
+        if(dup.length)warn.push(u.ty+" 第"+(j+1)+"组原答案本身有重复字母("+dup.join("")+"),整组平移后仍会重复,请核对原文");
+      });
+    }
+    var last=us[us.length-1];
+    if(last&&last.ty===u.ty&&last.opts===u.opts&&last.tag===u.tag){u.g.forEach(function(g){last.g.push(g);});}
+    else us.push(u);
   });
-})();
-jump.addEventListener("change",function(){cur=+jump.value;render();});
-function zuName(b){return b.zn>0?"题组训练"+b.zn:b.zu;}
+  return{units:us,warn:warn};
+}
+function loadImport(){
+  if(!(IMP&&IMP.sections)){UNITS=null;SH=null;return;}
+  try{
+    var res=normSections({sections:IMP.sections});
+    UNITS=res.units;if(st.ix>=UNITS.length)st.ix=0;
+    ensurePct();reshuffle();
+  }catch(e){UNITS=null;SH=null;IMP=null;localStorage.removeItem("asfix2_import");}
+}
+function ensurePct(){
+  UNITS.forEach(function(u){if(st.pct[u.ty]==null)st.pct[u.ty]=isSharedUnit(u)?100:20;});
+}
+/* ---------- 渲染 ---------- */
 function mkRow(range,letters,diff,isCorr){
   var line=document.createElement("div");line.className="aline"+(isCorr?" corr":"");
   var rg=document.createElement("span");rg.className="range";rg.textContent=range;line.appendChild(rg);
   var ls=document.createElement("span");ls.className="letters";
   letters.split("").forEach(function(ch,i){
-    var sp=document.createElement("span");
-    sp.className="col"+(diff[i]?" d":"");
-    sp.textContent=ch;ls.appendChild(sp);
+    var sp=document.createElement("span");sp.className="col"+(diff[i]?" d":"");sp.textContent=ch;ls.appendChild(sp);
   });
   line.appendChild(ls);return line;
 }
 function render(){
-  var r=RESULT[cur],b=r.b;
+  var has=!!UNITS;
+  card.style.display=has?"flex":"none";
+  settingsBox.style.display=has?"block":"none";
+  jump.style.display=has?"block":"none";
+  impbar.style.display=(has&&!reOpen)?"flex":"none";
+  importBox.style.display=(!has||reOpen)?"block":"none";
+  prev.disabled=next.disabled=true;
+  if(!has){
+    prog.textContent="未导入题库";pbadge.textContent="按上方三步导入";
+    jump.innerHTML="";cntinfo.textContent="";
+    buildPctRow();seedSpan.textContent=st.seed;
+    return;
+  }
+  if(st.ix>=UNITS.length)st.ix=0;
+  var r=SH[st.ix],u=r.u;
   card.innerHTML="";
   var tv=document.createElement("div");tv.className="tagver";tv.textContent="偏移版";card.appendChild(tv);
-  var pt=document.createElement("div");pt.className="part";pt.textContent=PARTNAMES[b.pt];card.appendChild(pt);
-  if(b.zn>0){
-    var z=document.createElement("div");z.className="zu";
-    z.innerHTML='<span class="znum">'+b.zn+'</span><span class="ztext">题组训练</span>';
-    card.appendChild(z);
-  }else{
-    var tn=document.createElement("div");tn.className="testname";tn.textContent=b.zu;card.appendChild(tn);
-  }
   var dl=document.createElement("div");dl.className="dayline";
-  if(b.day){var dc=document.createElement("span");dc.className="daychip";dc.textContent=b.day;dl.appendChild(dc);}
-  var ty=document.createElement("span");ty.className="ty";ty.textContent="/ "+b.ty+" /";dl.appendChild(ty);
+  if(u.tag){var tc=document.createElement("span");tc.className="tagchip";tc.textContent=u.tag;dl.appendChild(tc);}
+  var ty=document.createElement("span");ty.className="ty";ty.textContent="/ "+u.ty+" /";dl.appendChild(ty);
   card.appendChild(dl);
   r.disp.forEach(function(s,gi){
-    var diff={};r.shifts.forEach(function(sh){if(sh.gi===gi)diff[sh.pos]=1;});
+    var diff={};r.shifts.forEach(function(sh){if(sh.gi!==gi)return;if(sh.whole){for(var q=0;q<s.length;q++)diff[q]=1;}else diff[sh.pos]=1;});
     var gb=document.createElement("div");gb.className="gblock";
-    gb.appendChild(mkRow(b.g[gi][0],s,diff,false));
-    gb.appendChild(mkRow("正确",b.g[gi][1],diff,true));
+    gb.appendChild(mkRow(u.g[gi][0],s,diff,false));
+    gb.appendChild(mkRow("正确",u.g[gi][1],diff,true));
     card.appendChild(gb);
   });
-  if(b.n){var n1=document.createElement("div");n1.className="note";n1.textContent="※ 本节还含语法填空(非选择题),未收录";card.appendChild(n1);}
-  if(b.note){var n2=document.createElement("div");n2.className="note";n2.textContent="※ "+b.note;card.appendChild(n2);}
   var sp=document.createElement("div");sp.className="spacer";card.appendChild(sp);
   var pf=document.createElement("div");pf.className="pagefoot";
-  pf.innerHTML='<div class="pagenum">· '+b.pg+' ·</div><div class="cap">原书第 '+b.pg+' 页</div>';
+  pf.innerHTML='<div class="pagenum">'+(IMP?IMP.title:"题库")+'</div><div class="cap">大题 '+(st.ix+1)+' / '+UNITS.length+(u.tag?" · "+u.tag:"")+'</div>';
   card.appendChild(pf);
-  prog.textContent="第 "+(cur+1)+" / "+RESULT.length+" 个大题";
-  pbadge.textContent="原书 P"+b.pg;
-  prev.disabled=(cur===0);next.disabled=(cur===RESULT.length-1);
-  jump.value=cur;
-  localStorage.setItem("asfix_idx",cur);
+  prog.textContent="第 "+(st.ix+1)+" / "+UNITS.length+" 个大题";
+  pbadge.textContent=u.ty+(u.tag?" · "+u.tag:"");
+  prev.disabled=(st.ix===0);next.disabled=(st.ix===UNITS.length-1);
+  buildJump();buildPctRow();seedSpan.textContent=st.seed;
+  var tot=0;SH.forEach(function(x){tot+=x.shifts.length;});
+  cntinfo.textContent="当前题库:共 "+UNITS.length+" 个大题 / "+tot+" 处偏移。";
+  saveState();
 }
+function buildJump(){
+  jump.innerHTML="";
+  if(!UNITS)return;
+  UNITS.forEach(function(u,i){
+    var o=document.createElement("option");
+    o.value=i;o.textContent=(i+1)+". "+u.ty+(u.tag?"["+u.tag+"]":"")+"("+u.g.map(function(g){return g[0];}).join(",")+")";
+    jump.appendChild(o);
+  });
+  jump.value=st.ix;
+}
+function buildPctRow(){
+  pctRow.innerHTML="";
+  if(!UNITS)return;
+  var seen=[];
+  UNITS.forEach(function(u){if(seen.indexOf(u.ty)<0)seen.push(u.ty);});
+  seen.forEach(function(ty){
+    var sp=document.createElement("span");
+    var lab=document.createElement("label");lab.textContent=ty+" ";
+    var inp=document.createElement("input");
+    inp.type="number";inp.min="0";inp.max="100";
+    inp.value=st.pct[ty]==null?(isSharedUnit({ty:ty,opts:7})?100:20):st.pct[ty];
+    inp.dataset.ty=ty;
+    sp.appendChild(lab);sp.appendChild(inp);
+    var pc=document.createTextNode("%  ");sp.appendChild(pc);
+    pctRow.appendChild(sp);
+  });
+}
+/* ---------- 导航 ---------- */
 function go(d){
-  var n=cur+d;if(n<0||n>=RESULT.length)return;
-  cur=n;render();window.scrollTo({top:0});
+  if(!UNITS)return;
+  var n=st.ix+d;if(n<0||n>=UNITS.length)return;
+  st.ix=n;render();window.scrollTo({top:0});
 }
 prev.addEventListener("click",function(){go(-1);});
 next.addEventListener("click",function(){go(1);});
+jump.addEventListener("change",function(){st.ix=+jump.value;render();window.scrollTo({top:0});});
 document.addEventListener("keydown",function(e){
   if(e.key==="ArrowRight")go(1);else if(e.key==="ArrowLeft")go(-1);
 });
-render();
+/* ---------- 设置 ---------- */
+function readInputs(){
+  pctRow.querySelectorAll("input").forEach(function(inp){
+    var v=Math.max(0,Math.min(100,+inp.value||0));st.pct[inp.dataset.ty]=v;inp.value=v;
+  });
+}
+document.getElementById("btnApply").addEventListener("click",function(){readInputs();reshuffle();saveState();render();});
+document.getElementById("btnReseed").addEventListener("click",function(){readInputs();st.seed=Math.floor(Math.random()*900000000)+100000000;reshuffle();saveState();render();});
+document.getElementById("btnReset").addEventListener("click",function(){
+  st.seed=DEFAULT_SEED;st.pct={};
+  if(UNITS)ensurePct();
+  reshuffle();saveState();render();
+});
+/* ---------- 导入按钮 ---------- */
+function showMsg(ok,text){impMsg.className="imsg "+(ok?"ok":"err");impMsg.textContent=text;}
+document.getElementById("btnCopyPrompt").addEventListener("click",function(){
+  var b=this,t=document.getElementById("promptText").textContent;
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){b.textContent="✅ 已复制";setTimeout(function(){b.textContent="📋 复制提示词";},1500);});}
+});
+document.getElementById("btnDemo").addEventListener("click",function(){
+  taJson.value='{"title":"示例题库","sections":[\n'
+  +'  {"ty":"完形填空","opts":4,"tag":"DAY1","groups":[["1~5","DACBC"],["6~10","ABDCA"],["11~15","CBBDA"]]},\n'
+  +'  {"ty":"七选五","opts":7,"groups":[["1~5","BAGCF"]]},\n'
+  +'  {"ty":"阅读理解","opts":4,"groups":[["1~4","CBAC"],["1~3","BDA"]]},\n'
+  +'  {"ty":"5选1","opts":5,"groups":[["1~10","ABCDEABCDE"]]}\n'
+  +']}';
+});
+document.getElementById("btnParse").addEventListener("click",function(){
+  var txt=taJson.value.trim();
+  if(!txt){showMsg(false,"请先粘贴 AI 输出的 JSON。");return;}
+  var obj;
+  try{obj=JSON.parse(txt);}catch(e){showMsg(false,"JSON 解析失败:"+e.message+"。请粘贴纯 JSON,不要带代码块标记```或解释文字。");return;}
+  if(!obj||!Array.isArray(obj.sections)||!obj.sections.length){showMsg(false,"缺少 sections 数组,请检查格式。");return;}
+  var res;
+  try{res=normSections(obj);}catch(e){showMsg(false,e.message);return;}
+  UNITS=res.units;IMP={title:(typeof obj.title==="string"&&obj.title.trim())?obj.title.trim():"我的题库",sections:obj.sections,savedAt:Date.now()};
+  localStorage.setItem("asfix2_import",JSON.stringify({title:IMP.title,sections:IMP.sections}));
+  st.ix=0;ensurePct();reshuffle();reOpen=false;taJson.value="";
+  showMsg(true,"导入成功:"+IMP.title+",共 "+UNITS.length+" 个大题。"+(res.warn.length?(" ⚠ "+res.warn.join(";")):""));
+  render();window.scrollTo({top:0});
+});
+document.getElementById("btnReimport").addEventListener("click",function(){reOpen=true;render();importBox.scrollIntoView({behavior:"smooth"});});
+document.getElementById("btnClearImport").addEventListener("click",function(){
+  if(!confirm("确定清空当前题库?(Cookie 里的偏移设置会保留)"))return;
+  localStorage.removeItem("asfix2_import");IMP=null;UNITS=null;SH=null;st.ix=0;reOpen=false;
+  render();
+});
+/* ---------- 启动 ---------- */
+loadImport();render();
 })();
 </script>
 </body>
