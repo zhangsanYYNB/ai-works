@@ -82,7 +82,7 @@ main{max-width:720px;margin:0 auto;padding:12px 14px 120px}
     <div class="setbody">
       <div id="pctRow"></div>
       <button id="btnApply">应用</button><button id="btnReseed">🎲 重新随机</button><button id="btnReset" class="ghost">重置</button>
-      <span class="hint">普通题型(选项 ≤4):每个大题按百分比随机抽题,逐题平移 1~2 位;共享选项题型(七选五/7选5/选项&gt;4 个):按百分比为概率<b>整组循环平移 1~2 位</b>,数学上保证各空答案字母不重复。<br>
+      <span class="hint">普通题型(选项 ≤4):每道题独立按百分比的概率被偏移,错题数量围绕百分比随机浮动、不是固定数(100%=全偏移,0%=全不偏移);共享选项题型(七选五/7选5/选项&gt;4 个):按百分比为概率<b>整组循环平移 1~2 位</b>,数学上保证各空答案字母不重复。<br>
       当前随机种子:<span class="seed" id="seedSpan"></span> · 记录写入 Cookie(asfix2),同一种子+百分比 = 同样的偏移结果;题库数据存于本机 localStorage,不会上传。</span>
     </div>
   </details>
@@ -157,19 +157,17 @@ function computeAll(units,seed,pct){
       }
     }else{
       var p2=(pct[u.ty]==null?20:pct[u.ty]);
-      var total=0;u.g.forEach(function(g){total+=g[1].length;});
-      var k=Math.round(total*p2/100);
-      if(k>0){
-        var flat=[];u.g.forEach(function(g,gi){for(var i=0;i<g[1].length;i++)flat.push({gi:gi,i:i});});
-        var idx=flat.map(function(_,x){return x;});
-        for(var i=idx.length-1;i>0;i--){var j=Math.floor(rng()*(i+1));var t=idx[i];idx[i]=idx[j];idx[j]=t;}
-        idx.slice(0,k).sort(function(a,b){return a-b;}).forEach(function(qi){
-          var f=flat[qi],g=u.g[f.gi],m=g[2]||u.opts||4,oi=LET.indexOf(g[1][f.i]),dd=1+Math.floor(rng()*2);
-          var nl=shiftOne(g[1][f.i],dd,m),arr=disp[f.gi].split("");
-          arr[f.i]=nl;disp[f.gi]=arr.join("");
-          shifts.push({gi:f.gi,pos:f.i,from:g[1][f.i],to:nl,range:g[0]});
-        });
-      }
+      u.g.forEach(function(g,gi){
+        var m=g[2]||u.opts||4;
+        for(var i=0;i<g[1].length;i++){
+          if(rng()*100<p2){
+            var dd=1+Math.floor(rng()*2);
+            var nl=shiftOne(g[1][i],dd,m),arr=disp[gi].split("");
+            arr[i]=nl;disp[gi]=arr.join("");
+            shifts.push({gi:gi,pos:i,from:g[1][i],to:nl,range:g[0]});
+          }
+        }
+      });
     }
     return{u:u,disp:disp,shifts:shifts};
   });

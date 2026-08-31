@@ -316,6 +316,9 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
+# Browser Profile
+.hon-profile/
+
 # Pyre type checker
 .pyre/
 
