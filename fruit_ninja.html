@@ -1,0 +1,2508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>水果忍者 - 网页重制版 (Fruit Ninja Web)</title>
+    <meta name="description" content="经典水果忍者纯原生单文件重制版，包含经典/街机/禅宗三大模式，精细程序化物理切面与华丽刀光特效。">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #110904;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, "Microsoft YaHei", "PingFang SC", sans-serif;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+            cursor: crosshair;
+        }
+        /* HUD 图层 */
+        .hud-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .top-btn {
+            position: absolute;
+            top: 15px;
+            pointer-events: auto;
+            background: rgba(36, 20, 10, 0.85);
+            border: 2px solid #d49547;
+            color: #ffe8b5;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+            transition: transform 0.15s, background 0.15s, border-color 0.15s;
+        }
+        .top-btn:hover {
+            transform: scale(1.06);
+            background: rgba(60, 32, 16, 0.95);
+            border-color: #ffca66;
+            color: #fff;
+        }
+        .top-btn:active {
+            transform: scale(0.95);
+        }
+        #pause-btn {
+            right: 15px;
+        }
+        #sound-btn {
+            right: 110px;
+        }
+        #back-btn {
+            left: 15px;
+            display: none;
+        }
+
+        /* 模态弹窗 */
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.78);
+            backdrop-filter: blur(6px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            pointer-events: auto;
+        }
+        .modal.active {
+            display: flex;
+            animation: modalFadeIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.92); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .wood-panel {
+            background: radial-gradient(circle at 50% 20%, #442714, #241308 85%);
+            border: 4px solid #b87b38;
+            border-radius: 20px;
+            box-shadow: 0 12px 45px rgba(0,0,0,0.9), inset 0 0 25px rgba(0,0,0,0.7), 0 0 15px rgba(255, 170, 50, 0.2);
+            padding: 32px 42px;
+            max-width: 560px;
+            width: 90%;
+            color: #ffe4b5;
+            text-align: center;
+            position: relative;
+        }
+        .wood-panel h2 {
+            font-size: 30px;
+            color: #ffca36;
+            text-shadow: 0 2px 4px #000, 0 0 12px rgba(255,200,50,0.6);
+            margin-bottom: 18px;
+            letter-spacing: 1px;
+        }
+        .wood-panel p {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #edd8b7;
+            margin-bottom: 15px;
+        }
+        .wood-panel .btn-row {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+        .modal-btn {
+            background: linear-gradient(180deg, #f5a623, #c46808);
+            border: 2px solid #ffe39f;
+            color: #fff;
+            padding: 11px 26px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            transition: all 0.15s;
+        }
+        .modal-btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.15);
+            box-shadow: 0 7px 22px rgba(245, 166, 35, 0.45);
+        }
+        .modal-btn:active {
+            transform: translateY(1px);
+        }
+        .modal-btn.secondary {
+            background: linear-gradient(180deg, #5c636a, #3d4246);
+            border-color: #ced4da;
+        }
+
+        /* 装扮选择网格 */
+        .option-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
+            margin: 18px 0;
+        }
+        .option-card {
+            background: rgba(0, 0, 0, 0.45);
+            border: 2px solid #7c5225;
+            border-radius: 14px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .option-card:hover {
+            border-color: #ffc252;
+            transform: translateY(-2px);
+            background: rgba(0, 0, 0, 0.6);
+        }
+        .option-card.selected {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.18);
+            box-shadow: 0 0 18px rgba(0,255,136,0.35);
+        }
+        .option-icon {
+            font-size: 28px;
+            margin-bottom: 6px;
+        }
+        .option-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #ffe6aa;
+        }
+        .option-desc {
+            font-size: 11px;
+            color: #baa282;
+            margin-top: 4px;
+            line-height: 1.3;
+        }
+
+        /* 统计表格 */
+        .stats-table {
+            width: 100%;
+            margin: 15px 0;
+            border-collapse: collapse;
+            font-size: 15px;
+        }
+        .stats-table td {
+            padding: 9px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .stats-table td:first-child {
+            text-align: left;
+            color: #edd8b7;
+        }
+        .stats-table td:last-child {
+            text-align: right;
+            font-weight: bold;
+            color: #ffca36;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    
+    <div class="hud-layer">
+        <button id="back-btn" class="top-btn" title="返回菜单">
+            <span>🔙</span> <span>主菜单</span>
+        </button>
+        <button id="sound-btn" class="top-btn" title="声音开关">
+            <span id="sound-icon">🔊</span> <span id="sound-text">声音: 开</span>
+        </button>
+        <button id="pause-btn" class="top-btn" title="暂停游戏" style="display:none;">
+            <span>⏸️</span> <span>暂停</span>
+        </button>
+    </div>
+
+    <!-- 暂停弹窗 -->
+    <div id="pause-modal" class="modal">
+        <div class="wood-panel">
+            <h2>⚔️ 游戏暂停 ⚔️</h2>
+            <p>锋芒暂敛，随时准备再次手起刀落！</p>
+            <div class="btn-row">
+                <button id="resume-btn" class="modal-btn">继续挥刀</button>
+                <button id="restart-btn" class="modal-btn secondary">重新开始</button>
+                <button id="quit-btn" class="modal-btn secondary">返回主菜单</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 结算弹窗 -->
+    <div id="gameover-modal" class="modal">
+        <div class="wood-panel">
+            <h2 id="go-title">游戏结束</h2>
+            <div id="go-subtitle" style="font-size: 16px; color: #ff9b54; margin-bottom: 15px; font-weight: bold;">刀法精湛！</div>
+            <table class="stats-table">
+                <tr><td>本局得分:</td><td id="go-score" style="font-size: 24px; color: #00ff88;">0</td></tr>
+                <tr><td>历史最高分:</td><td id="go-best">0</td></tr>
+                <tr><td>最大连击:</td><td id="go-combo">0 COMBO</td></tr>
+                <tr><td>切中水果数:</td><td id="go-sliced">0</td></tr>
+                <tr><td>刀法评级:</td><td id="go-rank" style="color: #ffd700;">水果宗师</td></tr>
+            </table>
+            <div class="btn-row">
+                <button id="go-replay-btn" class="modal-btn">再来一局</button>
+                <button id="go-menu-btn" class="modal-btn secondary">返回主菜单</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 刀刃与道场设置弹窗 -->
+    <div id="dojo-modal" class="modal">
+        <div class="wood-panel" style="max-width: 650px;">
+            <h2>⚔️ 刀刃与道场装扮 🏯</h2>
+            <p>挑选你最称手的刀光特效与修行道场！</p>
+            
+            <div style="font-size: 15px; font-weight: bold; color: #ffc97a; text-align: left; margin-top: 10px;">选择刀刃特效:</div>
+            <div class="option-grid" id="blade-options">
+                <div class="option-card selected" data-blade="classic">
+                    <div class="option-icon">🗡️</div>
+                    <div class="option-title">原初银刃</div>
+                    <div class="option-desc">经典皎洁白光与银白残影</div>
+                </div>
+                <div class="option-card" data-blade="flame">
+                    <div class="option-icon">🔥</div>
+                    <div class="option-title">烈焰狂刀</div>
+                    <div class="option-desc">炽热烈火与跳动熔岩火花</div>
+                </div>
+                <div class="option-card" data-blade="frost">
+                    <div class="option-icon">❄️</div>
+                    <div class="option-title">极寒冰晶</div>
+                    <div class="option-desc">幽蓝霜华与飘落雪晶粒</div>
+                </div>
+                <div class="option-card" data-blade="rainbow">
+                    <div class="option-icon">🌈</div>
+                    <div class="option-title">幻彩霓虹</div>
+                    <div class="option-desc">流动七彩流光与耀眼星芒</div>
+                </div>
+                <div class="option-card" data-blade="lightning">
+                    <div class="option-icon">⚡</div>
+                    <div class="option-title">紫电狂雷</div>
+                    <div class="option-desc">破空电弧与爆裂紫芒</div>
+                </div>
+            </div>
+
+            <div style="font-size: 15px; font-weight: bold; color: #ffc97a; text-align: left; margin-top: 15px;">选择道场背景:</div>
+            <div class="option-grid" id="dojo-options">
+                <div class="option-card selected" data-dojo="wood">
+                    <div class="option-icon">🪵</div>
+                    <div class="option-title">原木道场</div>
+                    <div class="option-desc">质朴经典的深色木纹格调</div>
+                </div>
+                <div class="option-card" data-dojo="sakura">
+                    <div class="option-icon">🌸</div>
+                    <div class="option-title">落樱之庭</div>
+                    <div class="option-desc">静谧夜色与飘飞的绯红樱瓣</div>
+                </div>
+                <div class="option-card" data-dojo="bamboo">
+                    <div class="option-icon">🎍</div>
+                    <div class="option-title">幽寂竹林</div>
+                    <div class="option-desc">青翠竹影与和煦晨光</div>
+                </div>
+                <div class="option-card" data-dojo="cyber">
+                    <div class="option-icon">🌌</div>
+                    <div class="option-title">赛博空间</div>
+                    <div class="option-desc">未来暗色网格与流光脉冲</div>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button id="dojo-close-btn" class="modal-btn">确定并佩戴</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 玩法说明弹窗 -->
+    <div id="help-modal" class="modal">
+        <div class="wood-panel" style="max-width: 580px;">
+            <h2>📜 忍者修行指南</h2>
+            <div style="text-align: left; font-size: 14px; line-height: 1.8; color: #edd8b7;">
+                <p>🔪 <b>基本操作</b>: 鼠标按住左键拖拽，或手机触屏滑动划出刀光，精准切开空中飞出的水果！</p>
+                <p>🍉 <b>经典模式 (Classic)</b>: 挑战极限！漏切 3 个水果或切中炸弹立即败北。每达到 100 分可消除一个失误叉号。</p>
+                <p>🍌 <b>街机模式 (Arcade)</b>: 60秒疯狂狂欢！切炸弹扣 10 分不暴毙。切中 3 种特殊香蕉激活超强神技：
+                   <br>&nbsp;&nbsp;• <b>❄️ 冰冻香蕉</b>: 慢动作全场减速；
+                   <br>&nbsp;&nbsp;• <b>🍌 狂暴香蕉</b>: 两侧疯狂喷射水果暴雨；
+                   <br>&nbsp;&nbsp;• <b>✨ 双倍香蕉</b>: 短时间内切水果得分与连击翻倍！</p>
+                <p>🍊 <b>禅宗模式 (Zen)</b>: 90秒纯切水果，绝无炸弹与漏切惩罚，尽情解压！</p>
+                <p>🍉 <b>巨型狂暴火龙大西瓜</b>: 随机出现的巨型奖励水果，疯狂连划 15 刀触发终极大爆奖！</p>
+                <p>⚡ <b>连击大师 (Combo)</b>: 一刀同时划过 3 个或更多水果触发 Combo，连击数越多加分越高！</p>
+            </div>
+            <div class="btn-row">
+                <button id="help-close-btn" class="modal-btn">领悟了！</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * 水果忍者 (Fruit Ninja Web) - 终极纯原生单文件实现
+ * 包含：程序化物理切割/截面渲染、Web Audio 动态合成音效、多模式(经典/街机/禅宗/巨型水果)、刀光粒子、果汁喷溅
+ */
+
+// ==========================================
+// 1. 全局配置 & 音效合成系统 (Web Audio API)
+// ==========================================
+const Sound = {
+    ctx: null,
+    enabled: true,
+    
+    init() {
+        if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                this.ctx = new AudioContext();
+            }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    },
+    
+    toggle() {
+        this.enabled = !this.enabled;
+        const icon = document.getElementById('sound-icon');
+        const text = document.getElementById('sound-text');
+        if (this.enabled) {
+            icon.innerText = '🔊';
+            text.innerText = '声音: 开';
+            this.init();
+            this.playSwoosh();
+        } else {
+            icon.innerText = '🔇';
+            text.innerText = '声音: 关';
+        }
+        localStorage.setItem('fn_sound', this.enabled ? '1' : '0');
+        return this.enabled;
+    },
+
+    // 挥刀风声 (Swoosh)
+    playSwoosh() {
+        if (!this.enabled || !this.ctx) return;
+        try {
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            const filter = this.ctx.createBiquadFilter();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(150 + Math.random() * 90, t);
+            osc.frequency.exponentialRampToValueAtTime(480 + Math.random() * 160, t + 0.07);
+            osc.frequency.exponentialRampToValueAtTime(80, t + 0.17);
+
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(900, t);
+
+            gain.gain.setValueAtTime(0.01, t);
+            gain.gain.linearRampToValueAtTime(0.2, t + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.17);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            osc.start(t);
+            osc.stop(t + 0.18);
+        } catch(e) {}
+    },
+
+    // 水果切断果汁爆裂声 (Slice & Splat)
+    playSlice(type) {
+        if (!this.enabled || !this.ctx) return;
+        try {
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            
+            let baseFreq = 420 + Math.random() * 120;
+            if (type === 'watermelon' || type === 'mega_melon') baseFreq = 240;
+            else if (type === 'apple') baseFreq = 560;
+            else if (type === 'strawberry') baseFreq = 720;
+            else if (type === 'banana' || type.startsWith('banana_')) baseFreq = 480;
+
+            osc.frequency.setValueAtTime(baseFreq * 1.8, t);
+            osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.35, t + 0.12);
+
+            gain.gain.setValueAtTime(0.32, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.14);
+
+            // 汁水爆裂噪声
+            const bufferSize = Math.floor(this.ctx.sampleRate * 0.08);
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+
+            const nFilter = this.ctx.createBiquadFilter();
+            nFilter.type = 'bandpass';
+            nFilter.frequency.setValueAtTime(1900, t);
+            nFilter.Q.setValueAtTime(2.2, t);
+
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.25, t);
+            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+
+            noise.connect(nFilter);
+            nFilter.connect(nGain);
+            nGain.connect(this.ctx.destination);
+            noise.start(t);
+        } catch(e) {}
+    },
+
+    // 连击和弦音 (Combo)
+    playCombo(count) {
+        if (!this.enabled || !this.ctx) return;
+        try {
+            const t = this.ctx.currentTime;
+            const freqs = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98]; // C5 ~ G6
+            const countIdx = Math.min(count - 3, freqs.length - 2);
+            
+            [freqs[countIdx], freqs[countIdx + 1]].forEach((f, i) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(f, t + i * 0.04);
+                
+                gain.gain.setValueAtTime(0.01, t + i * 0.04);
+                gain.gain.linearRampToValueAtTime(0.28, t + i * 0.04 + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.04 + 0.38);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(t + i * 0.04);
+                osc.stop(t + i * 0.04 + 0.39);
+            });
+        } catch(e) {}
+    },
+
+    // 炸弹爆炸轰鸣 (Explosion)
+    playBomb() {
+        if (!this.enabled || !this.ctx) return;
+        try {
+            const t = this.ctx.currentTime;
+            const bufferSize = Math.floor(this.ctx.sampleRate * 0.65);
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.16));
+            }
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(500, t);
+            filter.frequency.linearRampToValueAtTime(40, t + 0.55);
+
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.7, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+            noise.start(t);
+
+            const osc = this.ctx.createOscillator();
+            const oGain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(150, t);
+            osc.frequency.exponentialRampToValueAtTime(25, t + 0.45);
+
+            oGain.gain.setValueAtTime(0.6, t);
+            oGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+
+            osc.connect(oGain);
+            oGain.connect(this.ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.5);
+        } catch(e) {}
+    },
+
+    // 特殊香蕉/大奖音效 (Powerup)
+    playPowerup(type) {
+        if (!this.enabled || !this.ctx) return;
+        try {
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+
+            if (type === 'freeze') {
+                osc.frequency.setValueAtTime(1300, t);
+                osc.frequency.exponentialRampToValueAtTime(380, t + 0.45);
+            } else if (type === 'frenzy') {
+                osc.frequency.setValueAtTime(280, t);
+                osc.frequency.linearRampToValueAtTime(950, t + 0.4);
+            } else {
+                osc.frequency.setValueAtTime(523, t);
+                osc.frequency.setValueAtTime(659, t + 0.08);
+                osc.frequency.setValueAtTime(783, t + 0.16);
+                osc.frequency.setValueAtTime(1046, t + 0.24);
+            }
+
+            gain.gain.setValueAtTime(0.24, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.46);
+        } catch(e) {}
+    },
+
+    // 失误音效
+    playMiss() {
+        if (!this.enabled || !this.ctx) return;
+        try {
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(190, t);
+            osc.frequency.setValueAtTime(110, t + 0.12);
+
+            gain.gain.setValueAtTime(0.25, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.3);
+        } catch(e) {}
+    }
+};
+
+// ==========================================
+// 2. 水果配置与程序化绘制器 (Fruit Renderer)
+// ==========================================
+const FRUIT_TYPES = {
+    watermelon: {
+        name: '西瓜',
+        radius: 46,
+        color: '#2e7d32',
+        juiceColor: 'rgba(235, 45, 45, 0.8)',
+        points: 1
+    },
+    apple: {
+        name: '红苹果',
+        radius: 38,
+        color: '#d32f2f',
+        juiceColor: 'rgba(255, 230, 150, 0.8)',
+        points: 1
+    },
+    banana: {
+        name: '香蕉',
+        radius: 36,
+        color: '#fbc02d',
+        juiceColor: 'rgba(255, 245, 170, 0.8)',
+        points: 1
+    },
+    orange: {
+        name: '鲜橙',
+        radius: 38,
+        color: '#ff9800',
+        juiceColor: 'rgba(255, 152, 0, 0.85)',
+        points: 1
+    },
+    strawberry: {
+        name: '草莓',
+        radius: 32,
+        color: '#e91e63',
+        juiceColor: 'rgba(233, 30, 99, 0.85)',
+        points: 1
+    },
+    pineapple: {
+        name: '菠萝',
+        radius: 44,
+        color: '#f57f17',
+        juiceColor: 'rgba(255, 214, 0, 0.85)',
+        points: 2
+    },
+    coconut: {
+        name: '椰子',
+        radius: 40,
+        color: '#5d4037',
+        juiceColor: 'rgba(255, 255, 255, 0.9)',
+        points: 2
+    },
+    starfruit: {
+        name: '杨桃',
+        radius: 36,
+        color: '#cddc39',
+        juiceColor: 'rgba(205, 220, 57, 0.85)',
+        points: 3
+    },
+    // 特殊香蕉 (街机模式)
+    banana_freeze: {
+        name: '冰冻香蕉',
+        radius: 38,
+        color: '#00e5ff',
+        juiceColor: 'rgba(0, 229, 255, 0.9)',
+        points: 2,
+        special: 'freeze'
+    },
+    banana_frenzy: {
+        name: '狂暴香蕉',
+        radius: 38,
+        color: '#d500f9',
+        juiceColor: 'rgba(213, 0, 249, 0.9)',
+        points: 2,
+        special: 'frenzy'
+    },
+    banana_double: {
+        name: '双倍香蕉',
+        radius: 38,
+        color: '#ffd600',
+        juiceColor: 'rgba(255, 214, 0, 0.9)',
+        points: 2,
+        special: 'double'
+    },
+    // 巨型西瓜 (狂暴大奖水果)
+    mega_melon: {
+        name: '巨型西瓜',
+        radius: 72,
+        color: '#1b5e20',
+        juiceColor: 'rgba(255, 23, 68, 0.9)',
+        isMega: true,
+        maxHits: 15
+    },
+    // 炸弹
+    bomb: {
+        name: '炸弹',
+        radius: 38,
+        color: '#212121',
+        isBomb: true
+    }
+};
+
+/**
+ * 绘制完整水果或一半水果的核心函数
+ */
+function drawFruitShape(ctx, type, r, isHalf = false, halfSide = 1) {
+    ctx.save();
+    
+    // 如果是切开的一半，利用 clip 裁剪出半边，并在切面上绘制逼真果肉截面
+    if (isHalf) {
+        ctx.beginPath();
+        ctx.rect(-r * 1.6, halfSide === 1 ? -r * 1.6 : 0, r * 3.2, r * 1.6);
+        ctx.clip();
+    }
+
+    if (type === 'watermelon' || type === 'mega_melon') {
+        // 西瓜整体
+        const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+        grad.addColorStop(0, '#388e3c');
+        grad.addColorStop(0.7, '#1b5e20');
+        grad.addColorStop(1, '#0e3a12');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 墨绿花纹
+        ctx.strokeStyle = '#0a270d';
+        ctx.lineWidth = r * 0.14;
+        ctx.lineCap = 'round';
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 3) {
+            ctx.beginPath();
+            ctx.ellipse(0, 0, r * 0.85, r * 0.45, a, 0, Math.PI);
+            ctx.stroke();
+        }
+
+        // 高光
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.beginPath();
+        ctx.ellipse(-r * 0.35, -r * 0.35, r * 0.35, r * 0.18, -Math.PI / 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 巨型西瓜特殊发光轮廓
+        if (type === 'mega_melon') {
+            ctx.strokeStyle = '#ffeb3b';
+            ctx.lineWidth = 4;
+            ctx.shadowColor = '#ffc107';
+            ctx.shadowBlur = 16;
+            ctx.stroke();
+        }
+
+        // 若切开，绘制内瓤切面
+        if (isHalf) {
+            ctx.fillStyle = '#e53935';
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.88, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 白色瓜瓤圈
+            ctx.strokeStyle = '#f1f8e9';
+            ctx.lineWidth = r * 0.08;
+            ctx.stroke();
+
+            // 黑色瓜子
+            ctx.fillStyle = '#111';
+            const seedAngles = [0.3, 0.9, 1.5, 2.1, 2.7, 3.5, 4.2, 5.0, 5.7];
+            seedAngles.forEach(ang => {
+                const sx = Math.cos(ang) * (r * 0.55);
+                const sy = Math.sin(ang) * (r * 0.55);
+                ctx.beginPath();
+                ctx.ellipse(sx, sy, r * 0.08, r * 0.04, ang + Math.PI/2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+    } else if (type === 'apple') {
+        // 红苹果
+        const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+        grad.addColorStop(0, '#ff5252');
+        grad.addColorStop(0.6, '#d32f2f');
+        grad.addColorStop(1, '#8b0000');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 果蒂与小叶子
+        ctx.fillStyle = '#5d4037';
+        ctx.fillRect(-2, -r - 6, 4, 8);
+        ctx.fillStyle = '#4caf50';
+        ctx.beginPath();
+        ctx.ellipse(6, -r - 4, 7, 3, 0.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 高光
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(-r * 0.3, -r * 0.3, r * 0.25, r * 0.12, -0.6, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (isHalf) {
+            ctx.fillStyle = '#fffde7';
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.9, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#d7ccc8';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, r * 0.22, r * 0.12, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#3e2723';
+            ctx.beginPath();
+            ctx.ellipse(r * 0.08, 0, 3, 2, 0, 0, Math.PI * 2);
+            ctx.ellipse(-r * 0.08, 0, 3, 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (type === 'banana' || type.startsWith('banana_')) {
+        // 香蕉
+        let c1 = '#fff59d', c2 = '#fbc02d', c3 = '#f57f17';
+        if (type === 'banana_freeze') {
+            c1 = '#e0f7fa'; c2 = '#00e5ff'; c3 = '#00838f';
+        } else if (type === 'banana_frenzy') {
+            c1 = '#f3e5f5'; c2 = '#d500f9'; c3 = '#4a148c';
+        } else if (type === 'banana_double') {
+            c1 = '#ffffff'; c2 = '#ffd600'; c3 = '#ff6d00';
+        }
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.9, r * 0.4);
+        ctx.quadraticCurveTo(0, -r * 0.9, r * 0.9, r * 0.4);
+        ctx.quadraticCurveTo(0, -r * 0.3, -r * 0.9, r * 0.4);
+        
+        const grad = ctx.createLinearGradient(-r, 0, r, 0);
+        grad.addColorStop(0, c3);
+        grad.addColorStop(0.3, c2);
+        grad.addColorStop(0.7, c1);
+        grad.addColorStop(1, c3);
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.85, r * 0.38);
+        ctx.quadraticCurveTo(0, -r * 0.6, r * 0.85, r * 0.38);
+        ctx.stroke();
+
+        ctx.fillStyle = '#4e342e';
+        ctx.fillRect(r * 0.85, r * 0.32, 6, 6);
+
+        if (type !== 'banana') {
+            ctx.strokeStyle = c2;
+            ctx.lineWidth = 3;
+            ctx.shadowColor = c2;
+            ctx.shadowBlur = 12;
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        if (isHalf) {
+            ctx.fillStyle = '#fffde7';
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (type === 'orange') {
+        // 鲜橙
+        const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+        grad.addColorStop(0, '#ffa726');
+        grad.addColorStop(0.8, '#ff9800');
+        grad.addColorStop(1, '#e65100');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(-r * 0.3, -r * 0.3, r * 0.3, r * 0.15, -0.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (isHalf) {
+            ctx.fillStyle = '#fff3e0';
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ff9800';
+            for (let i = 0; i < 8; i++) {
+                const a1 = (i * Math.PI) / 4 + 0.08;
+                const a2 = ((i + 1) * Math.PI) / 4 - 0.08;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, r * 0.85, a1, a2);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.fillStyle = '#fff8e1';
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (type === 'strawberry') {
+        // 草莓
+        ctx.beginPath();
+        ctx.moveTo(0, r);
+        ctx.bezierCurveTo(r * 1.1, r * 0.2, r * 0.9, -r * 0.9, 0, -r * 0.6);
+        ctx.bezierCurveTo(-r * 0.9, -r * 0.9, -r * 1.1, r * 0.2, 0, r);
+        
+        const grad = ctx.createRadialGradient(0, -r * 0.2, r * 0.1, 0, 0, r);
+        grad.addColorStop(0, '#ff4081');
+        grad.addColorStop(0.7, '#e91e63');
+        grad.addColorStop(1, '#880e4f');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.fillStyle = '#fff59d';
+        const dots = [
+            [0, -r*0.2], [-r*0.4, -r*0.1], [r*0.4, -r*0.1],
+            [-r*0.25, r*0.3], [r*0.25, r*0.3], [0, r*0.6]
+        ];
+        dots.forEach(([dx, dy]) => {
+            ctx.beginPath();
+            ctx.ellipse(dx, dy, 2, 3, 0.2, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // 顶部绿叶
+        ctx.fillStyle = '#4caf50';
+        ctx.beginPath();
+        ctx.moveTo(0, -r * 0.6);
+        ctx.lineTo(-r * 0.6, -r * 0.9);
+        ctx.lineTo(-r * 0.2, -r * 0.7);
+        ctx.lineTo(0, -r * 1.1);
+        ctx.lineTo(r * 0.2, -r * 0.7);
+        ctx.lineTo(r * 0.6, -r * 0.9);
+        ctx.closePath();
+        ctx.fill();
+
+        if (isHalf) {
+            ctx.fillStyle = '#fce4ec';
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ff80ab';
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.45, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (type === 'pineapple') {
+        // 菠萝
+        const grad = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r);
+        grad.addColorStop(0, '#fbc02d');
+        grad.addColorStop(0.7, '#f57f17');
+        grad.addColorStop(1, '#e65100');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 0.85, r, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#bf360c';
+        ctx.lineWidth = 2;
+        for (let i = -r; i <= r; i += 16) {
+            ctx.beginPath();
+            ctx.moveTo(i, -r * 0.8);
+            ctx.lineTo(i + r * 0.8, r * 0.8);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(i, r * 0.8);
+            ctx.lineTo(i + r * 0.8, -r * 0.8);
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = '#2e7d32';
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.4, -r * 0.7);
+        ctx.lineTo(-r * 0.6, -r * 1.3);
+        ctx.lineTo(-r * 0.1, -r * 0.9);
+        ctx.lineTo(0, -r * 1.5);
+        ctx.lineTo(r * 0.1, -r * 0.9);
+        ctx.lineTo(r * 0.6, -r * 1.3);
+        ctx.lineTo(r * 0.4, -r * 0.7);
+        ctx.closePath();
+        ctx.fill();
+
+        if (isHalf) {
+            ctx.fillStyle = '#fff59d';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, r * 0.75, r * 0.9, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff9c4';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, r * 0.2, r * 0.35, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (type === 'coconut') {
+        // 椰子
+        const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+        grad.addColorStop(0, '#795548');
+        grad.addColorStop(0.7, '#4e342e');
+        grad.addColorStop(1, '#3e2723');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#271202';
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 6; i++) {
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.9, i, i + 0.5);
+            ctx.stroke();
+        }
+
+        if (isHalf) {
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#d7ccc8';
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (type === 'starfruit') {
+        // 杨桃 (五角星)
+        ctx.fillStyle = '#cddc39';
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+            const aOuter = (i * Math.PI * 2) / 5 - Math.PI / 2;
+            const aInner = aOuter + Math.PI / 5;
+            const x1 = Math.cos(aOuter) * r;
+            const y1 = Math.sin(aOuter) * r;
+            const x2 = Math.cos(aInner) * (r * 0.5);
+            const y2 = Math.sin(aInner) * (r * 0.5);
+            if (i === 0) ctx.moveTo(x1, y1);
+            else ctx.lineTo(x1, y1);
+            ctx.lineTo(x2, y2);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = '#827717';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        if (isHalf) {
+            ctx.fillStyle = '#f0f4c3';
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (type === 'bomb') {
+        // 炸弹
+        const grad = ctx.createRadialGradient(-r * 0.35, -r * 0.35, r * 0.1, 0, 0, r);
+        grad.addColorStop(0, '#616161');
+        grad.addColorStop(0.5, '#212121');
+        grad.addColorStop(1, '#000000');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(-r * 0.35, -r * 0.35, r * 0.25, r * 0.15, -0.6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#757575';
+        ctx.fillRect(-5, -r - 4, 10, 6);
+
+        ctx.strokeStyle = '#8d6e63';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, -r - 4);
+        ctx.quadraticCurveTo(r * 0.4, -r - 18, r * 0.6, -r - 12);
+        ctx.stroke();
+
+        const sparkX = r * 0.6 + (Math.random() - 0.5) * 4;
+        const sparkY = -r - 12 + (Math.random() - 0.5) * 4;
+        
+        ctx.fillStyle = '#ffeb3b';
+        ctx.beginPath();
+        ctx.arc(sparkX, sparkY, 4 + Math.random() * 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ff5722';
+        ctx.beginPath();
+        ctx.arc(sparkX, sparkY, 7 + Math.random() * 4, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // 切面发光刀痕
+    if (isHalf) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(-r * 1.2, 0);
+        ctx.lineTo(r * 1.2, 0);
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+// ==========================================
+// 3. 游戏核心逻辑 (Game Engine)
+// ==========================================
+class Game {
+    constructor() {
+        this.canvas = document.getElementById('game-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        
+        this.mode = 'menu'; // 'menu', 'classic', 'arcade', 'zen'
+        this.score = 0;
+        this.bestScores = {
+            classic: parseInt(localStorage.getItem('fn_best_classic') || '0'),
+            arcade: parseInt(localStorage.getItem('fn_best_arcade') || '0'),
+            zen: parseInt(localStorage.getItem('fn_best_zen') || '0')
+        };
+        this.slicedCount = 0;
+        this.maxCombo = 0;
+        this.strikes = 0;
+        this.maxStrikes = 3;
+        this.timeLeft = 0;
+
+        // 特殊香蕉状态 (街机模式)
+        this.freezeTimer = 0;
+        this.frenzyTimer = 0;
+        this.doubleTimer = 0;
+        this.frenzySpawnCounter = 0;
+
+        // 巨型西瓜机制
+        this.megaFruit = null;
+
+        // 实体与粒子池
+        this.fruits = [];
+        this.halves = [];
+        this.splatters = [];
+        this.particles = [];
+        this.slashFlashes = [];
+        this.floatingTexts = [];
+        this.menuFruits = [];
+
+        // 刀光轨迹追踪
+        this.bladeStyle = localStorage.getItem('fn_blade') || 'classic';
+        this.dojoStyle = localStorage.getItem('fn_dojo') || 'wood';
+        this.pointerTrails = new Map();
+
+        // 连击检测器
+        this.sliceStreak = [];
+        
+        // 游戏生成计时器
+        this.spawnTimer = 0;
+        this.spawnInterval = 80;
+        this.isPaused = false;
+        this.isGameOver = false;
+
+        // 屏幕震动
+        this.shakeTimer = 0;
+        this.shakeMag = 0;
+
+        this.initViewport();
+        this.bindEvents();
+        this.initMenu();
+        
+        // 启动主循环
+        this.lastFrameTime = performance.now();
+        this.loop = this.loop.bind(this);
+        requestAnimationFrame(this.loop);
+    }
+
+    initViewport() {
+        const dpr = window.devicePixelRatio || 1;
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        this.canvas.width = this.width * dpr;
+        this.canvas.height = this.height * dpr;
+        this.canvas.style.width = `${this.width}px`;
+        this.canvas.style.height = `${this.height}px`;
+        this.ctx.scale(dpr, dpr);
+    }
+
+    bindEvents() {
+        window.addEventListener('resize', () => {
+            this.initViewport();
+            if (this.mode === 'menu') {
+                this.initMenu();
+            }
+        });
+
+        // 统一激活声音
+        const wakeAudio = () => Sound.init();
+        window.addEventListener('click', wakeAudio, { once: true });
+        window.addEventListener('touchstart', wakeAudio, { once: true });
+
+        // 鼠标事件
+        let isMouseDown = false;
+        this.canvas.addEventListener('mousedown', (e) => {
+            wakeAudio();
+            isMouseDown = true;
+            this.addTrailPoint('mouse', e.clientX, e.clientY);
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (isMouseDown) {
+                this.addTrailPoint('mouse', e.clientX, e.clientY);
+            }
+        });
+        window.addEventListener('mouseup', () => {
+            isMouseDown = false;
+            this.clearTrail('mouse');
+        });
+
+        // 触控事件 (多指滑动支持)
+        this.canvas.addEventListener('touchstart', (e) => {
+            wakeAudio();
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                this.addTrailPoint(t.identifier, t.clientX, t.clientY);
+            }
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                this.addTrailPoint(t.identifier, t.clientX, t.clientY);
+            }
+        }, { passive: false });
+
+        const endTouch = (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                this.clearTrail(t.identifier);
+            }
+        };
+        this.canvas.addEventListener('touchend', endTouch);
+        this.canvas.addEventListener('touchcancel', endTouch);
+
+        // UI 交互按键
+        document.getElementById('sound-btn').onclick = () => Sound.toggle();
+        document.getElementById('pause-btn').onclick = () => this.togglePause(true);
+        document.getElementById('back-btn').onclick = () => this.returnToMenu();
+        
+        // 弹窗按键
+        document.getElementById('resume-btn').onclick = () => this.togglePause(false);
+        document.getElementById('restart-btn').onclick = () => {
+            this.togglePause(false);
+            this.startGame(this.mode);
+        };
+        document.getElementById('quit-btn').onclick = () => {
+            this.togglePause(false);
+            this.returnToMenu();
+        };
+        
+        document.getElementById('go-replay-btn').onclick = () => {
+            document.getElementById('gameover-modal').classList.remove('active');
+            this.startGame(this.mode);
+        };
+        document.getElementById('go-menu-btn').onclick = () => {
+            document.getElementById('gameover-modal').classList.remove('active');
+            this.returnToMenu();
+        };
+
+        // 刀刃与道场选项配置
+        document.querySelectorAll('#blade-options .option-card').forEach(card => {
+            card.onclick = () => {
+                document.querySelectorAll('#blade-options .option-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                this.bladeStyle = card.getAttribute('data-blade');
+                localStorage.setItem('fn_blade', this.bladeStyle);
+            };
+        });
+        document.querySelectorAll('#dojo-options .option-card').forEach(card => {
+            card.onclick = () => {
+                document.querySelectorAll('#dojo-options .option-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                this.dojoStyle = card.getAttribute('data-dojo');
+                localStorage.setItem('fn_dojo', this.dojoStyle);
+            };
+        });
+        document.getElementById('dojo-close-btn').onclick = () => {
+            document.getElementById('dojo-modal').classList.remove('active');
+        };
+        document.getElementById('help-close-btn').onclick = () => {
+            document.getElementById('help-modal').classList.remove('active');
+        };
+
+        // 快捷键 (ESC 暂停)
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (this.mode !== 'menu' && !this.isGameOver) {
+                    this.togglePause(!this.isPaused);
+                }
+            }
+        });
+    }
+
+    addTrailPoint(id, x, y) {
+        const now = performance.now();
+        if (!this.pointerTrails.has(id)) {
+            this.pointerTrails.set(id, []);
+        }
+        const trail = this.pointerTrails.get(id);
+        
+        if (trail.length > 0) {
+            const last = trail[trail.length - 1];
+            const dist = Math.hypot(x - last.x, y - last.y);
+            if (dist < 3) return;
+            
+            if (dist > 32 && (!this.lastSwooshTime || now - this.lastSwooshTime > 150)) {
+                Sound.playSwoosh();
+                this.lastSwooshTime = now;
+            }
+
+            // 刀痕火花微粒
+            if (Math.random() < 0.35) {
+                this.particles.push({
+                    x: x + (Math.random() - 0.5) * 6,
+                    y: y + (Math.random() - 0.5) * 6,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    radius: 1.5 + Math.random() * 2.5,
+                    color: this.bladeStyle === 'flame' ? '#ff9800' : (this.bladeStyle === 'frost' ? '#00e5ff' : '#ffffff'),
+                    alpha: 0.8,
+                    gravity: 0.05,
+                    decay: 0.05
+                });
+            }
+
+            // 实时切水果碰撞检测
+            this.checkSliceSegment(last.x, last.y, x, y);
+        }
+
+        trail.push({ x, y, time: now });
+        while (trail.length > 0 && now - trail[0].time > 180) {
+            trail.shift();
+        }
+    }
+
+    clearTrail(id) {
+        this.pointerTrails.delete(id);
+    }
+
+    shakeScreen(mag = 8, frames = 10) {
+        this.shakeMag = mag;
+        this.shakeTimer = frames;
+    }
+
+    // ==========================================
+    // 4. 菜单与模式控制
+    // ==========================================
+    initMenu() {
+        this.mode = 'menu';
+        this.isGameOver = false;
+        this.isPaused = false;
+        this.fruits = [];
+        this.halves = [];
+        this.particles = [];
+        this.slashFlashes = [];
+        this.floatingTexts = [];
+        this.megaFruit = null;
+        
+        document.getElementById('pause-btn').style.display = 'none';
+        document.getElementById('back-btn').style.display = 'none';
+        document.getElementById('pause-modal').classList.remove('active');
+        document.getElementById('gameover-modal').classList.remove('active');
+
+        const cx = this.width / 2;
+        const cy = this.height / 2;
+
+        this.menuFruits = [
+            {
+                type: 'watermelon',
+                label: '经典模式',
+                desc: '3次失误 / 炸弹必杀',
+                x: cx - 220,
+                y: cy + 40,
+                radius: 54,
+                rot: 0,
+                rotSpeed: 0.015,
+                action: () => this.startGame('classic')
+            },
+            {
+                type: 'banana',
+                label: '街机模式',
+                desc: '60秒狂热 / 特殊香蕉',
+                x: cx,
+                y: cy + 40,
+                radius: 54,
+                rot: 0.3,
+                rotSpeed: 0.018,
+                action: () => this.startGame('arcade')
+            },
+            {
+                type: 'orange',
+                label: '禅宗模式',
+                desc: '90秒纯享 / 绝无炸弹',
+                x: cx + 220,
+                y: cy + 40,
+                radius: 52,
+                rot: -0.2,
+                rotSpeed: -0.014,
+                action: () => this.startGame('zen')
+            },
+            {
+                type: 'strawberry',
+                label: '刀刃道场',
+                desc: '个性装扮',
+                x: cx - 110,
+                y: cy + 175,
+                radius: 40,
+                rot: 0,
+                rotSpeed: 0.02,
+                action: () => {
+                    document.getElementById('dojo-modal').classList.add('active');
+                }
+            },
+            {
+                type: 'starfruit',
+                label: '玩法指南',
+                desc: '秘籍与得分技巧',
+                x: cx + 110,
+                y: cy + 175,
+                radius: 40,
+                rot: 0,
+                rotSpeed: -0.02,
+                action: () => {
+                    document.getElementById('help-modal').classList.add('active');
+                }
+            }
+        ];
+
+        // 适配移动端窄屏排布
+        if (this.width < 700) {
+            this.menuFruits[0].x = cx - 95;
+            this.menuFruits[0].y = cy - 25;
+            this.menuFruits[1].x = cx + 95;
+            this.menuFruits[1].y = cy - 25;
+            this.menuFruits[2].x = cx;
+            this.menuFruits[2].y = cy + 100;
+            this.menuFruits[3].x = cx - 85;
+            this.menuFruits[3].y = cy + 205;
+            this.menuFruits[4].x = cx + 85;
+            this.menuFruits[4].y = cy + 205;
+        }
+    }
+
+    startGame(mode) {
+        this.mode = mode;
+        this.score = 0;
+        this.slicedCount = 0;
+        this.maxCombo = 0;
+        this.strikes = 0;
+        this.isGameOver = false;
+        this.isPaused = false;
+        this.fruits = [];
+        this.halves = [];
+        this.particles = [];
+        this.slashFlashes = [];
+        this.floatingTexts = [];
+        this.freezeTimer = 0;
+        this.frenzyTimer = 0;
+        this.doubleTimer = 0;
+        this.megaFruit = null;
+
+        if (mode === 'arcade') {
+            this.timeLeft = 60;
+        } else if (mode === 'zen') {
+            this.timeLeft = 90;
+        } else {
+            this.timeLeft = 0;
+        }
+
+        document.getElementById('pause-btn').style.display = 'flex';
+        document.getElementById('back-btn').style.display = 'flex';
+
+        this.spawnTimer = 0;
+        this.spawnInterval = 70;
+        
+        this.addFloatingText(this.width / 2, this.height / 2 - 50, 'READY... GO!', '#ffeb3b', 42);
+        Sound.playPowerup('frenzy');
+    }
+
+    returnToMenu() {
+        this.initMenu();
+    }
+
+    togglePause(paused) {
+        this.isPaused = paused;
+        const modal = document.getElementById('pause-modal');
+        if (this.isPaused) {
+            modal.classList.add('active');
+        } else {
+            modal.classList.remove('active');
+        }
+    }
+
+    // ==========================================
+    // 5. 水果生成与物理演算 (Physics & Spawner)
+    // ==========================================
+    spawnWave() {
+        if (this.megaFruit) return; // 巨型水果在场时不刷杂兵
+
+        const count = Math.floor(1 + Math.random() * 3 + (this.score > 60 ? 1 : 0));
+        const types = ['watermelon', 'apple', 'banana', 'orange', 'strawberry', 'pineapple', 'coconut', 'starfruit'];
+        
+        // 街机模式加入特殊香蕉
+        if (this.mode === 'arcade' && Math.random() < 0.3) {
+            const specials = ['banana_freeze', 'banana_frenzy', 'banana_double'];
+            types.push(specials[Math.floor(Math.random() * specials.length)]);
+        }
+
+        for (let i = 0; i < count; i++) {
+            const type = types[Math.floor(Math.random() * types.length)];
+            this.spawnFruit(type);
+        }
+
+        // 巨型大西瓜触发几率
+        if (Math.random() < 0.05 && !this.megaFruit && this.score > 20) {
+            setTimeout(() => this.spawnMegaFruit(), 400);
+            return;
+        }
+
+        // 炸弹生成
+        if (this.mode === 'classic') {
+            const bombChance = Math.min(0.12 + this.score * 0.003, 0.4);
+            if (Math.random() < bombChance) {
+                setTimeout(() => this.spawnFruit('bomb'), 200 + Math.random() * 300);
+            }
+        } else if (this.mode === 'arcade') {
+            if (Math.random() < 0.22) {
+                setTimeout(() => this.spawnFruit('bomb'), 200 + Math.random() * 300);
+            }
+        }
+    }
+
+    spawnFruit(type, customX, customVx, customVy) {
+        const fruitDef = FRUIT_TYPES[type];
+        const r = fruitDef.radius;
+        
+        const x = customX !== undefined ? customX : r + Math.random() * (this.width - r * 2);
+        const y = this.height + r + 20;
+
+        const targetX = this.width * 0.25 + Math.random() * (this.width * 0.5);
+        const vx = customVx !== undefined ? customVx : (targetX - x) / (45 + Math.random() * 15);
+        const vy = customVy !== undefined ? customVy : -(13.5 + Math.random() * 4.5 + (this.height > 800 ? 3 : 0));
+
+        this.fruits.push({
+            type,
+            x,
+            y,
+            vx,
+            vy,
+            radius: r,
+            rot: Math.random() * Math.PI * 2,
+            rotSpeed: (Math.random() - 0.5) * 0.08,
+            sliced: false,
+            points: fruitDef.points || 1,
+            isBomb: !!fruitDef.isBomb,
+            special: fruitDef.special
+        });
+    }
+
+    spawnMegaFruit() {
+        const r = FRUIT_TYPES.mega_melon.radius;
+        this.megaFruit = {
+            type: 'mega_melon',
+            x: this.width / 2,
+            y: this.height + r + 20,
+            vx: 0,
+            vy: -15,
+            radius: r,
+            rot: 0,
+            rotSpeed: 0.03,
+            hits: 0,
+            maxHits: 15,
+            isMega: true
+        };
+        this.addFloatingText(this.width / 2, this.height * 0.35, '🍉 巨型西瓜登场！狂切！', '#ff0055', 34);
+        Sound.playPowerup('frenzy');
+    }
+
+    spawnFrenzyStream() {
+        const side = Math.random() < 0.5 ? 'left' : 'right';
+        const x = side === 'left' ? -30 : this.width + 30;
+        const vx = side === 'left' ? (8 + Math.random() * 6) : -(8 + Math.random() * 6);
+        const vy = -(11 + Math.random() * 4);
+        const types = ['watermelon', 'apple', 'orange', 'strawberry', 'starfruit'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        this.spawnFruit(type, x, vx, vy);
+    }
+
+    // ==========================================
+    // 6. 切割判定与物理分解 (Slicing Engine)
+    // ==========================================
+    checkSliceSegment(x1, y1, x2, y2) {
+        const now = performance.now();
+
+        // 1. 主菜单大水果
+        if (this.mode === 'menu') {
+            for (let i = 0; i < this.menuFruits.length; i++) {
+                const mf = this.menuFruits[i];
+                if (this.lineIntersectsCircle(x1, y1, x2, y2, mf.x, mf.y, mf.radius)) {
+                    this.sliceMenuFruit(mf);
+                    break;
+                }
+            }
+            return;
+        }
+
+        if (this.isPaused || this.isGameOver) return;
+
+        // 2. 巨型西瓜多刀连斩
+        if (this.megaFruit) {
+            const mf = this.megaFruit;
+            if (this.lineIntersectsCircle(x1, y1, x2, y2, mf.x, mf.y, mf.radius)) {
+                this.hitMegaFruit(mf, x1, y1, x2, y2);
+                return;
+            }
+        }
+
+        // 3. 正常水果切割
+        for (let i = this.fruits.length - 1; i >= 0; i--) {
+            const f = this.fruits[i];
+            if (f.sliced) continue;
+
+            if (this.lineIntersectsCircle(x1, y1, x2, y2, f.x, f.y, f.radius)) {
+                this.sliceFruit(f, x1, y1, x2, y2);
+                this.fruits.splice(i, 1);
+            }
+        }
+    }
+
+    lineIntersectsCircle(x1, y1, x2, y2, cx, cy, r) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq === 0) return Math.hypot(x1 - cx, y1 - cy) <= r;
+
+        let t = ((cx - x1) * dx + (cy - y1) * dy) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+
+        const nearestX = x1 + t * dx;
+        const nearestY = y1 + t * dy;
+        const distSq = (cx - nearestX) ** 2 + (cy - nearestY) ** 2;
+        return distSq <= r * r;
+    }
+
+    sliceMenuFruit(mf) {
+        Sound.playSlice(mf.type);
+        this.createSplatter(mf.x, mf.y, FRUIT_TYPES[mf.type].juiceColor);
+        this.createSparks(mf.x, mf.y, '#ffffff', 22);
+        this.addSlashFlash(mf.x, mf.y, 0);
+
+        const sliceAngle = Math.random() * Math.PI;
+        this.createFruitHalves(mf.type, mf.x, mf.y, 0, -4, mf.radius, sliceAngle);
+
+        setTimeout(() => {
+            mf.action();
+        }, 180);
+    }
+
+    hitMegaFruit(mf, x1, y1, x2, y2) {
+        mf.hits++;
+        Sound.playSlice('mega_melon');
+        this.shakeScreen(5, 5);
+        this.createSparks(mf.x, mf.y, '#ff1744', 10);
+        this.createSplatter(mf.x, mf.y, 'rgba(235, 45, 45, 0.7)');
+
+        this.score += 2;
+        this.addFloatingText(mf.x + (Math.random()-0.5)*50, mf.y + (Math.random()-0.5)*40, `+2 💥`, '#ffea00', 22);
+
+        // 向上弹跳浮空
+        mf.vy = -5.5;
+
+        // 达成 15 刀斩杀
+        if (mf.hits >= mf.maxHits) {
+            this.shakeScreen(15, 18);
+            Sound.playPowerup('frenzy');
+            this.createExplosion(mf.x, mf.y);
+            this.score += 20;
+            this.addFloatingText(mf.x, mf.y - 40, `🏆 斩杀大奖 +20!`, '#ff0055', 38);
+            
+            const sliceAngle = Math.atan2(y2 - y1, x2 - x1);
+            this.createFruitHalves('watermelon', mf.x, mf.y, 0, -6, mf.radius, sliceAngle);
+            this.megaFruit = null;
+        }
+    }
+
+    sliceFruit(f, x1, y1, x2, y2) {
+        const now = performance.now();
+        const fDef = FRUIT_TYPES[f.type];
+
+        // 炸弹
+        if (f.isBomb) {
+            Sound.playBomb();
+            this.shakeScreen(14, 16);
+            this.createExplosion(f.x, f.y);
+            
+            if (this.mode === 'classic') {
+                this.triggerGameOver('BOOM! 切中了炸弹！');
+            } else if (this.mode === 'arcade') {
+                this.score = Math.max(0, this.score - 10);
+                this.addFloatingText(f.x, f.y, '-10 炸弹惩罚!', '#ff3d00', 28);
+                this.fruits = [];
+            }
+            return;
+        }
+
+        // 普通 / 特殊水果
+        Sound.playSlice(f.type);
+        this.slicedCount++;
+
+        // 切痕白光闪
+        const sliceAngle = Math.atan2(y2 - y1, x2 - x1);
+        this.addSlashFlash(f.x, f.y, sliceAngle);
+
+        // 连击检测 (320ms 内连续切中)
+        this.sliceStreak.push({ time: now, fruit: f });
+        this.sliceStreak = this.sliceStreak.filter(s => now - s.time <= 320);
+        
+        let comboBonus = 0;
+        if (this.sliceStreak.length >= 3) {
+            const comboCount = this.sliceStreak.length;
+            comboBonus = comboCount;
+            this.maxCombo = Math.max(this.maxCombo, comboCount);
+            Sound.playCombo(comboCount);
+            this.shakeScreen(4 + comboCount, 8);
+            
+            const comboColor = comboCount >= 5 ? '#ff0055' : (comboCount >= 4 ? '#ff9100' : '#00e5ff');
+            this.addFloatingText(f.x, f.y - 30, `${comboCount} COMBO! +${comboBonus}`, comboColor, 28 + comboCount * 3);
+        }
+
+        let basePts = f.points;
+        if (this.doubleTimer > 0) basePts *= 2;
+        this.score += basePts + comboBonus;
+
+        // 经典模式每 100 分恢复 1 次失误
+        if (this.mode === 'classic' && this.strikes > 0 && Math.floor(this.score / 100) > Math.floor((this.score - basePts - comboBonus) / 100)) {
+            this.strikes = Math.max(0, this.strikes - 1);
+            this.addFloatingText(this.width / 2, this.height * 0.3, '失误消除 -1 Strike!', '#00ff88', 26);
+        }
+
+        if (comboBonus === 0) {
+            this.addFloatingText(f.x, f.y - 15, `+${basePts}`, '#ffea00', 22);
+        }
+
+        // 特殊香蕉能力激活
+        if (f.special === 'freeze') {
+            this.freezeTimer = 240;
+            Sound.playPowerup('freeze');
+            this.addFloatingText(this.width / 2, this.height * 0.4, '❄️ 冰冻时间 (FREEZE)!', '#00e5ff', 34);
+        } else if (f.special === 'frenzy') {
+            this.frenzyTimer = 220;
+            Sound.playPowerup('frenzy');
+            this.addFloatingText(this.width / 2, this.height * 0.4, '🍌 水果狂暴 (FRENZY)!', '#d500f9', 34);
+        } else if (f.special === 'double') {
+            this.doubleTimer = 300;
+            Sound.playPowerup('double');
+            this.addFloatingText(this.width / 2, this.height * 0.4, '✨ 双倍得分 (2X POINTS)!', '#ffd600', 34);
+        }
+
+        this.createSplatter(f.x, f.y, fDef.juiceColor);
+        this.createSparks(f.x, f.y, fDef.color, 16);
+        this.createFruitHalves(f.type, f.x, f.y, f.vx, f.vy, f.radius, sliceAngle);
+    }
+
+    addSlashFlash(x, y, angle) {
+        this.slashFlashes.push({
+            x,
+            y,
+            angle,
+            length: 120,
+            alpha: 1.0,
+            decay: 0.12
+        });
+    }
+
+    createFruitHalves(type, x, y, vx, vy, radius, sliceAngle) {
+        const normalAngle = sliceAngle + Math.PI / 2;
+        const pushSpeed = 4.0 + Math.random() * 2;
+
+        const vx1 = vx * 0.5 + Math.cos(normalAngle) * pushSpeed;
+        const vy1 = vy * 0.7 + Math.sin(normalAngle) * pushSpeed - 2;
+        const vx2 = vx * 0.5 - Math.cos(normalAngle) * pushSpeed;
+        const vy2 = vy * 0.7 - Math.sin(normalAngle) * pushSpeed - 2;
+
+        this.halves.push({
+            type,
+            x,
+            y,
+            vx: vx1,
+            vy: vy1,
+            radius,
+            rot: sliceAngle,
+            rotSpeed: (Math.random() - 0.5) * 0.15 + 0.05,
+            halfSide: 1,
+            opacity: 1
+        });
+
+        this.halves.push({
+            type,
+            x,
+            y,
+            vx: vx2,
+            vy: vy2,
+            radius,
+            rot: sliceAngle,
+            rotSpeed: (Math.random() - 0.5) * 0.15 - 0.05,
+            halfSide: -1,
+            opacity: 1
+        });
+    }
+
+    createSplatter(x, y, color) {
+        const splatCount = 3 + Math.floor(Math.random() * 4);
+        const drips = [];
+        for (let i = 0; i < splatCount; i++) {
+            const rad = 10 + Math.random() * 28;
+            const dist = Math.random() * 35;
+            const ang = Math.random() * Math.PI * 2;
+            drips.push({
+                dx: Math.cos(ang) * dist,
+                dy: Math.sin(ang) * dist,
+                r: rad
+            });
+        }
+        this.splatters.push({
+            x,
+            y,
+            color,
+            drips,
+            alpha: 0.85,
+            decay: 0.0012
+        });
+
+        if (this.splatters.length > 35) {
+            this.splatters.shift();
+        }
+    }
+
+    createSparks(x, y, color, count = 12) {
+        for (let i = 0; i < count; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const speed = 2.5 + Math.random() * 8.5;
+            this.particles.push({
+                x,
+                y,
+                vx: Math.cos(ang) * speed,
+                vy: Math.sin(ang) * speed,
+                radius: 2 + Math.random() * 4.5,
+                color,
+                alpha: 1,
+                gravity: 0.35,
+                decay: 0.02 + Math.random() * 0.03
+            });
+        }
+    }
+
+    createExplosion(x, y) {
+        for (let i = 0; i < 45; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const speed = 4 + Math.random() * 12;
+            this.particles.push({
+                x,
+                y,
+                vx: Math.cos(ang) * speed,
+                vy: Math.sin(ang) * speed,
+                radius: 3 + Math.random() * 7,
+                color: Math.random() < 0.5 ? '#ff5722' : '#ffeb3b',
+                alpha: 1,
+                gravity: 0.1,
+                decay: 0.02
+            });
+        }
+        this.flashAlpha = 0.9;
+    }
+
+    addFloatingText(x, y, text, color = '#ffeb3b', size = 24) {
+        this.floatingTexts.push({
+            x,
+            y,
+            text,
+            color,
+            size,
+            alpha: 1,
+            vy: -1.5,
+            scale: 0.5,
+            targetScale: 1.15
+        });
+    }
+
+    triggerGameOver(reason) {
+        this.isGameOver = true;
+        
+        if (this.score > this.bestScores[this.mode]) {
+            this.bestScores[this.mode] = this.score;
+            localStorage.setItem(`fn_best_${this.mode}`, this.score.toString());
+        }
+
+        let rank = '水果学徒';
+        if (this.score >= 200) rank = '🔥 绝世刀圣';
+        else if (this.score >= 120) rank = '⚔️ 水果大宗师';
+        else if (this.score >= 60) rank = '🥋 见习忍者';
+
+        document.getElementById('go-title').innerText = '游戏结束';
+        document.getElementById('go-subtitle').innerText = reason || '手起刀落，战绩赫赫！';
+        document.getElementById('go-score').innerText = this.score;
+        document.getElementById('go-best').innerText = this.bestScores[this.mode];
+        document.getElementById('go-combo').innerText = `${this.maxCombo} COMBO`;
+        document.getElementById('go-sliced').innerText = `${this.slicedCount} 个`;
+        document.getElementById('go-rank').innerText = rank;
+
+        setTimeout(() => {
+            document.getElementById('gameover-modal').classList.add('active');
+        }, 800);
+    }
+
+    // ==========================================
+    // 7. 更新循环与物理步进 (Update Loop)
+    // ==========================================
+    update(dt) {
+        if (this.isPaused) return;
+
+        let timeScale = 1.0;
+        if (this.freezeTimer > 0) {
+            this.freezeTimer--;
+            timeScale = 0.38;
+        }
+        if (this.frenzyTimer > 0) {
+            this.frenzyTimer--;
+            this.frenzySpawnCounter++;
+            if (this.frenzySpawnCounter % 8 === 0) {
+                this.spawnFrenzyStream();
+            }
+        }
+        if (this.doubleTimer > 0) {
+            this.doubleTimer--;
+        }
+
+        // 震屏衰减
+        if (this.shakeTimer > 0) {
+            this.shakeTimer--;
+        }
+
+        // 倒计时
+        if (!this.isGameOver && (this.mode === 'arcade' || this.mode === 'zen')) {
+            this.timeLeft -= (dt / 1000) * (this.freezeTimer > 0 ? 0.5 : 1.0);
+            if (this.timeLeft <= 0) {
+                this.timeLeft = 0;
+                this.triggerGameOver('⏰ 时间到！');
+            }
+        }
+
+        // 菜单水果自转
+        if (this.mode === 'menu') {
+            this.menuFruits.forEach(mf => {
+                mf.rot += mf.rotSpeed;
+            });
+        }
+
+        // 巨型西瓜物理
+        if (this.megaFruit) {
+            const mf = this.megaFruit;
+            mf.x += mf.vx * timeScale;
+            mf.y += mf.vy * timeScale;
+            mf.vy += 0.28 * timeScale;
+            mf.rot += mf.rotSpeed * timeScale;
+            if (mf.y > this.height + mf.radius + 40 && mf.vy > 0) {
+                this.megaFruit = null; // 未完成离开
+            }
+        }
+
+        // 游戏中水果生成与更新
+        if (this.mode !== 'menu' && !this.isGameOver) {
+            this.spawnTimer++;
+            if (this.spawnTimer >= this.spawnInterval) {
+                this.spawnTimer = 0;
+                this.spawnWave();
+                this.spawnInterval = Math.max(45, 75 - Math.floor(this.score / 15));
+            }
+        }
+
+        // 1. 水果物理更新
+        const gravity = 0.32 * timeScale;
+        for (let i = this.fruits.length - 1; i >= 0; i--) {
+            const f = this.fruits[i];
+            f.x += f.vx * timeScale;
+            f.y += f.vy * timeScale;
+            f.vy += gravity;
+            f.rot += f.rotSpeed * timeScale;
+
+            if (f.y > this.height + f.radius + 30 && f.vy > 0) {
+                if (this.mode === 'classic' && !f.isBomb && !this.isGameOver) {
+                    this.strikes++;
+                    Sound.playMiss();
+                    this.addFloatingText(Math.max(40, Math.min(this.width - 40, f.x)), this.height - 50, '❌ MISS', '#ff1744', 26);
+                    if (this.strikes >= this.maxStrikes) {
+                        this.triggerGameOver('3次漏刀，遗憾落败！');
+                    }
+                }
+                this.fruits.splice(i, 1);
+            }
+        }
+
+        // 2. 切开的两半物理更新
+        for (let i = this.halves.length - 1; i >= 0; i--) {
+            const h = this.halves[i];
+            h.x += h.vx * timeScale;
+            h.y += h.vy * timeScale;
+            h.vy += gravity * 1.1;
+            h.rot += h.rotSpeed * timeScale;
+            h.opacity -= 0.005;
+
+            if (h.y > this.height + h.radius + 50 || h.opacity <= 0) {
+                this.halves.splice(i, 1);
+            }
+        }
+
+        // 3. 果汁痕迹渐变淡出
+        for (let i = this.splatters.length - 1; i >= 0; i--) {
+            const sp = this.splatters[i];
+            sp.alpha -= sp.decay;
+            if (sp.alpha <= 0) {
+                this.splatters.splice(i, 1);
+            }
+        }
+
+        // 4. 粒子更新
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx * timeScale;
+            p.y += p.vy * timeScale;
+            p.vy += p.gravity * timeScale;
+            p.alpha -= p.decay;
+            if (p.alpha <= 0) {
+                this.particles.splice(i, 1);
+            }
+        }
+
+        // 5. 切割白光闪光
+        for (let i = this.slashFlashes.length - 1; i >= 0; i--) {
+            const sf = this.slashFlashes[i];
+            sf.alpha -= sf.decay;
+            if (sf.alpha <= 0) {
+                this.slashFlashes.splice(i, 1);
+            }
+        }
+
+        // 6. 飘字更新
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const ft = this.floatingTexts[i];
+            ft.y += ft.vy;
+            ft.scale += (ft.targetScale - ft.scale) * 0.15;
+            ft.alpha -= 0.015;
+            if (ft.alpha <= 0) {
+                this.floatingTexts.splice(i, 1);
+            }
+        }
+
+        if (this.flashAlpha && this.flashAlpha > 0) {
+            this.flashAlpha -= 0.04;
+        }
+    }
+
+    // ==========================================
+    // 8. 场景与特效渲染 (Rendering Pipeline)
+    // ==========================================
+    render() {
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.clearRect(0, 0, this.width, this.height);
+
+        // 应用屏幕震动
+        if (this.shakeTimer > 0) {
+            const sx = (Math.random() - 0.5) * this.shakeMag;
+            const sy = (Math.random() - 0.5) * this.shakeMag;
+            ctx.translate(sx, sy);
+        }
+
+        // 1. 绘制道场背景
+        this.renderDojoBackground(ctx);
+
+        // 2. 绘制果汁印记层
+        this.renderSplatters(ctx);
+
+        // 3. 绘制主菜单或游戏水果
+        if (this.mode === 'menu') {
+            this.renderMenu(ctx);
+        } else {
+            // 绘制切开的两半
+            this.halves.forEach(h => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, h.opacity);
+                ctx.translate(h.x, h.y);
+                ctx.rotate(h.rot);
+                drawFruitShape(ctx, h.type, h.radius, true, h.halfSide);
+                ctx.restore();
+            });
+
+            // 绘制完整飞行中的水果
+            this.fruits.forEach(f => {
+                ctx.save();
+                ctx.translate(f.x, f.y);
+                ctx.rotate(f.rot);
+                drawFruitShape(ctx, f.type, f.radius, false);
+                ctx.restore();
+            });
+
+            // 绘制巨型西瓜
+            if (this.megaFruit) {
+                const mf = this.megaFruit;
+                ctx.save();
+                ctx.translate(mf.x, mf.y);
+                ctx.rotate(mf.rot);
+                drawFruitShape(ctx, mf.type, mf.radius, false);
+                ctx.restore();
+
+                // 巨型西瓜上方血量连击条
+                ctx.save();
+                const barW = 120;
+                const barH = 12;
+                const progress = (mf.maxHits - mf.hits) / mf.maxHits;
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(mf.x - barW/2, mf.y - mf.radius - 24, barW, barH);
+                ctx.fillStyle = '#ff1744';
+                ctx.fillRect(mf.x - barW/2 + 2, mf.y - mf.radius - 22, (barW - 4) * progress, barH - 4);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(mf.x - barW/2, mf.y - mf.radius - 24, barW, barH);
+                ctx.restore();
+            }
+        }
+
+        // 4. 绘制切割白光线
+        this.slashFlashes.forEach(sf => {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, sf.alpha);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            ctx.shadowColor = '#00e5ff';
+            ctx.shadowBlur = 12;
+            const dx = Math.cos(sf.angle) * sf.length * 0.5;
+            const dy = Math.sin(sf.angle) * sf.length * 0.5;
+            ctx.beginPath();
+            ctx.moveTo(sf.x - dx, sf.y - dy);
+            ctx.lineTo(sf.x + dx, sf.y + dy);
+            ctx.stroke();
+            ctx.restore();
+        });
+
+        // 5. 绘制粒子
+        this.particles.forEach(p => {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, p.alpha);
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        });
+
+        // 6. 绘制刀光轨迹
+        this.renderBladeTrails(ctx);
+
+        // 7. 绘制飘字与连击提示
+        this.floatingTexts.forEach(ft => {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, ft.alpha);
+            ctx.translate(ft.x, ft.y);
+            ctx.scale(ft.scale, ft.scale);
+            ctx.font = `900 ${ft.size}px "Segoe UI", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 4;
+            ctx.strokeText(ft.text, 0, 0);
+            ctx.fillStyle = ft.color;
+            ctx.fillText(ft.text, 0, 0);
+            ctx.restore();
+        });
+
+        // 8. 绘制游戏 HUD
+        if (this.mode !== 'menu') {
+            this.renderGameHUD(ctx);
+        }
+
+        // 9. 绘制全屏滤镜
+        this.renderScreenFilters(ctx);
+
+        ctx.restore();
+    }
+
+    renderDojoBackground(ctx) {
+        const w = this.width;
+        const h = this.height;
+
+        if (this.dojoStyle === 'wood') {
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+            bgGrad.addColorStop(0, '#2c180b');
+            bgGrad.addColorStop(1, '#170c05');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.lineWidth = 3;
+            const plankH = 110;
+            for (let y = plankH; y < h; y += plankH) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+                ctx.fillRect(0, y - 2, w, 2);
+            }
+        } else if (this.dojoStyle === 'sakura') {
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+            bgGrad.addColorStop(0, '#210d1c');
+            bgGrad.addColorStop(0.6, '#381329');
+            bgGrad.addColorStop(1, '#160814');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.fillStyle = 'rgba(255, 180, 210, 0.08)';
+            ctx.beginPath();
+            ctx.arc(w * 0.8, h * 0.25, 140, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (this.dojoStyle === 'bamboo') {
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+            bgGrad.addColorStop(0, '#0a1d12');
+            bgGrad.addColorStop(1, '#040d08');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.fillStyle = 'rgba(46, 125, 50, 0.08)';
+            for (let x = 60; x < w; x += 140) {
+                ctx.fillRect(x, 0, 24, h);
+            }
+        } else if (this.dojoStyle === 'cyber') {
+            ctx.fillStyle = '#0a0d1a';
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.strokeStyle = 'rgba(0, 229, 255, 0.08)';
+            ctx.lineWidth = 1.5;
+            for (let x = 0; x < w; x += 60) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, h);
+                ctx.stroke();
+            }
+            for (let y = 0; y < h; y += 60) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+        }
+
+        const vigGrad = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.4, w/2, h/2, Math.max(w,h)*0.8);
+        vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
+        vigGrad.addColorStop(1, 'rgba(0,0,0,0.65)');
+        ctx.fillStyle = vigGrad;
+        ctx.fillRect(0, 0, w, h);
+    }
+
+    renderSplatters(ctx) {
+        this.splatters.forEach(sp => {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, sp.alpha);
+            ctx.fillStyle = sp.color;
+            sp.drips.forEach(d => {
+                ctx.beginPath();
+                ctx.arc(sp.x + d.dx, sp.y + d.dy, d.r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.restore();
+        });
+    }
+
+    renderMenu(ctx) {
+        const cx = this.width / 2;
+        const cy = this.height / 2;
+
+        ctx.save();
+        ctx.textAlign = 'center';
+        
+        ctx.font = 'bold 20px "Segoe UI", sans-serif';
+        ctx.fillStyle = '#ffb300';
+        ctx.fillText('⚡ 经典网页重制版 ⚡', cx, cy - 180);
+
+        ctx.font = '900 64px "Segoe UI", Impact, sans-serif';
+        ctx.fillStyle = '#ffca28';
+        ctx.strokeStyle = '#3e2723';
+        ctx.lineWidth = 8;
+        ctx.strokeText('FRUIT NINJA', cx, cy - 120);
+        ctx.fillText('FRUIT NINJA', cx, cy - 120);
+
+        ctx.font = 'bold 26px "Segoe UI", sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.fillText('水果忍者', cx, cy - 75);
+        ctx.restore();
+
+        this.menuFruits.forEach(mf => {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.arc(mf.x, mf.y, mf.radius + 14, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.translate(mf.x, mf.y);
+            ctx.rotate(mf.rot);
+            drawFruitShape(ctx, mf.type, mf.radius, false);
+            ctx.restore();
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 16px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#ffe082';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 4;
+            ctx.strokeText(mf.label, mf.x, mf.y + mf.radius + 24);
+            ctx.fillText(mf.label, mf.x, mf.y + mf.radius + 24);
+
+            ctx.font = '12px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#bcaaa4';
+            ctx.fillText(mf.desc, mf.x, mf.y + mf.radius + 40);
+            ctx.restore();
+        });
+
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.font = '14px "Segoe UI", sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+        ctx.fillText('🗡️ 用鼠标或手指划过任意水果即可切入对应模式！', cx, this.height - 30);
+        ctx.restore();
+    }
+
+    renderBladeTrails(ctx) {
+        const now = performance.now();
+
+        this.pointerTrails.forEach(trail => {
+            if (trail.length < 2) return;
+
+            ctx.save();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            let strokeColor = '#ffffff';
+            let glowColor = 'rgba(255, 255, 255, 0.6)';
+            let maxLineWidth = 14;
+
+            if (this.bladeStyle === 'flame') {
+                strokeColor = '#ffeb3b';
+                glowColor = '#ff3d00';
+                maxLineWidth = 18;
+            } else if (this.bladeStyle === 'frost') {
+                strokeColor = '#e0f7fa';
+                glowColor = '#00e5ff';
+                maxLineWidth = 16;
+            } else if (this.bladeStyle === 'rainbow') {
+                const hue = (now * 0.3) % 360;
+                strokeColor = `hsl(${hue}, 100%, 75%)`;
+                glowColor = `hsl(${hue}, 100%, 50%)`;
+                maxLineWidth = 16;
+            } else if (this.bladeStyle === 'lightning') {
+                strokeColor = '#e1bee7';
+                glowColor = '#d500f9';
+                maxLineWidth = 16;
+            }
+
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = 15;
+
+            for (let i = 1; i < trail.length; i++) {
+                const p1 = trail[i - 1];
+                const p2 = trail[i];
+                const age = now - p2.time;
+                const progress = i / trail.length;
+                const alpha = Math.max(0, (1 - age / 180) * progress);
+
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.strokeStyle = strokeColor;
+                ctx.globalAlpha = alpha;
+                ctx.lineWidth = maxLineWidth * progress;
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        });
+    }
+
+    renderGameHUD(ctx) {
+        ctx.save();
+
+        // 1. 左上角当前得分与最高分 (下移避免被返回按钮遮挡)
+        const scoreY = this.mode === 'menu' ? 70 : 100;
+        ctx.font = '900 46px "Segoe UI", Impact, sans-serif';
+        ctx.fillStyle = '#ffea00';
+        ctx.strokeStyle = '#3e2723';
+        ctx.lineWidth = 6;
+        ctx.strokeText(this.score.toString(), 30, scoreY);
+        ctx.fillText(this.score.toString(), 30, scoreY);
+
+        ctx.font = 'bold 15px "Segoe UI", sans-serif';
+        ctx.fillStyle = '#bcaaa4';
+        ctx.fillText(`BEST: ${this.bestScores[this.mode]}`, 32, scoreY + 24);
+
+        // 2. 经典模式右上角失误红叉 (X X X) (下移避免被顶部按钮遮挡)
+        if (this.mode === 'classic') {
+            const startX = this.width - 150;
+            const y = 90;
+            for (let i = 0; i < this.maxStrikes; i++) {
+                const isHit = i < this.strikes;
+                ctx.font = '900 30px "Segoe UI", sans-serif';
+                ctx.fillStyle = isHit ? '#ff1744' : 'rgba(255,255,255,0.18)';
+                ctx.strokeStyle = isHit ? '#500' : 'rgba(0,0,0,0.4)';
+                ctx.lineWidth = 4;
+                ctx.strokeText('✖', startX + i * 36, y);
+                ctx.fillText('✖', startX + i * 36, y);
+            }
+        }
+
+        // 3. 街机 / 禅宗模式倒计时
+        if (this.mode === 'arcade' || this.mode === 'zen') {
+            const secs = Math.ceil(this.timeLeft);
+            const isUrgent = secs <= 10;
+            
+            ctx.textAlign = 'center';
+            ctx.font = `900 ${isUrgent ? '44' : '38'}px "Segoe UI", Impact, sans-serif`;
+            ctx.fillStyle = isUrgent ? '#ff1744' : '#00e5ff';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 5;
+            const timeStr = `${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, '0')}`;
+            ctx.strokeText(timeStr, this.width / 2, 55);
+            ctx.fillText(timeStr, this.width / 2, 55);
+        }
+
+        ctx.restore();
+    }
+
+    renderScreenFilters(ctx) {
+        if (this.freezeTimer > 0) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 229, 255, 0.12)';
+            ctx.fillRect(0, 0, this.width, this.height);
+            ctx.strokeStyle = '#00e5ff';
+            ctx.lineWidth = 8;
+            ctx.strokeRect(0, 0, this.width, this.height);
+            ctx.restore();
+        }
+
+        if (this.frenzyTimer > 0) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(213, 0, 249, 0.08)';
+            ctx.fillRect(0, 0, this.width, this.height);
+            ctx.restore();
+        }
+
+        if (this.flashAlpha > 0) {
+            ctx.save();
+            ctx.fillStyle = `rgba(255, 255, 255, ${this.flashAlpha})`;
+            ctx.fillRect(0, 0, this.width, this.height);
+            ctx.restore();
+        }
+    }
+
+    loop(timestamp) {
+        const dt = Math.min(timestamp - this.lastFrameTime, 100);
+        this.lastFrameTime = timestamp;
+
+        this.update(dt);
+        this.render();
+
+        requestAnimationFrame(this.loop);
+    }
+}
+
+// 启动游戏实例
+window.addEventListener('DOMContentLoaded', () => {
+    window.game = new Game();
+});
+</script>
+
+</body>
+</html>
