@@ -1,0 +1,1834 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101820">
+  <title>多次碰撞实验室</title>
+  <style>
+    :root {
+      --bg: #0b1117;
+      --surface: #101a22;
+      --surface-2: #14232d;
+      --surface-3: #1a2b35;
+      --border: #29404a;
+      --text: #e7f0ef;
+      --muted: #8fa8a9;
+      --faint: #5c7478;
+      --cyan: #67d4d0;
+      --cyan-soft: #b7f1ea;
+      --orange: #f0a565;
+      --orange-soft: #ffd1a1;
+      --red: #ef8274;
+      --green: #9dd68d;
+      --yellow: #ebc878;
+      --track: #263b42;
+      --track-line: #3c5b60;
+      --shadow: rgba(0, 0, 0, .28);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { color-scheme: dark; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      line-height: 1.45;
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+
+    .app-shell {
+      width: min(1500px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 28px 0 42px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border: 1px solid #3d7372;
+      border-radius: 8px;
+      background: #153137;
+      color: var(--cyan-soft);
+      font-size: 24px;
+      font-weight: 700;
+      box-shadow: 0 8px 20px var(--shadow);
+    }
+
+    .eyebrow, .panel-kicker {
+      margin: 0 0 3px;
+      color: var(--cyan);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      font-size: clamp(24px, 3vw, 34px);
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 17px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .model-badge, .phase-badge, .condition-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      background: #121e26;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .phase-badge {
+      border-color: #3b666a;
+      color: var(--cyan-soft);
+      background: #142d32;
+    }
+
+    .phase-badge.warn {
+      border-color: #775d39;
+      color: var(--orange-soft);
+      background: #30251a;
+    }
+
+    .condition-badge.ok {
+      color: var(--green);
+      border-color: #426a4a;
+      background: #17271d;
+    }
+
+    .condition-badge.warn {
+      color: var(--orange-soft);
+      border-color: #775d39;
+      background: #30251a;
+    }
+
+    .icon-button, .action-button {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface-2);
+      cursor: pointer;
+      transition: border-color .16s ease, background .16s ease, transform .16s ease;
+    }
+
+    .icon-button {
+      display: inline-grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      font-size: 18px;
+    }
+
+    .action-button {
+      min-height: 36px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .icon-button:hover, .action-button:hover {
+      border-color: #4c7c7d;
+      background: var(--surface-3);
+    }
+
+    .icon-button:active, .action-button:active { transform: translateY(1px); }
+    .action-button.primary { border-color: #3d8582; background: #194346; color: var(--cyan-soft); }
+    .action-button.primary:hover { background: #215357; }
+    .action-button .symbol { margin-right: 5px; font-size: 14px; }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr)) minmax(165px, .85fr) auto;
+      gap: 10px;
+      align-items: end;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 10px 30px var(--shadow);
+    }
+
+    .control-field {
+      min-width: 0;
+    }
+
+    .control-field label {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .control-field label span:last-child {
+      color: var(--faint);
+      font-size: 11px;
+    }
+
+    .control-field input[type="number"] {
+      width: 100%;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      outline: none;
+      color: var(--text);
+      background: #0d161d;
+    }
+
+    .control-field input[type="number"]:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 2px rgba(103, 212, 208, .12);
+    }
+
+    .speed-field {
+      min-width: 165px;
+    }
+
+    .speed-row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      height: 36px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--cyan);
+      cursor: pointer;
+    }
+
+    .speed-value {
+      min-width: 34px;
+      color: var(--cyan-soft);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .control-actions {
+      display: flex;
+      gap: 8px;
+      min-width: max-content;
+    }
+
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.65fr) minmax(320px, .9fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .panel {
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 10px 30px var(--shadow);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 17px 18px 13px;
+    }
+
+    .stage-panel { overflow: hidden; border-color: #35565d; }
+
+    .stage-wrap {
+      position: relative;
+      min-height: 375px;
+      padding: 0 12px;
+      border-top: 1px solid #1e3038;
+      border-bottom: 1px solid #1e3038;
+      background: #091319;
+    }
+
+    #sceneCanvas, #chartCanvas {
+      display: block;
+      width: 100%;
+    }
+
+    #sceneCanvas { height: 375px; }
+    #chartCanvas { height: 360px; }
+
+    .stage-footer {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(90px, auto)) minmax(130px, 1fr);
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px 15px;
+    }
+
+    .readout small {
+      display: block;
+      color: var(--faint);
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .readout strong {
+      display: block;
+      margin-top: 2px;
+      color: var(--text);
+      font-size: 15px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .readout strong.cyan { color: var(--cyan-soft); }
+    .readout strong.orange { color: var(--orange-soft); }
+
+    .seek-wrap {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .seek-wrap span {
+      color: var(--faint);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .results-panel { padding-bottom: 15px; }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+      padding: 0 14px 14px;
+    }
+
+    .stat-card {
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--cyan);
+      border-radius: 6px;
+      background: var(--surface-2);
+    }
+
+    .stat-card.orange { border-left-color: var(--orange); }
+    .stat-card.green { border-left-color: var(--green); }
+    .stat-card.yellow { border-left-color: var(--yellow); }
+
+    .stat-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .stat-value {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      margin-top: 4px;
+      white-space: nowrap;
+    }
+
+    .stat-value strong {
+      color: var(--text);
+      font-size: 23px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    .stat-value em {
+      color: var(--faint);
+      font-size: 11px;
+      font-style: normal;
+    }
+
+    .formula-box {
+      margin: 0 14px 12px;
+      padding: 12px 13px;
+      border: 1px solid #2b4d51;
+      border-radius: 6px;
+      background: #11272b;
+    }
+
+    .formula-box h3 {
+      margin-bottom: 8px;
+      color: var(--cyan-soft);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .formula-line {
+      overflow-x: auto;
+      color: #d6e4e1;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 14px;
+      line-height: 1.8;
+      white-space: nowrap;
+    }
+
+    .formula-line + .formula-line { border-top: 1px solid rgba(103, 212, 208, .13); }
+    .formula-line .result { color: var(--orange-soft); }
+
+    .assumptions {
+      margin: 0 14px;
+      padding: 10px 12px;
+      border-left: 2px solid #466a6d;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .condition-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 14px 12px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #0e181f;
+    }
+
+    .condition-row span:first-child {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .condition-badge {
+      min-height: 25px;
+      padding: 3px 8px;
+      font-size: 11px;
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(300px, .75fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .chart-panel, .events-panel { min-width: 0; overflow: hidden; }
+    .chart-wrap { border-top: 1px solid #1e3038; border-bottom: 1px solid #1e3038; }
+
+    .chart-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 18px 12px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-line { width: 24px; height: 3px; border-radius: 2px; background: var(--cyan); }
+    .legend-line.orange { background: var(--orange); }
+    .legend-dash { width: 24px; border-top: 1px dashed #809798; }
+
+    .chart-note {
+      padding: 11px 18px 14px;
+      color: var(--faint);
+      font-size: 11px;
+    }
+
+    .events-panel .panel-header { padding-bottom: 12px; }
+
+    .event-list {
+      max-height: 472px;
+      overflow: auto;
+      border-top: 1px solid #1e3038;
+    }
+
+    .event-row {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 11px 16px;
+      border-bottom: 1px solid #1e3038;
+      font-size: 12px;
+    }
+
+    .event-row.current { background: #173035; }
+    .event-row.passed { color: var(--muted); }
+
+    .event-index {
+      display: grid;
+      place-items: center;
+      width: 27px;
+      height: 27px;
+      border: 1px solid #3d7777;
+      border-radius: 50%;
+      color: var(--cyan-soft);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .event-main strong { display: block; color: var(--text); font-size: 12px; }
+    .event-main span { display: block; margin-top: 2px; color: var(--faint); font-size: 11px; }
+    .event-time { color: var(--orange-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    .event-end {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      color: var(--green);
+      background: #12221a;
+      font-size: 11px;
+    }
+
+    .event-empty {
+      padding: 26px 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .footer-note {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 16px;
+      color: var(--faint);
+      font-size: 11px;
+    }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .num { font-variant-numeric: tabular-nums; }
+
+    @media (max-width: 1180px) {
+      .controls { grid-template-columns: repeat(3, minmax(130px, 1fr)); }
+      .control-actions { grid-column: span 3; }
+      .workspace-grid, .analysis-grid { grid-template-columns: minmax(0, 1fr); }
+      .results-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+      .results-panel .panel-header, .results-panel .condition-row { grid-column: 1 / -1; }
+      .results-panel .assumptions { margin-top: 0; }
+    }
+
+    @media (max-width: 700px) {
+      .app-shell { width: min(100% - 22px, 1500px); padding-top: 17px; }
+      .topbar { align-items: flex-start; margin-bottom: 17px; }
+      .top-actions { gap: 6px; }
+      .model-badge { display: none; }
+      .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 11px; }
+      .control-actions { grid-column: span 2; }
+      .speed-field { grid-column: span 2; }
+      .stage-wrap { min-height: 315px; padding: 0 6px; }
+      #sceneCanvas { height: 315px; }
+      .stage-footer { grid-template-columns: repeat(3, minmax(70px, 1fr)); padding: 11px 12px 13px; gap: 8px; }
+      .seek-wrap { grid-column: 1 / -1; }
+      .results-panel { display: block; }
+      .results-panel .assumptions { margin-top: 0; }
+      .stat-grid { padding-left: 11px; padding-right: 11px; }
+      .formula-box, .condition-row, .assumptions { margin-left: 11px; margin-right: 11px; }
+      #chartCanvas { height: 300px; }
+      .chart-meta { gap: 10px; padding-left: 12px; padding-right: 12px; flex-wrap: wrap; }
+      .panel-header { padding-left: 13px; padding-right: 13px; }
+      .footer-note { display: block; }
+      .footer-note span + span { display: block; margin-top: 4px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">↔</div>
+        <div>
+          <p class="eyebrow">Mechanics / Energy Dissipation</p>
+          <h1>多次碰撞实验室</h1>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="model-badge">弹性碰撞 · 恒定摩擦力</span>
+        <button class="icon-button" id="resetTopBtn" type="button" aria-label="重置实验" title="重置实验">↺</button>
+      </div>
+    </header>
+
+    <section class="controls" aria-label="实验参数">
+      <div class="control-field">
+        <label for="kInput"><span>质量比 k</span><span>M = km</span></label>
+        <input id="kInput" type="number" min="1" max="10000" step="1" value="100">
+      </div>
+      <div class="control-field">
+        <label for="mInput"><span>小方块质量 m</span><span>kg</span></label>
+        <input id="mInput" type="number" min="0.01" max="1000" step="0.1" value="1">
+      </div>
+      <div class="control-field">
+        <label for="vInput"><span>初速度 v</span><span>m/s</span></label>
+        <input id="vInput" type="number" min="0.01" max="1000" step="0.1" value="6">
+      </div>
+      <div class="control-field">
+        <label for="fInput"><span>恒定摩擦力 f</span><span>N</span></label>
+        <input id="fInput" type="number" min="0.001" max="10000" step="0.1" value="0.8">
+      </div>
+      <div class="control-field">
+        <label for="lInput"><span>墙距 L</span><span>m</span></label>
+        <input id="lInput" type="number" min="0.1" max="100000" step="1" value="50">
+      </div>
+      <div class="control-field speed-field">
+        <label for="speedInput"><span>播放速度</span><span>动画</span></label>
+        <div class="speed-row">
+          <input id="speedInput" type="range" min="0.25" max="4" step="0.25" value="1">
+          <span class="speed-value" id="speedValue">1.0×</span>
+        </div>
+      </div>
+      <div class="control-actions">
+        <button class="action-button primary" id="playBtn" type="button"><span class="symbol" id="playSymbol">▶</span><span id="playLabel">播放</span></button>
+        <button class="action-button" id="stepBtn" type="button"><span class="symbol">›</span>单步</button>
+      </div>
+    </section>
+
+    <main>
+      <section class="workspace-grid">
+        <article class="panel stage-panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">Live Scene</p>
+              <h2>运动场景</h2>
+            </div>
+            <span class="phase-badge" id="phaseBadge">准备开始</span>
+          </div>
+          <div class="stage-wrap">
+            <canvas id="sceneCanvas" aria-label="小方块、大方块和墙的运动动画"></canvas>
+          </div>
+          <div class="stage-footer">
+            <div class="readout"><small>时间 t</small><strong class="cyan" id="timeValue">0.00 s</strong></div>
+            <div class="readout"><small>大块位移</small><strong class="orange" id="distanceValue">0.00 m</strong></div>
+            <div class="readout"><small>已完成碰撞</small><strong id="liveCollisionValue">0 / 0</strong></div>
+            <div class="seek-wrap">
+              <span>0</span>
+              <input id="timelineSeek" type="range" min="0" max="1" step="0.01" value="0" aria-label="时间轴">
+              <span id="durationLabel">0 s</span>
+            </div>
+          </div>
+        </article>
+
+        <aside class="panel results-panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">Closed Form</p>
+              <h2>理论结果</h2>
+            </div>
+            <span class="condition-badge ok" id="conditionBadge">题设时序满足</span>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <span>碰撞次数 N</span>
+              <div class="stat-value"><strong id="countValue">0</strong><em>次</em></div>
+            </div>
+            <div class="stat-card orange">
+              <span>大方块总路程 S</span>
+              <div class="stat-value"><strong id="totalDistanceValue">0</strong><em>m</em></div>
+            </div>
+            <div class="stat-card green">
+              <span>初始动能 E₁</span>
+              <div class="stat-value"><strong id="initialEnergyValue">0</strong><em>J</em></div>
+            </div>
+            <div class="stat-card yellow">
+              <span>大方块末位移</span>
+              <div class="stat-value"><strong id="stopPositionValue">0</strong><em>m</em></div>
+            </div>
+          </div>
+          <div class="formula-box">
+            <h3>递推与闭式</h3>
+            <div class="formula-line">α = <span id="alphaValue">0</span>，q = (k−1)/(k+1) = <span id="qValue">0</span></div>
+            <div class="formula-line">θ = arccos(q²) = <span id="thetaValue">0</span> rad</div>
+            <div class="formula-line">Eᵢ = E₁ · cos((i−½)θ) / cos(θ/2)</div>
+            <div class="formula-line result">S = E₁/f · tan(θ/2) · sin(Nθ) = <span id="formulaDistanceValue">0</span> m</div>
+          </div>
+          <div class="assumptions">
+            方块之间与墙均按弹性碰撞处理。粗糙面上的任意运动段均按功损失 <span class="mono">f · Δx</span> 计入；大方块每次碰撞后先在粗糙面停止，小方块再返回追赶。
+          </div>
+        </aside>
+      </section>
+
+      <section class="analysis-grid">
+        <article class="panel chart-panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">Position / Time</p>
+              <h2>t-x 图</h2>
+            </div>
+            <span class="model-badge">横轴 t / s · 纵轴 x / m</span>
+          </div>
+          <div class="chart-meta">
+            <span class="legend-item"><i class="legend-line"></i>小方块 xₘ(t)</span>
+            <span class="legend-item"><i class="legend-line orange"></i>大方块 xₖₘ(t)</span>
+            <span class="legend-item"><i class="legend-dash"></i>碰撞时刻</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chartCanvas" aria-label="小方块和大方块的位置时间图"></canvas>
+          </div>
+          <p class="chart-note">点击曲线区域可以跳转到对应时刻。墙的位置为 x = 0，粗糙面交界为 x = L。</p>
+        </article>
+
+        <article class="panel events-panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">Collision Log</p>
+              <h2>碰撞记录</h2>
+            </div>
+            <span class="model-badge" id="energyStateBadge">等待播放</span>
+          </div>
+          <div class="event-list" id="eventList"></div>
+        </article>
+      </section>
+    </main>
+
+    <div class="footer-note">
+      <span>结果按能量递推计算，动画仅将连续运动映射到可视轨道。</span>
+      <span class="mono">m · v² / f controls the length scale</span>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const $ = (id) => document.getElementById(id);
+      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+      const finiteOr = (value, fallback) => Number.isFinite(value) ? value : fallback;
+      const EPS = 1e-9;
+
+      const els = {
+        k: $("kInput"),
+        m: $("mInput"),
+        v: $("vInput"),
+        f: $("fInput"),
+        l: $("lInput"),
+        speed: $("speedInput"),
+        speedValue: $("speedValue"),
+        play: $("playBtn"),
+        playSymbol: $("playSymbol"),
+        playLabel: $("playLabel"),
+        step: $("stepBtn"),
+        reset: $("resetTopBtn"),
+        scene: $("sceneCanvas"),
+        chart: $("chartCanvas"),
+        phase: $("phaseBadge"),
+        seek: $("timelineSeek"),
+        duration: $("durationLabel"),
+        time: $("timeValue"),
+        distance: $("distanceValue"),
+        liveCollisions: $("liveCollisionValue"),
+        count: $("countValue"),
+        totalDistance: $("totalDistanceValue"),
+        initialEnergy: $("initialEnergyValue"),
+        stopPosition: $("stopPositionValue"),
+        alpha: $("alphaValue"),
+        q: $("qValue"),
+        theta: $("thetaValue"),
+        formulaDistance: $("formulaDistanceValue"),
+        condition: $("conditionBadge"),
+        energyState: $("energyStateBadge"),
+        eventList: $("eventList")
+      };
+
+      let model = null;
+      let elapsed = 0;
+      let playing = false;
+      let lastFrame = null;
+      let sceneSize = { width: 0, height: 0 };
+      let chartSize = { width: 0, height: 0 };
+
+      function readParams() {
+        const k = clamp(finiteOr(parseFloat(els.k.value), 100), 1, 10000);
+        const m = clamp(finiteOr(parseFloat(els.m.value), 1), 0.01, 1000);
+        const v = clamp(finiteOr(parseFloat(els.v.value), 6), 0.01, 1000);
+        const f = clamp(finiteOr(parseFloat(els.f.value), 0.8), 0.001, 10000);
+        const L = clamp(finiteOr(parseFloat(els.l.value), 50), 0.1, 100000);
+        els.k.value = String(k);
+        els.m.value = String(m);
+        els.v.value = String(v);
+        els.f.value = String(f);
+        els.l.value = String(L);
+        return { k, m, v, f, L };
+      }
+
+      function fmt(value, digits = 2) {
+        if (!Number.isFinite(value)) return "—";
+        const abs = Math.abs(value);
+        if (abs !== 0 && (abs >= 1e6 || abs < 1e-3)) return value.toExponential(2);
+        return value.toFixed(digits);
+      }
+
+      function fmtCompact(value) {
+        if (!Number.isFinite(value)) return "—";
+        if (Math.abs(value) >= 10000) return value.toExponential(2);
+        if (Math.abs(value) >= 100) return value.toFixed(1);
+        return value.toFixed(2);
+      }
+
+      function addSegment(list, t0, duration, x0, v0, acceleration, kind) {
+        const safeDuration = Math.max(0, duration);
+        list.push({
+          t0,
+          t1: t0 + safeDuration,
+          x0,
+          v0,
+          a: acceleration,
+          kind
+        });
+      }
+
+      function segmentAt(list, t) {
+        if (!list.length) return { x: 0, v: 0, kind: "等待" };
+        let chosen = list[list.length - 1];
+        for (let i = 0; i < list.length; i += 1) {
+          if (t < list[i].t1 - EPS || i === list.length - 1) {
+            chosen = list[i];
+            break;
+          }
+        }
+        const dt = clamp(t - chosen.t0, 0, Math.max(0, chosen.t1 - chosen.t0));
+        return {
+          x: chosen.x0 + chosen.v0 * dt + 0.5 * chosen.a * dt * dt,
+          v: chosen.v0 + chosen.a * dt,
+          kind: chosen.kind
+        };
+      }
+
+      function recommendedWallDistance(params, energies, positions, alpha, q) {
+        if (q <= 1e-8 || energies.length < 2) return 0;
+        const aSmall = params.f / params.m;
+        let required = 0;
+        for (let i = 0; i < energies.length - 1; i += 1) {
+          const Ei = energies[i];
+          const xPrev = positions[i];
+          const xNext = positions[i + 1];
+          const u = Math.sqrt(Math.max(0, 2 * Ei / params.m));
+          const post = q * u;
+          const energyAtBoundary = Math.max(0, q * q * Ei - params.f * xPrev);
+          const boundarySpeed = Math.sqrt(Math.max(0, 2 * energyAtBoundary / params.m));
+          const nextEnergy = Math.max(0, q * q * Ei - params.f * (xPrev + xNext));
+          const endSpeed = Math.sqrt(Math.max(0, 2 * nextEnergy / params.m));
+          const tLeft = Math.max(0, (post - boundarySpeed) / aSmall);
+          const tOut = Math.max(0, (boundarySpeed - endSpeed) / aSmall);
+          const bigSpeed = 2 * u / (1 + params.k);
+          const bigAcceleration = params.f / (params.k * params.m);
+          const tBig = bigSpeed / bigAcceleration;
+          required = Math.max(required, 0.5 * Math.max(0, tBig - tLeft - tOut) * boundarySpeed);
+        }
+        return required;
+      }
+
+      function computeModel(params) {
+        const alpha = clamp(4 * params.k / ((1 + params.k) * (1 + params.k)), 0, 1);
+        const q = (params.k - 1) / (params.k + 1);
+        const theta = Math.acos(clamp(q * q, -1, 1));
+        const E1 = 0.5 * params.m * params.v * params.v;
+        const energies = [];
+        const positions = [0];
+        let previousEnergy = E1;
+        let currentEnergy = E1;
+        const energyEpsilon = Math.max(E1 * 1e-10, EPS);
+        const maxCollisions = 2000;
+
+        for (let i = 0; i < maxCollisions && currentEnergy > energyEpsilon; i += 1) {
+          energies.push(currentEnergy);
+          const displacement = alpha * currentEnergy / params.f;
+          positions.push(positions[positions.length - 1] + displacement);
+          const nextEnergy = 2 * (1 - alpha) * currentEnergy - previousEnergy;
+          previousEnergy = currentEnergy;
+          currentEnergy = nextEnergy;
+        }
+
+        if (!energies.length) {
+          energies.push(E1);
+          positions.push(alpha * E1 / params.f);
+        }
+
+        const N = energies.length;
+        const formulaArgument = theta > EPS ? Math.PI / (2 * theta) + 0.5 : Infinity;
+        const floorCount = Number.isFinite(formulaArgument) ? Math.floor(formulaArgument) : N;
+        const totalDistance = positions[N];
+        const closedDistance = theta > EPS
+          ? E1 / params.f * Math.sqrt(Math.max(0, 2 * params.k / (params.k * params.k + 1))) * Math.sin(N * theta)
+          : totalDistance;
+        const requiredL = recommendedWallDistance(params, energies, positions, alpha, q);
+        const approachDistance = Math.min(Math.max(1.5, params.v * 1.2), Math.max(0.2, params.L * 0.38));
+        const approachDuration = approachDistance / params.v;
+        const smallSegments = [];
+        const bigSegments = [];
+        const cycles = [];
+        const collisions = [];
+
+        addSegment(smallSegments, 0, approachDuration, params.L - approachDistance, params.v, 0, "approach");
+        addSegment(bigSegments, 0, approachDuration, params.L, 0, 0, "big-hold");
+
+        let cursor = approachDuration;
+        for (let i = 0; i < N; i += 1) {
+          const Ei = energies[i];
+          const xPrev = positions[i];
+          const xNext = positions[i + 1];
+          const u = Math.sqrt(Math.max(0, 2 * Ei / params.m));
+          const postSpeed = q * u;
+          const bigSpeed = 2 * u / (1 + params.k);
+          const bigAcceleration = params.f / (params.k * params.m);
+          const smallAcceleration = params.f / params.m;
+          const tBig = bigSpeed > EPS ? bigSpeed / bigAcceleration : 0;
+          const collisionPosition = params.L + xPrev;
+          const nextEnergyRaw = q * q * Ei - params.f * (xPrev + xNext);
+          const hasNextCollision = i < N - 1;
+          const energyAtBoundary = Math.max(0, q * q * Ei - params.f * xPrev);
+          const boundarySpeed = Math.sqrt(Math.max(0, 2 * energyAtBoundary / params.m));
+          const nextEnergy = hasNextCollision ? Math.max(0, energies[i + 1]) : 0;
+          const endSpeed = Math.sqrt(Math.max(0, 2 * nextEnergy / params.m));
+          const tLeft = postSpeed > EPS ? Math.max(0, (postSpeed - boundarySpeed) / smallAcceleration) : 0;
+          const tWallOneWay = boundarySpeed > EPS ? params.L / boundarySpeed : 0;
+          const targetRelativePosition = hasNextCollision ? xNext : energyAtBoundary / params.f;
+          const tOut = boundarySpeed > EPS ? Math.max(0, (boundarySpeed - endSpeed) / smallAcceleration) : 0;
+          const smallMotionDuration = tLeft + 2 * tWallOneWay + tOut;
+          const cycleDuration = Math.max(tBig, smallMotionDuration);
+
+          collisions.push({
+            index: i + 1,
+            time: cursor,
+            position: collisionPosition,
+            energy: Ei
+          });
+
+          const leftEnd = cursor + tLeft;
+          const wallHit = leftEnd + tWallOneWay;
+          const boundaryReturn = wallHit + tWallOneWay;
+          const smallEnd = boundaryReturn + tOut;
+          const bigEnd = cursor + tBig;
+          const cycleEnd = cursor + cycleDuration;
+
+          cycles.push({
+            index: i + 1,
+            start: cursor,
+            end: cycleEnd,
+            bigEnd,
+            leftEnd,
+            wallHit,
+            boundaryReturn,
+            smallEnd,
+            xPrev,
+            xNext,
+            collisionPosition,
+            targetPosition: params.L + targetRelativePosition,
+            hasNextCollision,
+            nextEnergyRaw
+          });
+
+          if (postSpeed > EPS && boundarySpeed > EPS) {
+            addSegment(smallSegments, cursor, tLeft, collisionPosition, -postSpeed, smallAcceleration, "small-rough-left");
+            addSegment(smallSegments, leftEnd, tWallOneWay, params.L, -boundarySpeed, 0, "small-to-wall");
+            addSegment(smallSegments, wallHit, tWallOneWay, 0, boundarySpeed, 0, "small-from-wall");
+            addSegment(smallSegments, boundaryReturn, tOut, params.L, boundarySpeed, -smallAcceleration, hasNextCollision ? "small-rough-chase" : "small-energy-stop");
+            if (cycleEnd > smallEnd + EPS) {
+              addSegment(smallSegments, smallEnd, cycleEnd - smallEnd, params.L + targetRelativePosition, 0, 0, "small-wait");
+            }
+          } else {
+            addSegment(smallSegments, cursor, cycleDuration, collisionPosition, 0, 0, "small-stop");
+          }
+
+          addSegment(bigSegments, cursor, tBig, collisionPosition, bigSpeed, -bigAcceleration, "big-rough-move");
+          if (cycleEnd > bigEnd + EPS) {
+            addSegment(bigSegments, bigEnd, cycleEnd - bigEnd, params.L + xNext, 0, 0, "big-stop");
+          }
+
+          cursor = cycleEnd;
+        }
+
+        const duration = Math.max(cursor, approachDuration + 0.001);
+        const maxWorld = params.L + totalDistance + Math.max(2, totalDistance * 0.15);
+        const samples = [];
+        const sampleCount = 1200;
+        for (let i = 0; i < sampleCount; i += 1) {
+          const t = duration * i / (sampleCount - 1);
+          const small = segmentAt(smallSegments, t);
+          const big = segmentAt(bigSegments, t);
+          samples.push({ t, small, big });
+        }
+
+        return {
+          params,
+          alpha,
+          q,
+          theta,
+          E1,
+          energies,
+          positions,
+          N,
+          floorCount,
+          formulaArgument,
+          totalDistance,
+          closedDistance,
+          requiredL,
+          orderValid: params.L + 1e-8 >= requiredL,
+          approachDuration,
+          smallSegments,
+          bigSegments,
+          cycles,
+          collisions,
+          duration,
+          maxWorld,
+          samples,
+          finalPosition: params.L + totalDistance
+        };
+      }
+
+      function resizeCanvas(canvas, type) {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        const width = Math.max(320, rect.width);
+        const height = rect.height;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        const ctx = canvas.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (type === "scene") sceneSize = { width, height };
+        else chartSize = { width, height };
+      }
+
+      function resizeCanvases() {
+        resizeCanvas(els.scene, "scene");
+        resizeCanvas(els.chart, "chart");
+        render();
+      }
+
+      function roundedRect(ctx, x, y, width, height, radius) {
+        const r = Math.min(radius, width / 2, height / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + width, y, x + width, y + height, r);
+        ctx.arcTo(x + width, y + height, x, y + height, r);
+        ctx.arcTo(x, y + height, x, y, r);
+        ctx.arcTo(x, y, x + width, y, r);
+        ctx.closePath();
+      }
+
+      function drawArrow(ctx, x1, y1, x2, y2, color) {
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const head = 7;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 6), y2 - head * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 6), y2 - head * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function drawBlock(ctx, x, baseline, width, height, palette, label, velocity, velocityColor) {
+        const depth = clamp(width * .16, 5, 11);
+        const left = x - width / 2;
+        const right = x + width / 2;
+        const top = baseline - height;
+        const radius = clamp(width * .1, 3, 6);
+
+        ctx.save();
+        ctx.globalAlpha = .45;
+        ctx.fillStyle = "rgba(0, 0, 0, .75)";
+        ctx.beginPath();
+        ctx.ellipse(x + 3, baseline + 5, width * .62, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        const bodyGradient = ctx.createLinearGradient(0, top, 0, baseline);
+        bodyGradient.addColorStop(0, palette.bodyHi);
+        bodyGradient.addColorStop(.38, palette.body);
+        bodyGradient.addColorStop(1, palette.bodyLow);
+        roundedRect(ctx, left, top + depth * .62, width, height - depth * .62, radius);
+        ctx.fillStyle = bodyGradient;
+        ctx.fill();
+        ctx.strokeStyle = palette.edge;
+        ctx.lineWidth = 1.3;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(left + depth, top);
+        ctx.lineTo(right - depth, top);
+        ctx.lineTo(right, top + depth * .78);
+        ctx.lineTo(left, top + depth * .78);
+        ctx.closePath();
+        const topGradient = ctx.createLinearGradient(left, top, right, top + depth);
+        topGradient.addColorStop(0, palette.topHi);
+        topGradient.addColorStop(1, palette.top);
+        ctx.fillStyle = topGradient;
+        ctx.fill();
+        ctx.strokeStyle = palette.edge;
+        ctx.lineWidth = 1.1;
+        ctx.stroke();
+
+        ctx.fillStyle = palette.side;
+        ctx.globalAlpha = .72;
+        ctx.beginPath();
+        ctx.moveTo(right - depth, top + depth * .2);
+        ctx.lineTo(right, top + depth * .78);
+        ctx.lineTo(right, baseline - radius);
+        ctx.quadraticCurveTo(right, baseline, right - radius, baseline);
+        ctx.lineTo(right - depth, baseline - depth * .32);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        ctx.fillStyle = "rgba(255,255,255,.22)";
+        roundedRect(ctx, left + 4, top + depth + 3, Math.max(3, width * .07), Math.max(5, height - depth - 9), 2);
+        ctx.fill();
+
+        const plateWidth = clamp(width * .58, 24, 52);
+        const plateHeight = clamp(height * .36, 13, 23);
+        const plateLeft = x - plateWidth / 2;
+        const plateTop = top + depth + (height - depth - plateHeight) * .52;
+        roundedRect(ctx, plateLeft, plateTop, plateWidth, plateHeight, 4);
+        ctx.fillStyle = palette.plate;
+        ctx.fill();
+        ctx.strokeStyle = palette.plateEdge;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = palette.text;
+        ctx.font = `700 ${clamp(width * .16, 10, 13)}px Inter, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, x, plateTop + plateHeight / 2 + .5);
+
+        if (width >= 42) {
+          ctx.fillStyle = palette.bolt;
+          [left + 8, right - 8].forEach((boltX) => {
+            ctx.beginPath();
+            ctx.arc(boltX, baseline - 8, 2.1, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "rgba(0,0,0,.32)";
+            ctx.lineWidth = .7;
+            ctx.stroke();
+          });
+        }
+
+        if (Math.abs(velocity) > .01) {
+          const direction = velocity < 0 ? -1 : 1;
+          const arrowLength = clamp(20 + Math.abs(velocity) * 3.2, 22, 64);
+          const arrowY = top - 16;
+          drawArrow(ctx, x, arrowY, x + direction * arrowLength, arrowY, velocityColor);
+          ctx.fillStyle = velocityColor;
+          ctx.font = "700 10px Inter, sans-serif";
+          ctx.textAlign = direction < 0 ? "right" : "left";
+          ctx.fillText(`${fmt(Math.abs(velocity), 2)} m/s`, x + direction * (arrowLength + 6), arrowY - 5);
+        }
+        ctx.restore();
+      }
+
+      function drawScenePill(ctx, x, y, text, color, align = "left") {
+        ctx.save();
+        ctx.font = "700 9px Inter, sans-serif";
+        const textWidth = ctx.measureText(text).width;
+        const width = textWidth + 16;
+        const left = align === "right" ? x - width : x;
+        roundedRect(ctx, left, y, width, 20, 10);
+        ctx.fillStyle = "rgba(13, 29, 35, .9)";
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = .7;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = color;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, left + width / 2, y + 10);
+        ctx.restore();
+      }
+
+      function drawOverview(ctx, x, y, width, height, viewport, stateSmall, stateBig) {
+        const worldEnd = Math.max(model.params.L + model.totalDistance + 8, 1);
+        const lineLeft = x + 11;
+        const lineRight = x + width - 11;
+        const lineY = y + height - 12;
+        const map = (worldX) => lineLeft + clamp(worldX / worldEnd, 0, 1) * (lineRight - lineLeft);
+        roundedRect(ctx, x, y, width, height, 6);
+        ctx.fillStyle = "rgba(12, 27, 33, .94)";
+        ctx.fill();
+        ctx.strokeStyle = "#365961";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = "#9ab3b0";
+        ctx.font = "700 9px Inter, sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText("全局轨道 / 跟随大块", x + 10, y + 13);
+        ctx.strokeStyle = "#667e7e";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(lineLeft, lineY);
+        ctx.lineTo(lineRight, lineY);
+        ctx.stroke();
+        ctx.strokeStyle = "#91a7a1";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(map(0), lineY - 8);
+        ctx.lineTo(map(0), lineY + 6);
+        ctx.stroke();
+        ctx.fillStyle = "#78dbd3";
+        ctx.fillRect(map(model.params.L) - 1, lineY - 5, 2, 10);
+        ctx.fillStyle = "#f0a565";
+        ctx.fillRect(map(stateBig.x) - 3, lineY - 4, 6, 8);
+        ctx.fillStyle = "#67d4d0";
+        ctx.beginPath();
+        ctx.arc(map(stateSmall.x), lineY, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        const viewportLeft = clamp(viewport.left, 0, worldEnd);
+        const viewportRight = clamp(viewport.left + viewport.width, 0, worldEnd);
+        const viewX = map(viewportLeft);
+        const viewWidth = Math.max(4, map(viewportRight) - viewX);
+        ctx.fillStyle = "rgba(103, 212, 208, .14)";
+        ctx.fillRect(viewX, lineY - 8, viewWidth, 16);
+        ctx.strokeStyle = "rgba(150, 239, 225, .9)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(viewX, lineY - 8, viewWidth, 16);
+
+        ctx.fillStyle = "#718b8c";
+        ctx.font = "8px Inter, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("墙", lineLeft, y + 27);
+        ctx.textAlign = "center";
+        ctx.fillText("交界", map(model.params.L), y + 27);
+        ctx.textAlign = "right";
+        ctx.fillText("S", lineRight, y + 27);
+      }
+
+      function drawTrail(ctx, mapX, key, color, opacity) {
+        const trailSpan = clamp(model.duration * .045, .25, 4);
+        const steps = 7;
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = opacity;
+        ctx.beginPath();
+        for (let i = steps; i >= 0; i -= 1) {
+          const past = sampleAt(Math.max(0, elapsed - trailSpan * i / steps));
+          const px = mapX(past[key].x);
+          if (i === steps) ctx.moveTo(px, 0);
+          else ctx.lineTo(px, 0);
+        }
+        ctx.restore();
+      }
+
+      function drawScene() {
+        const ctx = els.scene.getContext("2d");
+        const { width, height } = sceneSize;
+        if (!width || !height || !model) return;
+        ctx.clearRect(0, 0, width, height);
+        const canvasGradient = ctx.createLinearGradient(0, 0, 0, height);
+        canvasGradient.addColorStop(0, "#091319");
+        canvasGradient.addColorStop(1, "#0d1b21");
+        ctx.fillStyle = canvasGradient;
+        ctx.fillRect(0, 0, width, height);
+
+        const marginLeft = 38;
+        const marginRight = 28;
+        const trackLeft = marginLeft;
+        const trackRight = width - marginRight;
+        const trackWidth = trackRight - trackLeft;
+        const floorY = Math.min(height - 68, Math.max(225, height * .65));
+        const floorH = 12;
+        const stateSmall = segmentAt(model.smallSegments, elapsed);
+        const stateBig = segmentAt(model.bigSegments, elapsed);
+        const localView = clamp(Math.max(12, model.totalDistance * 2.35 + 7), 12, 36);
+        const wideView = Math.max(model.params.L + model.totalDistance + 9, 18, localView + 5);
+        const followStart = Math.max(0, model.approachDuration - .35);
+        const followDuration = 1.15;
+        const rawFollow = clamp((elapsed - followStart) / followDuration, 0, 1);
+        const follow = rawFollow * rawFollow * (3 - 2 * rawFollow);
+        const targetLeft = stateBig.x - localView * .41;
+        const viewport = {
+          left: (1 - follow) * 0 + follow * targetLeft,
+          width: wideView * (1 - follow) + localView * follow
+        };
+        const mapX = (worldX) => trackLeft + (worldX - viewport.left) / viewport.width * trackWidth;
+        const wallX = mapX(0);
+        const roughX = mapX(model.params.L);
+        const smallScreenX = mapX(stateSmall.x);
+        const bigScreenX = mapX(stateBig.x);
+        const blockScale = clamp(width / 720, .72, 1);
+        const smallWidth = 49 * blockScale;
+        const bigWidth = 86 * blockScale;
+        const smallHeight = 32 * blockScale;
+        const bigHeight = 54 * blockScale;
+        let smallDrawX = smallScreenX;
+        if (elapsed < model.approachDuration - EPS) {
+          smallDrawX = Math.min(smallScreenX, bigScreenX - (smallWidth + bigWidth) / 2 - 10);
+          smallDrawX = Math.max(trackLeft + smallWidth / 2, smallDrawX);
+        }
+        const smallBaseline = floorY - 8;
+        const bigBaseline = floorY - 8;
+
+        const sceneGradient = ctx.createLinearGradient(0, 38, 0, floorY);
+        sceneGradient.addColorStop(0, "#0c1c24");
+        sceneGradient.addColorStop(1, "#10252d");
+        ctx.fillStyle = sceneGradient;
+        ctx.fillRect(trackLeft, 36, trackWidth, floorY - 36);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(trackLeft, 36, trackWidth, floorY - 36);
+        ctx.clip();
+        ctx.strokeStyle = "rgba(103, 212, 208, .07)";
+        ctx.lineWidth = 1;
+        for (let y = 58; y < floorY - 16; y += 29) {
+          ctx.beginPath();
+          ctx.moveTo(trackLeft, y);
+          ctx.lineTo(trackRight, y);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        const smoothEnd = clamp(roughX, trackLeft, trackRight);
+        ctx.fillStyle = "#18343b";
+        ctx.fillRect(trackLeft, floorY, Math.max(0, smoothEnd - trackLeft), floorH);
+        ctx.fillStyle = "#394047";
+        ctx.fillRect(smoothEnd, floorY, Math.max(0, trackRight - smoothEnd), floorH);
+        ctx.strokeStyle = "#84a09d";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(trackLeft, floorY);
+        ctx.lineTo(trackRight, floorY);
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(225, 195, 151, .55)";
+        ctx.lineWidth = 1;
+        for (let x = Math.max(trackLeft, roughX); x < trackRight; x += 12) {
+          ctx.beginPath();
+          ctx.moveTo(x, floorY + floorH);
+          ctx.lineTo(x + 7, floorY);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "rgba(255,255,255,.12)";
+        ctx.fillRect(trackLeft, floorY + 3, trackWidth, 1);
+
+        if (roughX >= trackLeft - 2 && roughX <= trackRight + 2) {
+          ctx.setLineDash([4, 4]);
+          ctx.strokeStyle = "#8fd6ce";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(roughX, 42);
+          ctx.lineTo(roughX, floorY - 19);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          drawScenePill(ctx, clamp(roughX + 8, trackLeft + 4, trackRight - 84), 42, "粗糙面 · f", "#cdb086");
+        } else {
+          const edgeX = roughX < trackLeft ? trackLeft + 2 : trackRight - 2;
+          ctx.strokeStyle = "rgba(205, 176, 134, .72)";
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(edgeX, 43);
+          ctx.lineTo(edgeX, floorY - 19);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          drawScenePill(ctx, roughX < trackLeft ? trackLeft + 8 : trackRight - 8, 42, roughX < trackLeft ? "交界在左侧" : "粗糙面在右侧", "#cdb086", roughX < trackLeft ? "left" : "right");
+        }
+
+        if (wallX >= trackLeft - 8 && wallX <= trackRight + 8) {
+          ctx.fillStyle = "#536a6d";
+          ctx.fillRect(wallX - 5, 74, 10, floorY - 63);
+          ctx.strokeStyle = "#b7cbc3";
+          ctx.lineWidth = 2;
+          for (let y = 79; y < floorY - 4; y += 13) {
+            ctx.beginPath();
+            ctx.moveTo(wallX - 5, y);
+            ctx.lineTo(wallX + 5, y - 8);
+            ctx.stroke();
+          }
+          drawScenePill(ctx, clamp(wallX + 9, trackLeft + 4, trackRight - 42), 70, "墙 · x=0", "#b7cbc3");
+        } else if (viewport.left > 0) {
+          ctx.strokeStyle = "rgba(183, 203, 195, .72)";
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(trackLeft + 2, 76);
+          ctx.lineTo(trackLeft + 2, floorY - 19);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          drawScenePill(ctx, trackLeft + 8, 70, "← 墙在左侧", "#b7cbc3");
+        }
+
+        if (roughX >= trackLeft - 2 && roughX <= trackRight + 2) {
+          ctx.fillStyle = "#8edbd2";
+          ctx.font = "10px Inter, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("x = L", roughX, floorY + 31);
+        }
+
+        ctx.fillStyle = "#98aaa8";
+        ctx.font = "700 10px Inter, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(follow > .08 ? "FOLLOW · km" : "GLOBAL VIEW", trackLeft + 8, 61);
+        ctx.fillStyle = "#71898a";
+        ctx.font = "10px Inter, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(`视野 ${fmt(viewport.left, 1)} — ${fmt(viewport.left + viewport.width, 1)} m`, trackLeft + 8, height - 42);
+        ctx.textAlign = "right";
+        ctx.fillText(`大块 x = ${fmt(stateBig.x, 2)} m`, trackRight, height - 23);
+        ctx.textAlign = "left";
+        ctx.fillText(`小块 x = ${fmt(stateSmall.x, 2)} m`, trackLeft, height - 23);
+
+        const overviewWidth = clamp(width * .34, 132, 190);
+        drawOverview(ctx, trackRight - overviewWidth, 76, overviewWidth, 45, viewport, stateSmall, stateBig);
+
+        function trailPath(key, color, alpha) {
+          const trailSpan = clamp(model.duration * .045, .25, 4);
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2;
+          ctx.lineCap = "round";
+          ctx.globalAlpha = alpha;
+          ctx.beginPath();
+          for (let i = 7; i >= 0; i -= 1) {
+            const past = sampleAt(Math.max(0, elapsed - trailSpan * i / 7));
+            const px = mapX(past[key].x);
+            const py = floorY - (key === "big" ? bigHeight : smallHeight) * .48 - 8;
+            if (i === 7) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.stroke();
+          for (let i = 6; i >= 1; i -= 1) {
+            const past = sampleAt(Math.max(0, elapsed - trailSpan * i / 7));
+            const px = mapX(past[key].x);
+            const py = floorY - (key === "big" ? bigHeight : smallHeight) * .48 - 8;
+            ctx.globalAlpha = alpha * (1 - i / 8) * .65;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(px, py, key === "big" ? 2.2 : 1.7, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+        trailPath("big", "#f0a565", .34);
+        trailPath("small", "#67d4d0", .27);
+
+        const pulseEvent = model.collisions.find((collision) => Math.abs(elapsed - collision.time) < .18 / Math.max(.25, Number(els.speed.value)));
+        if (pulseEvent) {
+          const pulseStrength = 1 - Math.min(1, Math.abs(elapsed - pulseEvent.time) / .18);
+          const pulseX = mapX(pulseEvent.position);
+          const pulse = 17 + pulseStrength * 27;
+          ctx.save();
+          ctx.strokeStyle = `rgba(255, 220, 160, ${.45 + pulseStrength * .45})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(pulseX, floorY - 47, pulse, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.strokeStyle = `rgba(255, 235, 190, ${.35 + pulseStrength * .5})`;
+          ctx.lineWidth = 1.5;
+          for (let i = 0; i < 8; i += 1) {
+            const angle = i * Math.PI / 4;
+            const inner = pulse + 5;
+            const outer = pulse + 12 + pulseStrength * 5;
+            ctx.beginPath();
+            ctx.moveTo(pulseX + Math.cos(angle) * inner, floorY - 47 + Math.sin(angle) * inner);
+            ctx.lineTo(pulseX + Math.cos(angle) * outer, floorY - 47 + Math.sin(angle) * outer);
+            ctx.stroke();
+          }
+          ctx.restore();
+          drawScenePill(ctx, clamp(pulseX - 36, trackLeft + 4, trackRight - 76), floorY - 106, `碰撞 ${pulseEvent.index}`, "#ffe0ac");
+        }
+
+        const smallPalette = {
+          bodyHi: "#64ddd0", body: "#2e9695", bodyLow: "#175c67",
+          topHi: "#c5f5e4", top: "#62c5bc", side: "#15545d",
+          edge: "#9ae9d9", plate: "rgba(8, 48, 57, .72)", plateEdge: "rgba(178, 246, 224, .7)",
+          text: "#d5fff2", bolt: "#d4fff1"
+        };
+        const bigPalette = {
+          bodyHi: "#f3bb80", body: "#c87946", bodyLow: "#77402f",
+          topHi: "#ffe0ae", top: "#df995d", side: "#713a2c",
+          edge: "#ffd09c", plate: "rgba(70, 35, 27, .72)", plateEdge: "rgba(255, 211, 156, .74)",
+          text: "#fff0d0", bolt: "#ffe0ae"
+        };
+
+        if (smallDrawX > trackLeft - smallWidth && smallDrawX < trackRight + smallWidth) {
+          drawBlock(ctx, smallDrawX, smallBaseline, smallWidth, smallHeight, smallPalette, "m", stateSmall.v, "#b7fff0");
+        }
+        if (bigScreenX > trackLeft - bigWidth && bigScreenX < trackRight + bigWidth) {
+          drawBlock(ctx, bigScreenX, bigBaseline, bigWidth, bigHeight, bigPalette, "km", stateBig.v, "#ffe0b6");
+        }
+
+        const targetScreenX = mapX(model.finalPosition);
+        if (targetScreenX >= trackLeft && targetScreenX <= trackRight) {
+          ctx.strokeStyle = "rgba(240, 165, 101, .45)";
+          ctx.setLineDash([3, 4]);
+          ctx.beginPath();
+          ctx.moveTo(targetScreenX, floorY - 18);
+          ctx.lineTo(targetScreenX, floorY + 15);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = "#d7a06c";
+          ctx.font = "10px Inter, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(`停止 · S=${fmtCompact(model.totalDistance)} m`, targetScreenX, floorY + 31);
+        }
+
+        if (elapsed >= model.duration - EPS) {
+          ctx.fillStyle = "rgba(157, 214, 141, .08)";
+          ctx.fillRect(trackLeft, 36, trackWidth, floorY - 36);
+          drawScenePill(ctx, trackLeft + 8, 42, "运动结束 · 能量耗尽", "#b4dfa6");
+        }
+      }
+
+      function drawChart() {
+        const ctx = els.chart.getContext("2d");
+        const { width, height } = chartSize;
+        if (!width || !height || !model) return;
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "#0c151b";
+        ctx.fillRect(0, 0, width, height);
+
+        const pad = { left: 56, right: 22, top: 22, bottom: 43 };
+        const plotW = Math.max(20, width - pad.left - pad.right);
+        const plotH = Math.max(20, height - pad.top - pad.bottom);
+        const tMax = Math.max(model.duration, 0.001);
+        const xMax = Math.max(model.maxWorld * 1.02, model.params.L + .1);
+        const tx = (t) => pad.left + clamp(t / tMax, 0, 1) * plotW;
+        const ty = (x) => pad.top + plotH - clamp(x / xMax, 0, 1) * plotH;
+
+        ctx.font = "10px Inter, sans-serif";
+        ctx.textBaseline = "middle";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 5; i += 1) {
+          const y = pad.top + plotH * i / 5;
+          ctx.strokeStyle = i === 5 ? "#486064" : "rgba(125, 158, 157, .16)";
+          ctx.beginPath();
+          ctx.moveTo(pad.left, y);
+          ctx.lineTo(pad.left + plotW, y);
+          ctx.stroke();
+          ctx.fillStyle = "#71898a";
+          ctx.textAlign = "right";
+          const value = xMax * (5 - i) / 5;
+          ctx.fillText(fmt(value, value >= 100 ? 0 : 1), pad.left - 8, y);
+        }
+        for (let i = 0; i <= 6; i += 1) {
+          const x = pad.left + plotW * i / 6;
+          ctx.strokeStyle = i === 0 ? "#486064" : "rgba(125, 158, 157, .11)";
+          ctx.beginPath();
+          ctx.moveTo(x, pad.top);
+          ctx.lineTo(x, pad.top + plotH);
+          ctx.stroke();
+          ctx.fillStyle = "#71898a";
+          ctx.textAlign = "center";
+          ctx.fillText(fmt(tMax * i / 6, tMax >= 100 ? 0 : 1), x, pad.top + plotH + 18);
+        }
+
+        ctx.strokeStyle = "#6a8281";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, pad.top);
+        ctx.lineTo(pad.left, pad.top + plotH);
+        ctx.lineTo(pad.left + plotW, pad.top + plotH);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.setLineDash([4, 5]);
+        ctx.lineWidth = 1;
+        model.collisions.forEach((collision) => {
+          const x = tx(collision.time);
+          ctx.strokeStyle = "rgba(221, 190, 142, .45)";
+          ctx.beginPath();
+          ctx.moveTo(x, pad.top);
+          ctx.lineTo(x, pad.top + plotH);
+          ctx.stroke();
+        });
+        ctx.restore();
+
+        function plot(key, color) {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2.2;
+          ctx.lineJoin = "round";
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          model.samples.forEach((sample, index) => {
+            const px = tx(sample.t);
+            const py = ty(sample[key].x);
+            if (index === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          });
+          ctx.stroke();
+        }
+
+        plot("small", "#67d4d0");
+        plot("big", "#f0a565");
+
+        model.collisions.forEach((collision) => {
+          const sample = sampleAt(collision.time);
+          ctx.fillStyle = "#fbe2b9";
+          ctx.beginPath();
+          ctx.arc(tx(collision.time), ty(sample.small.x), 3.2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        const now = sampleAt(elapsed);
+        const playX = tx(elapsed);
+        ctx.strokeStyle = "rgba(232, 240, 236, .6)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(playX, pad.top);
+        ctx.lineTo(playX, pad.top + plotH);
+        ctx.stroke();
+        ctx.fillStyle = "#e8f0ec";
+        ctx.beginPath();
+        ctx.arc(playX, ty(now.small.x), 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#f0a565";
+        ctx.beginPath();
+        ctx.arc(playX, ty(now.big.x), 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.save();
+        ctx.translate(15, pad.top + plotH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = "#8da3a1";
+        ctx.font = "11px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("位置 x / m", 0, 0);
+        ctx.restore();
+        ctx.fillStyle = "#8da3a1";
+        ctx.font = "11px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("时间 t / s", pad.left + plotW / 2, height - 8);
+      }
+
+      function sampleAt(t) {
+        const safeT = clamp(t, 0, model ? model.duration : 0);
+        return {
+          small: segmentAt(model.smallSegments, safeT),
+          big: segmentAt(model.bigSegments, safeT)
+        };
+      }
+
+      function phaseAt(t) {
+        if (!model) return { text: "准备开始", warn: false };
+        if (t < model.approachDuration - EPS) return { text: "小方块接近大方块", warn: false };
+        for (const cycle of model.cycles) {
+          if (t < cycle.start - EPS) continue;
+          if (t <= cycle.end + EPS) {
+            if (cycle.leftEnd > cycle.start + EPS && t < cycle.leftEnd) return { text: `第 ${cycle.index} 次碰撞后 · 粗糙面左行`, warn: false };
+            if (cycle.wallHit > cycle.leftEnd + EPS && t < cycle.wallHit) return { text: `第 ${cycle.index} 次 · 小方块向墙返回`, warn: false };
+            if (cycle.boundaryReturn > cycle.wallHit + EPS && t < cycle.boundaryReturn) return { text: `第 ${cycle.index} 次 · 撞墙后返回`, warn: false };
+            if (cycle.smallEnd > cycle.boundaryReturn + EPS && t < cycle.smallEnd) return { text: `第 ${cycle.index} 次 · 粗糙面追赶`, warn: false };
+            if (cycle.end > cycle.smallEnd + EPS && t < cycle.end) return { text: `第 ${cycle.index} 次 · 等待大方块停止`, warn: true };
+            if (!cycle.hasNextCollision && t >= cycle.end - EPS) return { text: "末次碰撞后 · 能量耗尽", warn: false };
+            return { text: `第 ${cycle.index} 次碰撞`, warn: false };
+          }
+        }
+        return { text: "运动结束 · 能量耗尽", warn: false };
+      }
+
+      function renderEventList() {
+        if (!model) return;
+        const rows = model.collisions.map((collision) => {
+          const passed = elapsed >= collision.time - EPS;
+          const current = Math.abs(elapsed - collision.time) < .14 / Math.max(.25, Number(els.speed.value));
+          return `<div class="event-row${passed ? " passed" : ""}${current ? " current" : ""}">
+            <span class="event-index">${collision.index}</span>
+            <div class="event-main"><strong>小块撞击大块</strong><span>x = ${fmt(collision.position, 2)} m · Eᵢ = ${fmt(collision.energy, 2)} J</span></div>
+            <span class="event-time">t = ${fmt(collision.time, 2)} s</span>
+          </div>`;
+        }).join("");
+        els.eventList.innerHTML = rows + `<div class="event-end"><span>●</span><span>末次运动在粗糙面上停止，累计耗散能量 = ${fmt(model.E1, 2)} J</span></div>`;
+      }
+
+      function updateReadouts() {
+        if (!model) return;
+        const now = sampleAt(elapsed);
+        const phase = phaseAt(elapsed);
+        const passed = model.collisions.filter((collision) => elapsed >= collision.time - EPS).length;
+        const currentDistance = Math.max(0, now.big.x - model.params.L);
+        const smallEnergy = .5 * model.params.m * now.small.v * now.small.v;
+        const bigEnergy = .5 * model.params.k * model.params.m * now.big.v * now.big.v;
+        els.time.textContent = `${fmt(elapsed, 2)} s`;
+        els.distance.textContent = `${fmt(currentDistance, 2)} m`;
+        els.liveCollisions.textContent = `${passed} / ${model.N}`;
+        els.seek.max = String(model.duration);
+        els.seek.value = String(elapsed);
+        els.duration.textContent = `${fmt(model.duration, 1)} s`;
+        els.phase.textContent = phase.text;
+        els.phase.classList.toggle("warn", phase.warn);
+        els.energyState.textContent = elapsed >= model.duration - EPS
+          ? "能量耗尽"
+          : `Eₘ ${fmt(smallEnergy, 2)} J · Eₖₘ ${fmt(bigEnergy, 2)} J`;
+        renderEventList();
+      }
+
+      function updateTheory() {
+        if (!model) return;
+        els.count.textContent = String(model.N);
+        els.totalDistance.textContent = fmtCompact(model.totalDistance);
+        els.initialEnergy.textContent = fmtCompact(model.E1);
+        els.stopPosition.textContent = fmtCompact(model.totalDistance);
+        els.alpha.textContent = fmt(model.alpha, 6);
+        els.q.textContent = fmt(model.q, 6);
+        els.theta.textContent = fmt(model.theta, 6);
+        els.formulaDistance.textContent = fmtCompact(model.closedDistance);
+        els.condition.textContent = model.orderValid ? "题设时序满足" : `L 需 ≥ ${fmtCompact(model.requiredL)} m`;
+        els.condition.classList.toggle("ok", model.orderValid);
+        els.condition.classList.toggle("warn", !model.orderValid);
+      }
+
+      function render() {
+        drawScene();
+        drawChart();
+        updateReadouts();
+      }
+
+      function rebuild() {
+        const params = readParams();
+        model = computeModel(params);
+        elapsed = 0;
+        playing = false;
+        lastFrame = null;
+        els.speedValue.textContent = `${Number(els.speed.value).toFixed(1)}×`;
+        updateTheory();
+        updatePlayButton();
+        render();
+      }
+
+      function updatePlayButton() {
+        if (playing) {
+          els.playSymbol.textContent = "Ⅱ";
+          els.playLabel.textContent = "暂停";
+        } else {
+          els.playSymbol.textContent = "▶";
+          els.playLabel.textContent = elapsed >= (model ? model.duration - EPS : Infinity) ? "重播" : "播放";
+        }
+      }
+
+      function togglePlay() {
+        if (!model) return;
+        if (elapsed >= model.duration - EPS) elapsed = 0;
+        playing = !playing;
+        lastFrame = null;
+        updatePlayButton();
+      }
+
+      function stepForward() {
+        if (!model) return;
+        playing = false;
+        const nextCollision = model.collisions.find((collision) => collision.time > elapsed + .02);
+        if (nextCollision) elapsed = nextCollision.time;
+        else elapsed = Math.min(model.duration, elapsed + Math.max(.25, model.duration / 20));
+        updatePlayButton();
+        render();
+      }
+
+      function animationFrame(now) {
+        if (playing) {
+          if (lastFrame === null) lastFrame = now;
+          const delta = Math.min(0.05, (now - lastFrame) / 1000);
+          elapsed += delta * Number(els.speed.value);
+          lastFrame = now;
+          if (elapsed >= model.duration) {
+            elapsed = model.duration;
+            playing = false;
+            updatePlayButton();
+          }
+          render();
+        } else {
+          lastFrame = now;
+        }
+        requestAnimationFrame(animationFrame);
+      }
+
+      function seekFromPointer(event) {
+        if (!model) return;
+        const rect = els.chart.getBoundingClientRect();
+        const padLeft = 56;
+        const padRight = 22;
+        const ratio = clamp((event.clientX - rect.left - padLeft) / Math.max(1, rect.width - padLeft - padRight), 0, 1);
+        elapsed = ratio * model.duration;
+        playing = false;
+        updatePlayButton();
+        render();
+      }
+
+      [els.k, els.m, els.v, els.f, els.l].forEach((input) => {
+        input.addEventListener("change", rebuild);
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") rebuild();
+        });
+      });
+      els.speed.addEventListener("input", () => {
+        els.speedValue.textContent = `${Number(els.speed.value).toFixed(1)}×`;
+        renderEventList();
+      });
+      els.play.addEventListener("click", togglePlay);
+      els.step.addEventListener("click", stepForward);
+      els.reset.addEventListener("click", rebuild);
+      els.seek.addEventListener("input", () => {
+        elapsed = Number(els.seek.value);
+        playing = false;
+        updatePlayButton();
+        render();
+      });
+      els.chart.addEventListener("pointerdown", seekFromPointer);
+      window.addEventListener("resize", resizeCanvases);
+      document.addEventListener("keydown", (event) => {
+        if (event.target.matches("input")) return;
+        if (event.code === "Space") {
+          event.preventDefault();
+          togglePlay();
+        }
+        if (event.key.toLowerCase() === "r") rebuild();
+      });
+
+      rebuild();
+      resizeCanvases();
+      requestAnimationFrame(animationFrame);
+    })();
+  </script>
+</body>
+</html>
