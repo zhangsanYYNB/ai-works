@@ -34,13 +34,16 @@ function fmtTime(sec) {
   return String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
 }
 
-/** localStorage 安全读写 */
+/** localStorage 安全读写（带内存镜像：localStorage 被禁用/写满时进度仍可在本次会话内生效） */
 const Store = {
+  _mem: {},
   get(key, def) {
+    if (key in this._mem) return this._mem[key];
     try { const v = localStorage.getItem('br_' + key); return v === null ? def : JSON.parse(v); }
     catch (e) { return def; }
   },
   set(key, val) {
+    this._mem[key] = val;
     try { localStorage.setItem('br_' + key, JSON.stringify(val)); } catch (e) {}
   },
 };

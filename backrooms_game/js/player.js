@@ -389,9 +389,10 @@ class Player {
       if (g > this.feetY + STEP_UP_MAX) return false;    // 台阶太高
       return true;
     }
-    // 空中：不能水平撞进高于脚底的楼板区域
+    // 空中：不能水平撞进“脚下恰好有楼板/高台边缘”的区域（防落地嵌模）；
+    // 高处的上层楼板不算障碍，保证多层关卡里跳跃仍有空中控制
     const gAll = level.groundAt(x, z);
-    if (this.vy <= 0 && gAll > this.feetY + 0.05 && this.feetY + 0.25 < gAll) return false;
+    if (this.vy <= 0 && gAll > this.feetY + 0.05 && gAll < this.feetY + 2.2) return false;
     return true;
   }
 

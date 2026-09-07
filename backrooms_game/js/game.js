@@ -30,7 +30,14 @@ class Game {
     /* 渲染器 */
     const canvas = document.getElementById('game-canvas');
     this.canvas = canvas;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+    try {
+      this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+    } catch (err) {
+      console.error(err);
+      const q = document.querySelector('.menu-quote');
+      if (q) q.innerHTML = '<b style="color:#e8a0a0">无法初始化 WebGL。</b><br>请关闭其他标签页释放内存后刷新重试。';
+      throw err;
+    }
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.outputEncoding = THREE.sRGBEncoding;
     this.scene = null;
@@ -39,7 +46,11 @@ class Game {
     this._resize();
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     // WebGL 上下文丢失/恢复（低端设备或软件渲染时可能出现）
-    canvas.addEventListener('webglcontextlost', e => e.preventDefault());
+    canvas.addEventListener('webglcontextlost', e => {
+      e.preventDefault();
+      this._ctxLostAt = Date.now();
+    });
+    canvas.addEventListener('webglcontextrestored', () => { this._ctxLostAt = 0; });
 
     /* 自适应画质 */
     this._frameTimes = [];
@@ -167,6 +178,10 @@ class Game {
         }
 
         // 进度状态
+        // 发现状态：首次进入才播完整介绍，重回旧层只给轻提示
+        const disc = Game.ensureDiscovered();
+        const isFirstVisit = !disc[cfg.id];
+        if (!isFirstVisit) { disc[cfg.id] = true; Store.set('discovered', disc); }
         this.visited = new Set();
         this.notesRead = 0;
         this.itemsGot = 0;
@@ -183,8 +198,8 @@ class Game {
         this.player.noclip = this.cheats.noclip;
 
         // 记录探索进度
-        const disc = Game.ensureDiscovered();
-        if (!disc[cfg.id]) { disc[cfg.id] = true; Store.set('discovered', disc); }
+        const disc2 = Game.ensureDiscovered();
+        if (!disc2[cfg.id]) { disc2[cfg.id] = true; Store.set('discovered', disc2); }
         Store.set('lastLevel', cfg.id);
 
         UI.setLoading(1);
@@ -196,7 +211,8 @@ class Game {
           UI.applyCrosshair();
           this._updateInventory();
           const diffName = { easy: '🌿 轻松', normal: '⚔ 普通', hard: '💀 哥梦' }[UI.getDifficulty()] || '普通';
-          UI.showToast(cfg.introText + '<br><span style="opacity:.75">难度：' + diffName + '</span>', 5200);
+          if (isFirstVisit) UI.showToast(cfg.introText + '<br><span style="opacity:.75">难度：' + diffName + '</span>', 5200);
+          else UI.showToast('📍 重回<b>' + cfg.short + '</b><span style="opacity:.75"> · 难度：' + diffName + '</span>', 2000);
           UI.fadeIn();
           this.state = 'playing';
           Sound.startAmbient(cfg.id);
@@ -256,9 +272,10 @@ class Game {
     UI.setLoading(0.5);
     const fromName = this.level.cfg.short;
     setTimeout(() => {
+      // 先读发现状态再进层：startLevel 会标记发现，反序会误报“新层级”
+      const first = !Game.ensureDiscovered()[levelId];
       this.startLevel(U.clamp(levelId, 0, LEVEL_CFGS.length - 1));
       const toCfg = LEVEL_CFGS[levelId];
-      const first = Game.ensureDiscovered()[levelId];
       UI.showLevelBanner(toCfg, first);
       setTimeout(() => {
         UI.showToast(`⬇ ${viaLabel || '穿行'}：<b>${fromName}</b> → <b>${toCfg.short}</b>${first ? '　✨ 新层级！' : ''}`, 3000);
@@ -327,8 +344,10 @@ class Game {
       if (it.taken) continue;
       const d = U.dist2(p.x, p.z, it.x, it.z);
       if (d >= bestD) continue;
-      // 多层：上层物品不能隔着楼板被拾取（垂差超过 1.6m 忽略）
-      if (it.y != null && Math.abs((it.y + 0.5) - (p.y - EYE_H)) > 1.6) continue;
+      // 多层：不同高度的可交互物不能隔着楼板/高台被拾取（垂差超过 1.35m 忽略；装置默认在底层）
+      // 注意 player.pos.y 恒为 EYE_H，真实脚底高度在 player.feetY
+      const itY = it.y != null ? it.y : 0;
+      if (Math.abs((itY + 0.5) - (this.player.feetY || 0)) > 1.35) continue;
       best = it; bestD = d;
     }
     return best;
@@ -378,6 +397,7 @@ class Game {
       b.mesh.position.x += b.vx * dt;
       b.mesh.position.z += b.vz * dt;
       b.y += b.vy * dt;
+      b.mesh.position.y = b.y - 0.1;
       b.mesh.rotation.x += dt * 12; b.mesh.rotation.z += dt * 9;
       const g = this.level.groundAt(b.mesh.position.x, b.mesh.position.z, b.y + 0.05);
       const floorY = g > HOLE_DEPTH / 2 ? g : 0;
@@ -607,6 +627,12 @@ class Game {
     requestAnimationFrame(() => this._loop());
     const dt = Math.min(this.clock.getDelta(), 0.05);
 
+    // WebGL 上下文丢失超过 4s 未恢复：自动重载页面（进度在本地存储，会回到当前层级）
+    if (this._ctxLostAt && this.state === 'playing' && Date.now() - this._ctxLostAt > 4000) {
+      location.reload();
+      return;
+    }
+
     if ((this.state === 'playing' || this.state === 'note') && this.level) {
       const pausedLike = this.state !== 'playing';
       this.elapsed += dt;
@@ -728,6 +754,11 @@ class Game {
         this._hudT = 0.5;
         const goal = this.currentGoal();
         UI.setObjective(`${goal}<br><span style="opacity:.75">🍾 ×${this.bottles}${this.hiddenIn ? ' · 🚪 藏身中' : ''}</span>`);
+        // 多层关卡：楼层指示（防迷路，玩家能分清自己在几楼）
+        if (this.level.cfg.stories >= 2) {
+          const tag = this.level.cfg.short + ' · ' + (this.level.storyAt(this.player.feetY) + 1) + 'F';
+          if (tag !== this._lastFloorTag) { this._lastFloorTag = tag; UI.setLevelTag(tag); }
+        }
       }
       UI.drawMinimap(this.level, this.player, this.visited, this.entity);
     }

@@ -191,6 +191,8 @@ class Entity {
 
     /* ---- 移动 ---- */
     let speed = this.state === 'chase' ? this.cfg.speedChase : (this.state === 'search' ? this.cfg.speedPatrol * 1.3 : this.cfg.speedPatrol);
+    const gyE = L.groundAt(this.pos.x, this.pos.y, 0.5);
+    const baseY = gyE > HOLE_DEPTH / 2 ? gyE : 0;
     if (this.path.length && this.pathIdx < this.path.length) {
       const [cx, cy] = this.path[this.pathIdx];
       const [wx, wz] = L.cellToWorld(cx, cy);
@@ -215,15 +217,16 @@ class Entity {
         const step = Math.min(speed * dt, d);
         const nx = this.pos.x + dx / d * step;
         const nz = this.pos.y + dz / d * step;
-        if (!L.circleHitsWall(nx, nz, 0.3)) { this.pos.x = nx; this.pos.y = nz; }
+        // 高差保护：不追进高台/台阶里（否则会嵌进地形）
+        const gN = L.groundAt(nx, nz);
+        const stepBlocked = gN > HOLE_DEPTH / 2 && gN > baseY + 0.55;
+        if (!stepBlocked && !L.circleHitsWall(nx, nz, 0.3)) { this.pos.x = nx; this.pos.y = nz; }
         this.dir = U.lerpAngle(this.dir, Math.atan2(dx, dz), dt * 6);
       }
     }
 
     /* ---- 动画 & 同步 ---- */
     this.bob += dt * (this.state === 'chase' ? 11 : 5);
-    const gy = L.groundAt(this.pos.x, this.pos.y, 0.5);
-    const baseY = gy > HOLE_DEPTH / 2 ? gy : 0;
     this.mesh.position.set(this.pos.x, baseY + Math.abs(Math.sin(this.bob)) * 0.06, this.pos.y);
     this.mesh.rotation.y = this.dir;
     // 眼睛：追逐时变红；无限追杀模式永远猩红
@@ -231,8 +234,10 @@ class Entity {
     else if (this.state === 'search') this.eyeMat.color.setHex(this._eyeBase === 0xffffff ? 0xffcc66 : 0xffaa44);
     else this.eyeMat.color.setHex(this._eyeBase);
 
-    /* ---- 抓捕判定 ---- */
-    if (distP < this.cfg.catchRange) onCatch();
+    /* ---- 抓捕判定（含垂直距离：站在高台/楼上时隔空抓不到） ---- */
+    const gp = window.GAME && window.GAME.player;
+    const pFeetY = gp ? gp.feetY : (playerPos.y - EYE_H);
+    if (distP < this.cfg.catchRange && Math.abs(pFeetY - baseY) < 1.7) onCatch();
   }
 
   /** 与玩家的距离（供音效/心跳用） */

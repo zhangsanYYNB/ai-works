@@ -31,7 +31,7 @@ const LEVEL_CFGS = [
     ambient: { sky: 0x232c38, ground: 0x0a0c10, intensity: 0.22 },
     textures: { wall: 'concreteWall', floor: 'wetFloor', ceil: 'garageCeil' },
     lampsEvery: 3, pointLights: 4, dark: true, rooms: 6, pillars: true,
-    platformH: 1.6,
+    platformH: 1.6, stories: 2, storyH: 3.2,
     props: { barrel: 8, crate: 6, pipeCol: 4, pallet: 4 },
     entity: { name: '潜行者', look: 'stalker', speedPatrol: 1.7, speedChase: 3.6, sightRange: 14, hearingRange: 9, catchRange: 1.15, deathText: '潮湿的黑暗里，它一直贴着柱子在等你。' },
     hint: '黑暗中找到保险丝，恢复供电后电梯才会运行',
@@ -66,6 +66,7 @@ const LEVEL_CFGS = [
     ambient: { sky: 0x6a6552, ground: 0x24211a, intensity: 0.4 },
     textures: { wall: 'officeWall', floor: 'officeFloor', ceil: 'garageCeil' },
     lampsEvery: 3, pointLights: 4, rooms: 6, pillars: true,
+    stories: 2, storyH: 3.2,
     props: { desk: 7, cabinet: 6, chair: 8, locker: 3 },
     entity: { name: '猎手', look: 'wraith', speedPatrol: 2.1, speedChase: 4.3, sightRange: 17, hearingRange: 12, catchRange: 1.15, deathText: '它比你想的更快。奔跑的声音就是它的晚餐铃。' },
     hint: '办公区的某个隔间里藏着通往病房的钥匙卡……不，那是另一层的事',
@@ -156,6 +157,7 @@ const LEVEL_CFGS = [
     ambient: { sky: 0x555a60, ground: 0x181a1d, intensity: 0.34 },
     textures: { wall: 'concreteWall', floor: 'wetFloor', ceil: 'garageCeil' },
     lampsEvery: 4, pointLights: 5, rooms: 3, pillars: true, platformH: 2.0,
+    stories: 2, storyH: 4.4,
     props: { shelf: 14, crate: 6, barrel: 4, locker: 3 },
     entity: { name: '守仓人', look: 'wraith', speedPatrol: 2.2, speedChase: 4.2, sightRange: 15, hearingRange: 11, catchRange: 1.15, deathText: '货架间的通道会重新排列。而它记得每一条你走过的路。' },
     hint: '高耸的货架构成峡谷。高处平台有货物堆成的天梯',
@@ -239,7 +241,7 @@ const LEVEL_CFGS = [
   },
   {
     id: 13, name: 'LEVEL 13 · 垂直公寓', short: '垂直公寓',
-    size: 23, wallH: 2.9, stories: 3, storyH: 3.8,
+    size: 23, wallH: 2.9, stories: 3, storyH: 3.2,
     fogColor: 0x12100c, fogDensity: 0.06,
     ambient: { sky: 0x8a7a5a, ground: 0x2a241a, intensity: 0.38 },
     textures: { wall: 'hotelWall', floor: 'redCarpet', ceil: 'woodCeil' },
@@ -317,7 +319,7 @@ const LEVEL_CFGS = [
     ambient: { sky: 0xd8c9a0, ground: 0x403422, intensity: 0.42 },
     textures: { wall: 'officeWall', floor: 'officeFloor', ceil: 'ceiling' },
     lampsEvery: 5, pointLights: 4, rooms: 8, braid: 0.12,
-    layout: 'rooms',
+    layout: 'rooms', stories: 2, storyH: 3.8,
     props: { shelf: 14, crate: 2 },
     landmark: 'booktower', bottle: 3,
     entity: { name: '书虫', look: 'crawler', speedPatrol: 1.7, speedChase: 3.6, sightRange: 12, hearingRange: 17, catchRange: 1.05, deathText: '书虫把你钉进了书脊之间。\n从此这座图书馆多了一本会呼吸的书。' },
@@ -393,6 +395,7 @@ const LEVEL_CFGS = [
     textures: { wall: 'metal', floor: 'wetFloor', ceil: 'metal' },
     lampsEvery: 5, pointLights: 4, rooms: 4, braid: 0.2,
     pillars: true, layout: 'halls', electricHum: true,
+    stories: 2, storyH: 3.8,
     landmark: 'server', bottle: 3,
     entity: { name: '信号幽灵', look: 'wraith', speedPatrol: 2.3, speedChase: 4.5, sightRange: 14, hearingRange: 16, catchRange: 1.1, deathText: '最后一行日志：\n[ERROR] 访客 #4741 已归档。' },
     goal: '拿到管理员卡，通过安全门',
@@ -814,6 +817,13 @@ class Level {
   }
   isHoleCell(cx, cy) { return this.floorMap && this.floorMap[cy * this.W + cx] <= HOLE_DEPTH / 2; }
 
+  /** 玩家当前所在楼层（0 = 地面，1 = 二层…）；天梯攀爬中按最近楼层算 */
+  storyAt(y) {
+    let s = 0;
+    if (this.layers) for (let k = 0; k < this.layers.length; k++) if (y >= this.layers[k].y - 1.2) s = k + 1;
+    return s;
+  }
+
   /** 该点的支撑地面高度（多层：capY 缺省取最高层；传入参考高度则取 ≤capY 的最高层） */
   groundAt(x, z, capY) {
     const [cx, cy] = this.worldToCell(x, z);
@@ -838,10 +848,11 @@ class Level {
     return best;
   }
 
-  /** 该格头顶封闭面高度（灯贴其下方） */
+  /** 该格头顶封闭面高度（灯贴其下方）；高台/台阶上空为挑高天花板 */
   _ceilTopAt(cx, cy) {
     const i = cy * this.W + cx;
     let h = this.cfg.wallH;
+    if (this._atriumH && this.floorMap && this.floorMap[i] > 0.4) h += this._atriumH;
     for (const L of this.layers) if (L.cells.has(i)) h = L.y + this.cfg.wallH;
     return h;
   }
@@ -898,6 +909,9 @@ class Level {
 
     /* 高度图初始化 */
     this.floorMap = new Float32Array(this.W * this.H);
+    /* 挑空高度：高台/台阶上空天花板抬高量（修复高台穿模） */
+    this._atriumH = cfg.platformH ? cfg.platformH + 0.6 : 0;
+    this._topH = cfg.wallH + this._atriumH;
 
     const group = new THREE.Group();
     this.group = group;
@@ -946,21 +960,31 @@ class Level {
 
     /* ---- 多层楼层（天梯互联）---- */
     if ((cfg.stories || 1) >= 2) this._buildStories(group);
+    if (this.layers.length) this._topH = Math.max(this._topH, this.layers.length * cfg.storyH + cfg.wallH);
 
-    /* ---- 墙体（从 -2 到 wallH，覆盖坑洞侧壁） ---- */
+    /* ---- 墙体（从 -2 到 wallH，覆盖坑洞侧壁；挑空邻接处加高封闭） ---- */
     const wallBoxes = [];
     const upWallH = (cfg.stories >= 2 ? (cfg.stories - 1) * cfg.storyH : 0);
+    const atriumH = this._atriumH;
     for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) {
       if (grid[y][x] !== 1) continue;
+      let extra = 0;
+      if (atriumH) {
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && ny >= 0 && nx < this.W && ny < this.H && grid[ny][nx] === 0 && this.floorMap[ny * this.W + nx] > 0.4) { extra = atriumH; break; }
+        }
+      }
+      const wh = cfg.wallH + 2 + upWallH + extra;
       const [wx, wz] = this.cellToWorld(x, y);
-      wallBoxes.push({ w: CELL, h: cfg.wallH + 2 + upWallH, d: CELL, x: wx, y: (cfg.wallH - 2 + upWallH) / 2, z: wz, uOff: rng.int(0, 3) });
+      wallBoxes.push({ w: CELL, h: wh, d: CELL, x: wx, y: (wh - 2) / 2, z: wz, uOff: rng.int(0, 3) });
     }
     group.add(new THREE.Mesh(mergeBoxes(wallBoxes), this.wallMat));
 
     /* ---- 地板：逐格合并（跳过破洞，支持高差） ---- */
     this._buildFloors(group);
 
-    /* ---- 天花板：逐格合并（被上层楼板覆盖的格子跳过）---- */
+    /* ---- 天花板：逐格合并（高台/台阶上空抬高成挑空中庭，被上层楼板覆盖的格子跳过）---- */
     const worldW = this.W * CELL, worldH = this.H * CELL;
     const ceilTexKey = cfg.textures.ceil === 'dirtWall' ? Tex.dirtWall() : (cfg.textures.ceil === 'woodCeil' ? Tex.wood() : (cfg.textures.ceil === 'whiteVoidC' ? Tex.whiteVoid('c') : Tex[cfg.textures.ceil]()));
     const ceilMat = new THREE.MeshLambertMaterial({ map: Tex.toTexture(ceilTexKey) });
@@ -971,7 +995,22 @@ class Level {
       const i = y * this.W + x;
       if (this.layers.length && this.layers[0].cells.has(i)) continue;
       const [wx, wz] = this.cellToWorld(x, y);
-      ceilBoxes.push({ w: CELL, h: 0.16, d: CELL, x: wx, y: cfg.wallH + 0.08, z: wz });
+      if (atriumH && this.floorMap[i] > 0.4) {
+        // 挑空中庭：天花板随地面抬高，侧边与普通天花板交界处用封板闭合
+        ceilBoxes.push({ w: CELL, h: 0.16, d: CELL, x: wx, y: cfg.wallH + atriumH + 0.08, z: wz });
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= this.W || ny >= this.H) continue;
+          if (grid[ny][nx] !== 0 || this.floorMap[ny * this.W + nx] > 0.4) continue;
+          const sh = atriumH + 0.2;
+          ceilBoxes.push({
+            w: dx !== 0 ? 0.16 : CELL, h: sh, d: dx !== 0 ? CELL : 0.16,
+            x: wx + dx * (CELL / 2 - 0.08), y: cfg.wallH + 0.1 + sh / 2, z: wz + dy * (CELL / 2 - 0.08),
+          });
+        }
+      } else {
+        ceilBoxes.push({ w: CELL, h: 0.16, d: CELL, x: wx, y: cfg.wallH + 0.08, z: wz });
+      }
     }
     // 上层各层的顶（无更高层覆盖时）
     for (let s = 0; s < this.layers.length; s++) {
@@ -1091,7 +1130,7 @@ class Level {
       const dp = new Float32Array(DN * 3);
       for (let i = 0; i < DN; i++) {
         dp[i * 3] = rng.range(0, worldW);
-        dp[i * 3 + 1] = rng.range(0.2, this.layers.length ? (this.layers.length) * cfg.storyH + cfg.wallH : cfg.wallH);
+        dp[i * 3 + 1] = rng.range(0.2, this._topH);
         dp[i * 3 + 2] = rng.range(0, worldH);
       }
       dustGeo.setAttribute('position', new THREE.BufferAttribute(dp, 3));
@@ -1111,7 +1150,7 @@ class Level {
   _buildStories(group) {
     const rng = this.rng, cfg = this.cfg;
     const S = cfg.stories, SH = cfg.storyH;
-    // 上层区域：随机扩张出连通块（占开放格 ~52%），避开装置/出生点/高台/破洞
+    // 上层区域：避开装置/出生点/高台/破洞
     const banned = new Set();
     for (const e of this.exits) { const [cx, cy] = this.worldToCell(e.x, e.z); banned.add(cy * this.W + cx); }
     {
@@ -1121,44 +1160,86 @@ class Level {
     for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++)
       if (this.grid[y][x] === 0 && this.floorMap[y * this.W + x] > HOLE_DEPTH / 2) openN++;
     if (openN < 30) { this.stories = 1; return; }
-    const quota = Math.floor(openN * 0.52);
-    const seedC = this.empties[0];
-    const inUp = new Set([seedC.y * this.W + seedC.x]);
-    const dq = [seedC.y * this.W + seedC.x];
-    let guard = 0;
-    while (inUp.size < quota && guard++ < 8000 && dq.length) {
-      const i = dq[Math.floor(rng.next() * dq.length)];
-      const x = i % this.W, y = (i / this.W) | 0;
-      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-      for (let t = 0; t < 4 && inUp.size < quota; t++) {
-        const [dx, dy] = dirs[Math.floor(rng.next() * 4)];
-        const nx = x + dx, ny = y + dy, ni = ny * this.W + nx;
-        if (nx < 1 || ny < 1 || nx >= this.W - 1 || ny >= this.H - 1) continue;
-        if (this.grid[ny][nx] !== 0) continue;
-        if (this.floorMap[ni] > 0.4 || this.floorMap[ni] <= HOLE_DEPTH / 2) continue;
-        if (banned.has(ni) || inUp.has(ni)) continue;
-        inUp.add(ni); dq.push(ni);
+    // 区域生长器：从种子集合随机扩张出连通块
+    const growRegion = (seeds, quota) => {
+      const set = new Set(seeds);
+      const dq = [...seeds];
+      let guard = 0;
+      while (set.size < quota && guard++ < 9000 && dq.length) {
+        const i = dq[Math.floor(rng.next() * dq.length)];
+        const x = i % this.W, y = (i / this.W) | 0;
+        const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        for (let t = 0; t < 4 && set.size < quota; t++) {
+          const [dx, dy] = dirs[Math.floor(rng.next() * 4)];
+          const nx = x + dx, ny = y + dy, ni = ny * this.W + nx;
+          if (nx < 1 || ny < 1 || nx >= this.W - 1 || ny >= this.H - 1) continue;
+          if (this.grid[ny][nx] !== 0) continue;
+          if (this.floorMap[ni] > 0.4 || this.floorMap[ni] <= HOLE_DEPTH / 2) continue;
+          if (banned.has(ni) || set.has(ni)) continue;
+          set.add(ni); dq.push(ni);
+        }
       }
+      for (const i of [...set]) if (banned.has(i)) set.delete(i);
+      return set;
+    };
+    // v2.3 楼层差异化：每层独立生长区域，不再整栋楼共用同一套格子。
+    // R[s] = 第 s 层的楼面区域（R[1] 为二层，以此类推；地面是全部开放格）。
+    const seedC = this.empties[0];
+    const R = [null, growRegion([seedC.y * this.W + seedC.x], Math.floor(openN * 0.52))];
+    if (R[1].size < 12) { this.stories = 1; this.layers = []; return; }
+    let stories = S;
+    for (let s = 2; s < S; s++) {
+      const prev = R[s - 1];
+      // 种子：上一层随机 6 格（保证重叠与天梯落点）+ 离出生点最远的新格（把形状拉向未探索区）
+      const prevArr = [...prev];
+      const seeds = [];
+      for (let k = 0; k < 6 && prevArr.length; k++) seeds.push(prevArr.splice(Math.floor(rng.next() * prevArr.length), 1)[0]);
+      let farSeed = -1;
+      for (const c of this.empties) {
+        const i = c.y * this.W + c.x;
+        if (!banned.has(i) && this.floorMap[i] > HOLE_DEPTH / 2 && this.floorMap[i] <= 0.4 && !R[s - 1].has(i)) { farSeed = i; break; }
+      }
+      if (farSeed >= 0) seeds.push(farSeed);
+      const reg = growRegion(seeds, Math.floor(openN * (s === 2 ? 0.46 : 0.4)));
+      if (reg.size < 12) { stories = s; break; }
+      // 保证与上一层有足够重叠（天梯候选不足时向相邻的上一层格子扩张）
+      let inter = [...reg].filter(i => prev.has(i)).length;
+      if (inter < 8) {
+        const add = [];
+        for (const i of prev) {
+          if (reg.has(i)) continue;
+          const x = i % this.W, y = (i / this.W) | 0;
+          if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
+            const nx = x + dx, ny = y + dy;
+            return nx >= 0 && ny >= 0 && nx < this.W && ny < this.H && reg.has(ny * this.W + nx);
+          })) add.push(i);
+        }
+        add.sort(() => rng.next() - 0.5);
+        for (let k = 0; k < add.length && inter < 8; k++) { reg.add(add[k]); inter++; }
+      }
+      R[s] = reg;
     }
-    // 楼层数据（生长完后再剔除禁用格）
-    for (const i of [...inUp]) if (banned.has(i)) inUp.delete(i);
-    if (inUp.size < 12) { this.stories = 1; this.layers = []; return; }
     this.layers = [];
-    for (let s = 1; s < S; s++) this.layers.push({ y: s * SH, cells: new Set(inUp), holes: new Set() });
+    for (let s = 1; s < stories; s++) this.layers.push({ y: s * SH, cells: R[s], holes: new Set() });
+    this.stories = stories;
+    this.storyRegions = R;
 
     // 天梯：每层间隙选若干贴墙格，井口穿透上方各层
     const railMat = new THREE.MeshLambertMaterial({ color: 0x3c4046 });
     const usedShafts = new Set();
-    for (let t = 0; t < S - 1; t++) {
+    for (let t = 0; t < stories - 1; t++) {
+      // t 层 → t+1 层：井口格必须同时在上、下两层区域内（t=0 时下方是地面）
+      const upper = R[t + 1], lower = t === 0 ? null : R[t];
       const cand = [];
-      for (const i of inUp) {
+      for (const i of upper) {
         if (usedShafts.has(i)) continue;
+        if (lower && !lower.has(i)) continue;
         const x = i % this.W, y = (i / this.W) | 0;
         // 顶端必须至少有一个同层相邻格供走出井口
         const hasUpNb = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx2, dy2]) => {
           const nx = x + dx2, ny = y + dy2;
           if (nx < 0 || ny < 0 || nx >= this.W || ny >= this.H) return false;
-          return this.grid[ny][nx] === 0 && inUp.has(ny * this.W + nx);
+          return this.grid[ny][nx] === 0 && upper.has(ny * this.W + nx);
         });
         if (!hasUpNb) continue;
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -1166,7 +1247,7 @@ class Level {
         }
       }
       cand.sort(() => rng.next() - 0.5);
-      const K = Math.min(S === 2 ? 3 : 4, cand.length);
+      const K = Math.min(stories === 2 ? (R[1].size > 70 ? 4 : 3) : 4, cand.length);
       const picked = [];
       for (const c of cand) {
         if (picked.length >= K) break;
@@ -1182,7 +1263,7 @@ class Level {
         for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]].sort(() => rng.next() - 0.5)) {
           const nx = sp.x + ddx, ny = sp.y + ddy;
           if (nx < 0 || ny < 0 || nx >= this.W || ny >= this.H) continue;
-          if (this.grid[ny][nx] === 0 && inUp.has(ny * this.W + nx)) { exd = [ddx, ddy]; break; }
+          if (this.grid[ny][nx] === 0 && upper.has(ny * this.W + nx)) { exd = [ddx, ddy]; break; }
         }
         if (!exd) continue;
         const lx = wx + sp.dx * (CELL / 2 - 0.26), lz = wz + sp.dy * (CELL / 2 - 0.26);
@@ -1212,21 +1293,33 @@ class Level {
     // 上层楼板 + 边缘护栏（随机留 2 个危险缺口）
     const slabMat = new THREE.MeshLambertMaterial({ map: Tex.toTexture(cfg.textures.ceil === 'dirtWall' ? Tex.dirtWall() : (cfg.textures.ceil === 'woodCeil' ? Tex.wood() : Tex[cfg.textures.ceil]())) });
     const slabBoxes = [], lipBoxes = [];
-    const gapCells = new Set();
-    {
+    // 上层塌陷破洞候选：避开天梯井口附近
+    const shaftNear = new Set();
+    for (const i of usedShafts) {
+      shaftNear.add(i);
+      const hx = i % this.W, hy = (i / this.W) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = hx + dx, ny = hy + dy;
+        if (nx >= 0 && ny >= 0 && nx < this.W && ny < this.H) shaftNear.add(ny * this.W + nx);
+      }
+    }
+    for (const Ly of this.layers) {
+      // 每层各自选边缘危险缺口（不设护栏）与塌陷破洞，逐层不同
       const edgeAll = [];
-      for (const i of inUp) {
+      for (const i of Ly.cells) {
         const x = i % this.W, y = (i / this.W) | 0;
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
           const nx = x + dx, ny = y + dy;
           if (nx < 0 || ny < 0 || nx >= this.W || ny >= this.H) continue;
-          if (this.grid[ny][nx] === 0 && !inUp.has(ny * this.W + nx)) { edgeAll.push(i); break; }
+          if (this.grid[ny][nx] === 0 && !Ly.cells.has(ny * this.W + nx)) { edgeAll.push(i); break; }
         }
       }
       edgeAll.sort(() => rng.next() - 0.5);
-      for (const i of edgeAll.slice(0, 2)) gapCells.add(i);
-    }
-    for (const Ly of this.layers) {
+      const gapCells = new Set(edgeAll.slice(0, 2));
+      const fallCand = [...Ly.cells].filter(i => !shaftNear.has(i) && !gapCells.has(i));
+      fallCand.sort(() => rng.next() - 0.5);
+      const nFall = Math.min(2, Math.max(1, Math.floor(Ly.cells.size / 90)));
+      for (let k = 0; k < nFall && k < fallCand.length; k++) Ly.holes.add(fallCand[k]);
       for (const i of Ly.cells) {
         if (Ly.holes.has(i)) continue;
         const x = i % this.W, y = (i / this.W) | 0;
@@ -1587,7 +1680,9 @@ class Level {
       const c = spots[idx];
       const [wx, wz] = this.cellToWorld(c.x, c.y);
       const mesh = this._makeItemMesh(t === 'fuse' ? 'fuse' : t);
-      mesh.position.set(wx + this.rng.range(-1, 1), this.groundAt(mesh.position.x, mesh.position.z) > HOLE_DEPTH / 2 ? this.groundAt(mesh.position.x, mesh.position.z) : 0, wz + this.rng.range(-1, 1));
+      // 限制在底层高度取地面：避免多层关卡的地面物品被放到顶楼半空
+      const gyi = this.groundAt(mesh.position.x, mesh.position.z, 0.6);
+      mesh.position.set(wx + this.rng.range(-1, 1), gyi > HOLE_DEPTH / 2 ? gyi : 0, wz + this.rng.range(-1, 1));
       group.add(mesh);
       let title = '', body = '';
       if (t === 'note' && NOTES.length) {
@@ -1609,7 +1704,7 @@ class Level {
         for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
           if (this.isSolidCell(c.x + dx, c.y + dz)) { ox = dx * (CELL / 2 - 0.45); oz = dz * (CELL / 2 - 0.45); break; }
         }
-        const gy = this.groundAt(wx + ox, wz + oz);
+        const gy = this.groundAt(wx + ox, wz + oz, 0.6);
         mesh.position.set(wx + ox, gy > HOLE_DEPTH / 2 ? gy : 0, wz + oz);
         group.add(mesh);
         this.items.push({ type: 'locker', x: mesh.position.x, z: mesh.position.z, y: mesh.position.y, mesh, taken: false, title: '', body: '' });
@@ -1618,7 +1713,11 @@ class Level {
 
     /* L1 配电箱 */
     if (cfg.id === 1) {
-      const mid = empties[Math.floor(empties.length * 0.55)];
+      let mid = empties[Math.floor(empties.length * 0.55)];
+      for (let k = 0; k < empties.length; k++) {
+        const c = empties[(Math.floor(empties.length * 0.55) + k) % empties.length];
+        if (this.floorMap[c.y * this.W + c.x] <= 0.4 && !this.isHoleCell(c.x, c.y)) { mid = c; break; }
+      }
       const [bx, bz] = this.cellToWorld(mid.x, mid.y);
       const box = this._makePowerBox();
       box.position.set(bx, 0, bz);
@@ -1689,9 +1788,9 @@ class Level {
         g.add(rim, wat, col);
         break;
       }
-      case 'booktower': {  // 图书馆书塔
-        for (let i = 0; i < 7; i++) {
-          const h = 0.55;
+      case 'booktower': {  // 图书馆书塔（限高，避免顶穿天花板）
+        for (let i = 0; i < 5; i++) {
+          const h = 0.5;
           const box = new THREE.Mesh(new THREE.BoxGeometry(1.6 - i * 0.12, h, 1.6 - i * 0.12),
             mat(i % 2 ? 0x6a5232 : 0x59452a));
           box.position.set((this.rng.next() - 0.5) * 0.25, base + 0.28 + i * h, (this.rng.next() - 0.5) * 0.25);
@@ -1734,12 +1833,12 @@ class Level {
         }
         break;
       }
-      case 'garden': {     // 温室大树+花坛
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.5, 2.6, 8), mat(0x5a4630));
-        trunk.position.y = base + 1.3;
-        const crown = new THREE.Mesh(new THREE.SphereGeometry(1.9, 12, 10), mat(0x3f7d3a, 0x0e240e));
-        crown.position.y = base + 3.3;
-        crown.scale.y = 0.85;
+      case 'garden': {     // 温室大树+花坛（树冠限高，避免顶穿穹顶）
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.5, 2.4, 8), mat(0x5a4630));
+        trunk.position.y = base + 1.2;
+        const crown = new THREE.Mesh(new THREE.SphereGeometry(1.5, 12, 10), mat(0x3f7d3a, 0x0e240e));
+        crown.position.y = base + 2.8;
+        crown.scale.y = 0.8;
         g.add(trunk, crown);
         for (let i = 0; i < 5; i++) {
           const a = (i / 5) * Math.PI * 2;
@@ -1969,9 +2068,10 @@ class Level {
     // 尘埃漂浮
     if (this.dust) {
       const p = this.dust.geometry.attributes.position;
+      const topY = this._topH || this.cfg.wallH;
       for (let i = 0; i < p.count; i++) {
         let y = p.getY(i) + dt * 0.06;
-        if (y > this.cfg.wallH) y = 0.2;
+        if (y > topY) y = 0.2;
         p.setY(i, y);
       }
       p.needsUpdate = true;
