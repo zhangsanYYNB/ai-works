@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101c21">
+  <title>星际方块 · 远星回响</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/style.css?v=2">
+</head>
+<body>
+  <main id="game" aria-label="星际方块游戏世界"></main>
+  <div id="loading"><i data-lucide="orbit"></i><h1>星际方块</h1><p id="loading-text">正在接收远星信号…</p></div>
+  <div id="hud">
+    <header class="topbar">
+      <div class="identity"><i data-lucide="orbit"></i><div><strong>星际方块</strong><small>远星回响 / EXPEDITION 01</small></div></div>
+      <div class="compass"><span>W</span><span>NW</span><b id="heading">N · 000°</b><span>NE</span><span>E</span></div>
+      <nav class="tools" aria-label="游戏菜单">
+        <button data-panel="inventory" data-tip="背包与制造 · Tab" aria-label="背包与制造"><i data-lucide="backpack"></i></button>
+        <button data-panel="map" data-tip="星图 · M" aria-label="星图"><i data-lucide="orbit"></i></button>
+        <button data-panel="journal" data-tip="探索记录 · J" aria-label="探索记录"><i data-lucide="book-open"></i></button>
+        <button data-panel="pause" data-tip="暂停 · Esc" aria-label="暂停"><i data-lucide="pause"></i></button>
+      </nav>
+    </header>
+    <section class="planet-info"><div class="eyebrow"><span class="live-dot"></span> 行星表面 <span id="planet-number">01 / 04</span></div><h1 id="planet-name">青岚星</h1><div class="planet-meta"><span id="biome">繁茂生态</span><span id="temperature">18°C</span><span id="weather">微风</span></div><div id="coordinates">+03 / +16</div></section>
+    <section class="mission"><div class="eyebrow"><i data-lucide="radio"></i> 远星计划 <span id="quest-step">01</span></div><h2 id="quest-title">修复跃迁引擎</h2><p id="quest-detail"></p><div class="mission-track"><span id="quest-progress"></span></div></section>
+    <div id="waypoints"></div>
+    <div id="crosshair"><span></span><span></span></div>
+    <div id="target"><span id="target-name"></span><div id="mining-track"><span></span></div></div>
+    <div id="interaction"><button id="interact-button"><i data-lucide="hand"></i><span>交互</span></button></div>
+    <div id="notices" role="status" aria-live="polite"></div>
+    <div id="scan-wave"></div><div id="damage-flash"></div>
+    <footer class="bottom-hud">
+      <section class="vitals" aria-label="生命状态">
+        <div class="vital"><i data-lucide="heart"></i><span>护盾</span><div><b id="health-bar"></b></div><strong id="health">100</strong></div>
+        <div class="vital oxygen"><i data-lucide="wind"></i><span>氧气</span><div><b id="oxygen-bar"></b></div><strong id="oxygen">100</strong></div>
+        <div class="vital energy"><i data-lucide="flame"></i><span>背包</span><div><b id="energy-bar"></b></div><strong id="energy">100</strong></div>
+      </section>
+      <section class="hotbar-wrap"><div id="tool-label">多功能采集器</div><div id="hotbar" aria-label="快捷工具栏"></div></section>
+      <section class="status"><span><span class="live-dot"></span><span id="save-state">探索中</span></span><strong id="credits">0 <small>研究点</small></strong><span id="discovery-count">发现 0 / 24</span></section>
+    </footer>
+    <div id="touch-controls">
+      <div id="joystick" aria-label="移动摇杆"><div id="stick"></div></div>
+      <div class="touch-actions">
+        <button id="touch-scan" data-tip="扫描" aria-label="扫描"><i data-lucide="radar"></i></button>
+        <button id="touch-jump" data-tip="跳跃与喷气背包" aria-label="跳跃与喷气背包"><i data-lucide="arrow-up"></i></button>
+        <button id="touch-mine" data-tip="采矿 / 放置" aria-label="采矿或放置"><i data-lucide="pickaxe"></i></button>
+      </div>
+    </div>
+    <button id="scan-button" data-tip="生态扫描 · F" aria-label="生态扫描"><i data-lucide="radar"></i><span id="scan-cooldown"></span></button>
+  </div>
+  <div id="modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="panel-title">
+    <div class="panel">
+      <header class="panel-header"><div><div class="eyebrow">EXPLORER TERMINAL</div><h2 id="panel-title">背包与制造</h2></div><button id="close-panel" data-tip="返回星球" aria-label="返回星球"><i data-lucide="x"></i></button></header>
+      <nav id="panel-tabs"><button data-panel="inventory">背包与制造</button><button data-panel="map">星图</button><button data-panel="journal">探索记录</button></nav>
+      <div id="panel-content"></div>
+    </div>
+  </div>
+  <div id="travel-screen" class="hidden"><canvas id="warp-canvas"></canvas><div><p>跃迁航线已锁定</p><h1 id="travel-name"></h1><span id="travel-phase">正在折叠时空</span></div></div>
+  <script src="vendor/three.js"></script>
+  <script src="vendor/cannon.js"></script>
+  <script src="vendor/lucide.js"></script>
+  <script src="js/data.js?v=2"></script>
+  <script src="js/world.js?v=2"></script>
+  <script src="js/game.js?v=2"></script>
+  <script src="js/ui.js?v=2"></script>
+</body>
+</html>

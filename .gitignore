@@ -532,3 +532,7 @@ _BinDeployableAssemblies/
 # 后室游戏（例外：需要跟踪其中的 html/css/js）
 !backrooms_game/
 !backrooms_game/**
+
+# 星际方块：独立游戏及本地运行依赖
+!starbound_blocks/
+!starbound_blocks/**
