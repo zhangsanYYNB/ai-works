@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta name="theme-color" content="#102e2a">
+  <meta name="description" content="星火双行：六个世界，四十八关。支持单人、双人同屏、键盘与多点触屏的 HTML5 横版冒险。">
+  <title>星火双行 | EMBER & ECHO</title>
+  <link rel="stylesheet" href="css/style.css?v=1">
+  <script defer src="vendor/phaser.js"></script>
+  <script defer src="vendor/lucide.js"></script>
+  <script defer src="js/levels.js?v=1"></script>
+  <script defer src="js/art.js?v=1"></script>
+  <script defer src="js/systems.js?v=1"></script>
+  <script defer src="js/ui.js?v=1"></script>
+  <script defer src="js/game.js?v=1"></script>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <a class="brand" href="../index.html" title="返回项目主页" aria-label="星火双行，返回项目主页"><i data-lucide="sparkles"></i><span>星火双行<small>EMBER & ECHO</small></span></a>
+      <div class="level-heading"><span id="world-label">01 / 苔光森林</span><strong id="level-label">初见星火</strong></div>
+      <div class="run-stats"><span title="本关星屑"><i data-lucide="gem"></i><b id="coin-count">0</b></span><span class="relic-stat" title="本关星核"><i data-lucide="diamond"></i><b id="relic-count">0/3</b></span><span class="clock-stat" title="本关用时"><i data-lucide="timer"></i><b id="run-time">00:00</b></span></div>
+      <nav class="tools" aria-label="游戏工具">
+        <button class="icon-button" id="sound-button" title="声音" aria-label="切换声音" aria-pressed="false"><i data-lucide="volume-x"></i></button>
+        <button class="icon-button" id="touch-button" title="触屏控制" aria-label="切换触屏控制" aria-pressed="true"><i data-lucide="hand"></i></button>
+        <button class="icon-button fullscreen-button" id="fullscreen-button" title="全屏" aria-label="切换全屏"><i data-lucide="maximize"></i></button>
+        <button class="icon-button" id="pause-button" title="暂停 (Esc / P)" aria-label="暂停"><i data-lucide="pause"></i></button>
+      </nav>
+    </header>
+    <main id="stage" aria-label="星火双行游戏画面">
+      <div id="game" role="application" aria-label="横版冒险游戏"></div>
+      <div class="player-hud" id="player-hud">
+        <div class="player-readout ember"><span class="player-tag">P1</span><span class="health" id="health-0"></span><span class="dash-track" title="冲刺能量"><span id="dash-0"></span></span></div>
+        <div class="player-readout echo" id="p2-hud" hidden><span class="player-tag">P2</span><span class="health" id="health-1"></span><span class="dash-track" title="冲刺能量"><span id="dash-1"></span></span></div>
+      </div>
+      <div id="objective" class="objective" hidden><i data-lucide="flag"></i><span id="objective-text"></span></div>
+      <div id="boss-hud" hidden><span id="boss-name"></span><div><span id="boss-health"></span></div><small id="boss-state"></small></div>
+      <div id="toast" role="status" aria-live="polite"></div>
+      <div id="touch-controls" aria-label="触屏控制"></div>
+      <button id="recall-button" class="icon-button recall" title="召回落后的同伴 (R)" aria-label="召回同伴" hidden><i data-lucide="users-round"></i></button>
+      <div id="overlay" class="overlay">
+        <section id="dialog" class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"></section>
+      </div>
+      <div id="loading">星火正在苏醒<span></span></div>
+    </main>
+    <footer class="statusbar"><span><span class="live-dot"></span><span id="mode-label">单人冒险</span></span><span id="checkpoint-label">星火营地</span><button id="map-button" title="选择关卡"><i data-lucide="map"></i><span id="progress-label">冒险地图 · 0/48</span></button></footer>
+  </div>
+  <noscript>星火双行需要启用 JavaScript。</noscript>
+</body>
+</html>
