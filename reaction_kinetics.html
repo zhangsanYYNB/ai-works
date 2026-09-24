@@ -3,501 +3,1606 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SO₂催化氧化反应动力学仿真</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta name="description" content="可交互的可逆化学反应动力学实验：改变温度、压强和催化剂，观察浓度、正逆反应速率与平衡的未来走向。">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233867f5'/%3E%3Cpath d='M20 14h24M32 14v12L18 45c-2 4 1 7 5 7h18c4 0 7-3 5-7L32 26' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='26' cy='42' r='3' fill='%23a9c4ff'/%3E%3C/svg%3E">
+    <title>可逆反应 · 动力学实验台</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <style>
+        :root {
+            --ink: #17233b;
+            --muted: #718099;
+            --line: #e5eaf3;
+            --surface: #ffffff;
+            --canvas: #f4f7fc;
+            --blue: #3867f5;
+            --blue-soft: #eaf0ff;
+            --orange: #f59e42;
+            --green: #18a982;
+            --red: #e95d6a;
+            --purple: #8864e8;
+            --shadow: 0 14px 40px rgba(38, 57, 96, 0.08);
+        }
+
+        * { box-sizing: border-box; }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
             margin: 0;
-            padding: 20px;
-            color: #333;
+            min-height: 100vh;
+            color: var(--ink);
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background:
+                radial-gradient(circle at 7% 3%, rgba(99, 135, 255, .13), transparent 28rem),
+                radial-gradient(circle at 95% 22%, rgba(151, 112, 236, .10), transparent 30rem),
+                var(--canvas);
         }
-        .container {
-            max-width: 1400px;
+
+        button, select { font: inherit; }
+        button { -webkit-tap-highlight-color: transparent; }
+
+        .shell {
+            width: min(1440px, calc(100% - 48px));
             margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            padding: 40px;
+            padding: 30px 0 42px;
         }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 7px 12px;
+            color: var(--blue);
+            background: var(--blue-soft);
+            border-radius: 99px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .1em;
+        }
+
+        .eyebrow::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 0 4px rgba(56, 103, 245, .12);
+        }
+
+        header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
         h1 {
-            text-align: center;
-            color: #667eea;
-            margin-bottom: 10px;
-            font-size: 2em;
+            margin: 0;
+            font-size: clamp(28px, 3.2vw, 45px);
+            letter-spacing: -.04em;
+            line-height: 1.2;
         }
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 1em;
+
+        .header-note {
+            max-width: 490px;
+            margin: 0 0 4px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.8;
+            text-align: right;
         }
-        .reaction-equation {
-            text-align: center;
-            font-size: 1.5em;
-            color: #764ba2;
-            margin: 20px 0;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            font-weight: bold;
-        }
-        .controls {
+
+        .top-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 30px 0;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
-        }
-        .control-group {
-            display: flex;
-            flex-direction: column;
-        }
-        .control-group label {
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #555;
-        }
-        .control-group input {
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-size: 1em;
-        }
-        .control-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .button-group {
-            display: flex;
-            justify-content: center;
+            grid-template-columns: minmax(300px, .9fr) minmax(440px, 1.4fr);
             gap: 20px;
-            margin: 20px 0;
+            margin-bottom: 20px;
         }
-        button {
-            padding: 12px 30px;
-            font-size: 1em;
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s;
+
+        .card {
+            background: var(--surface);
+            border: 1px solid rgba(223, 229, 241, .9);
+            border-radius: 22px;
+            box-shadow: var(--shadow);
         }
-        .btn-start {
-            background: #28a745;
-            color: white;
+
+        .reaction-card, .condition-card { padding: 25px; }
+
+        .section-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0 0 14px;
+            color: #53617b;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: .03em;
         }
-        .btn-start:hover {
-            background: #218838;
-        }
-        .btn-reset {
-            background: #dc3545;
-            color: white;
-        }
-        .btn-reset:hover {
-            background: #c82333;
-        }
-        .charts-container {
+
+        .section-label .number {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-top: 30px;
+            place-items: center;
+            width: 23px;
+            height: 23px;
+            color: white;
+            background: var(--blue);
+            border-radius: 7px;
+            font-size: 11px;
         }
-        @media (max-width: 900px) {
-            .charts-container {
-                grid-template-columns: 1fr;
-            }
+
+        select {
+            width: 100%;
+            min-height: 47px;
+            padding: 0 38px 0 14px;
+            color: var(--ink);
+            background: #fbfcff;
+            border: 1px solid #dce3f1;
+            border-radius: 12px;
+            font-weight: 650;
+            cursor: pointer;
         }
-        .chart-box {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+
+        select:focus-visible, button:focus-visible {
+            outline: 3px solid rgba(56, 103, 245, .26);
+            outline-offset: 3px;
         }
-        .chart-title {
+
+        .equation {
+            margin: 20px 0 12px;
+            padding: 19px 10px;
+            color: #3154b7;
+            background: linear-gradient(135deg, #f1f5ff, #f8f5ff);
+            border: 1px solid #e3e9ff;
+            border-radius: 15px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(23px, 2.5vw, 34px);
+            font-weight: 700;
+            letter-spacing: .02em;
             text-align: center;
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 15px;
         }
-        .info-box {
-            background: #e7f3ff;
-            border-left: 4px solid #667eea;
-            padding: 15px 20px;
-            margin: 20px 0;
-            border-radius: 5px;
+
+        .reaction-description {
+            min-height: 44px;
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.75;
         }
-        .info-box h3 {
-            margin: 0 0 10px 0;
-            color: #667eea;
+
+        .equilibrium-tip {
+            margin-top: 18px;
+            padding: 12px 14px;
+            color: #5d6680;
+            background: #f8f9fc;
+            border-radius: 12px;
+            font-size: 12px;
+            line-height: 1.7;
         }
-        .info-box p {
-            margin: 5px 0;
-            line-height: 1.6;
-        }
-        .equation-display {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
-            border-radius: 10px;
-            padding: 15px;
-            margin: 20px 0;
-            font-family: 'Courier New', monospace;
-            overflow-x: auto;
-        }
-        .stats {
+
+        .equilibrium-tip strong { color: #4e5a75; }
+
+        .condition-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin: 20px 0;
+            gap: 12px;
         }
-        @media (max-width: 700px) {
-            .stats {
-                grid-template-columns: repeat(2, 1fr);
-            }
+
+        .condition {
+            min-width: 0;
+            padding: 16px;
+            background: #fafbfe;
+            border: 1px solid #e9edf5;
+            border-radius: 16px;
         }
-        .stat-card {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 20px;
+
+        .condition-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .condition-name {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 750;
+        }
+
+        .condition-value {
+            color: var(--ink);
+            font-size: 15px;
+            font-weight: 850;
+            white-space: nowrap;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .control-button {
+            flex: 1;
+            min-height: 39px;
+            padding: 6px 8px;
+            color: #52607a;
+            background: white;
+            border: 1px solid #dce3ef;
             border-radius: 10px;
+            font-size: 12px;
+            font-weight: 750;
+            cursor: pointer;
+            transition: .18s ease;
+        }
+
+        .control-button:hover:not(:disabled) {
+            color: var(--blue);
+            border-color: #aebff9;
+            background: #f4f7ff;
+            transform: translateY(-1px);
+        }
+
+        .control-button:disabled {
+            opacity: .35;
+            cursor: not-allowed;
+        }
+
+        .control-button.accent { color: var(--blue); }
+        .control-button.warn { color: #d57e26; }
+
+        .condition-hint {
+            margin: 9px 0 0;
+            color: #8b96a9;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .species-condition select {
+            min-height: 39px;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .species-condition .control-button {
+            min-height: 39px;
+        }
+
+        .apparatus-card {
+            display: grid;
+            grid-template-columns: minmax(300px, .9fr) 1.1fr;
+            align-items: center;
+            gap: 24px;
+            margin: 20px 0;
+            padding: 21px 27px;
+            overflow: hidden;
+        }
+
+        .apparatus-stage {
+            position: relative;
+            min-height: 240px;
+            border-radius: 18px;
+            background: radial-gradient(circle at 50% 88%, #d9e5ff 0, #eff4ff 38%, #f7f9ff 72%);
+            overflow: hidden;
+        }
+
+        .apparatus-stage svg { display: block; width: 100%; height: 240px; }
+        .apparatus-stage text { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+        .visual-liquid { transition: fill .8s ease; }
+        .visual-wave { animation: liquid-wave 3.4s linear infinite; }
+        .bubble { animation: bubble-rise var(--bubble-duration, 2.8s) linear infinite; animation-delay: var(--bubble-delay, 0s); }
+        .piston { transition: transform .6s ease, fill .5s ease; }
+        .catalyst-stars { opacity: 0; transition: opacity .35s ease; }
+        .catalyst-stars.active { opacity: 1; animation: catalyst-twinkle 1.2s ease-in-out infinite alternate; }
+        .heat-halo { transition: opacity .5s ease, fill .5s ease; }
+        .dose-drop { opacity: 0; transform: translateY(-24px); }
+        .apparatus-card.dose-added .dose-drop { animation: dose-fall .85s ease-in forwards; }
+        .apparatus-card.paused .bubble,
+        .apparatus-card.paused .visual-wave,
+        .apparatus-card.paused .catalyst-stars { animation-play-state: paused; }
+
+        @keyframes bubble-rise {
+            0% { transform: translate(0, 45px) scale(.65); opacity: 0; }
+            15% { opacity: .72; }
+            78% { opacity: .55; }
+            100% { transform: translate(8px, -103px) scale(1.08); opacity: 0; }
+        }
+
+        @keyframes liquid-wave {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(18px); }
+        }
+
+        @keyframes catalyst-twinkle {
+            from { filter: drop-shadow(0 0 1px #fff); }
+            to { filter: drop-shadow(0 0 5px #ffd368); }
+        }
+
+        @keyframes dose-fall {
+            0% { opacity: 0; transform: translateY(-24px) scale(.78); }
+            18% { opacity: 1; }
+            78% { opacity: 1; transform: translateY(64px) scale(1); }
+            100% { opacity: 0; transform: translateY(87px) scale(1.25); }
+        }
+
+        .apparatus-copy h2 { margin: 0 0 8px; font-size: 19px; }
+        .apparatus-copy > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.8; }
+        .visual-badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 15px 0; }
+        .visual-badge { padding: 6px 10px; color: #55647e; background: #f4f7fc; border-radius: 99px; font-size: 11px; font-weight: 750; }
+        .visual-readout { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 13px; }
+        .visual-readout > div { padding: 11px 13px; background: #fafbfe; border: 1px solid #e9edf5; border-radius: 12px; }
+        .visual-readout small { display: block; margin-bottom: 5px; color: #8c98ab; font-size: 10px; }
+        .visual-readout strong { color: #354767; font-size: 13px; }
+        .visual-caution { margin-top: 11px !important; color: #a08a6b !important; font-size: 10px !important; }
+
+        .simulation-card { padding: 24px; }
+
+        .playback {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .playback-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .main-button, .secondary-button {
+            min-height: 45px;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: .18s ease;
+        }
+
+        .main-button {
+            min-width: 116px;
+            color: white;
+            background: linear-gradient(135deg, #3867f5, #6657e7);
+            box-shadow: 0 7px 16px rgba(56, 103, 245, .2);
+        }
+
+        .main-button:hover { transform: translateY(-1px); box-shadow: 0 10px 20px rgba(56, 103, 245, .28); }
+
+        .secondary-button {
+            color: #5b6880;
+            background: #f6f8fc;
+            border: 1px solid #e0e5ef;
+        }
+
+        .secondary-button:hover { background: #edf1f9; }
+
+        .playback-options {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .option select { min-height: 43px; padding-left: 12px; font-size: 13px; }
+
+        .run-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin: 18px 0;
+            padding: 13px 16px;
+            background: #f4f7ff;
+            border: 1px solid #e5eaff;
+            border-radius: 13px;
+        }
+
+        .status-main {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: #445c9c;
+            font-size: 13px;
+            font-weight: 750;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--blue);
+            border-radius: 50%;
+            box-shadow: 0 0 0 4px rgba(56, 103, 245, .12);
+        }
+
+        .status-dot.paused { background: var(--orange); box-shadow: 0 0 0 4px rgba(245, 158, 66, .13); }
+        .status-dot.equilibrium { background: var(--green); box-shadow: 0 0 0 4px rgba(24, 169, 130, .13); }
+
+        .run-status > span:last-child {
+            color: #7987a1;
+            font-size: 12px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            min-width: 0;
+            padding: 17px;
+            background: #fafbfe;
+            border: 1px solid #e9edf5;
+            border-radius: 15px;
+        }
+
+        .stat-label {
+            margin-bottom: 8px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 650;
+        }
+
+        .stat-value {
+            overflow: hidden;
+            color: var(--ink);
+            font-size: 23px;
+            font-weight: 850;
+            letter-spacing: -.035em;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .stat-sub { margin-top: 5px; color: #93a0b5; font-size: 11px; }
+
+        .charts {
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            gap: 18px;
+        }
+
+        .chart-card {
+            min-width: 0;
+            padding: 20px;
+            background: #fcfdff;
+            border: 1px solid #e7ebf3;
+            border-radius: 17px;
+        }
+
+        .chart-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .chart-title { margin: 0; font-size: 15px; }
+        .chart-note { margin: 5px 0 0; color: #8a96a9; font-size: 11px; line-height: 1.5; }
+
+        .line-legend {
+            display: flex;
+            gap: 10px;
+            color: var(--muted);
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        .legend-item { display: inline-flex; align-items: center; gap: 4px; }
+        .legend-line { width: 16px; border-top: 2px solid #66758c; }
+        .legend-line.dashed { border-top-style: dashed; }
+
+        .canvas-wrap {
+            position: relative;
+            height: 285px;
+        }
+
+        .chart-message {
+            position: absolute;
+            inset: 0;
+            display: none;
+            place-items: center;
+            padding: 20px;
+            color: var(--muted);
+            background: white;
+            font-size: 13px;
             text-align: center;
         }
-        .stat-value {
-            font-size: 1.8em;
-            font-weight: bold;
-            margin-bottom: 5px;
+
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            gap: 18px;
+            margin-top: 20px;
         }
-        .stat-label {
-            font-size: 0.9em;
-            opacity: 0.9;
+
+        .info-card { padding: 21px; }
+
+        .info-card h3 { margin: 0 0 13px; font-size: 14px; }
+        .info-card p { margin: 7px 0; color: #718099; font-size: 12px; line-height: 1.8; }
+        .formula-box { padding: 13px 15px; background: #f7f9fd; border-radius: 12px; }
+        .formula { margin: 0 0 5px !important; color: #43547d !important; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+        .events {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .events th {
+            padding: 0 8px 9px 0;
+            color: #9aa5b6;
+            font-weight: 650;
+            text-align: left;
+        }
+
+        .events td {
+            max-width: 160px;
+            padding: 8px 8px 8px 0;
+            color: #66758d;
+            border-top: 1px solid #edf0f6;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .events td:first-child { color: var(--ink); }
+
+        .disclaimer {
+            margin: 18px 2px 0;
+            color: #8b96a9;
+            font-size: 11px;
+            line-height: 1.85;
+            text-align: center;
+        }
+
+        @media (max-width: 1050px) {
+            .top-grid, .bottom-grid, .apparatus-card { grid-template-columns: 1fr; }
+            .charts { grid-template-columns: 1fr; }
+            .stats { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (max-width: 680px) {
+            .shell { width: min(100% - 24px, 1440px); padding-top: 22px; }
+            header { display: block; }
+            .header-note { margin-top: 13px; text-align: left; }
+            .reaction-card, .condition-card, .simulation-card { padding: 17px; }
+            .condition-grid { grid-template-columns: 1fr; }
+            .condition { display: grid; grid-template-columns: 1fr 1.25fr; align-items: center; gap: 12px; }
+            .condition-top { display: block; margin: 0; }
+            .condition-hint { grid-column: 1 / -1; margin-top: 0; }
+            .species-condition { display: block; }
+            .species-condition select { margin-top: 11px; }
+            .apparatus-card { padding: 17px; }
+            .apparatus-stage, .apparatus-stage svg { min-height: 225px; height: 225px; }
+            .playback { align-items: flex-start; flex-direction: column; }
+            .playback-options { width: 100%; justify-content: space-between; }
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .stat:last-child { grid-column: 1 / -1; }
+            .run-status { align-items: flex-start; flex-direction: column; gap: 7px; }
+            .canvas-wrap { height: 260px; }
+            .chart-header { display: block; }
+            .line-legend { margin-top: 8px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🧪 SO₂催化氧化反应动力学仿真</h1>
-        <p class="subtitle">基于常微分方程数值积分的化学反应动力学模拟</p>
-        
-        <div class="reaction-equation">
-            2 SO₂ + O₂ ⇌ 2 SO₃
-        </div>
+    <main class="shell">
+        <header>
+            <div>
+                <span class="eyebrow">INTERACTIVE CHEMISTRY</span>
+                <h1>可逆反应 · 动力学实验台</h1>
+            </div>
+            <p class="header-note">改变温度、压强或催化剂，暂停在任意一刻，观察已经发生的曲线，以及<b>当前条件下接下来会走向哪里</b>。</p>
+        </header>
 
-        <div class="info-box">
-            <h3>📘 模型说明</h3>
-            <p><strong>正反应速率：</strong> r_f = k_f · [SO₂]² · [O₂]</p>
-            <p><strong>逆反应速率：</strong> r_r = k_r · [SO₃]²</p>
-            <p><strong>净反应速率：</strong> r_net = r_f - r_r</p>
-            <p><strong>微分方程：</strong> dx/dt = 2 · [k_f · (c_A0-x)² · (c_B0-x/2) - k_r · (c_C0+x)²]</p>
-        </div>
+        <section class="top-grid" aria-label="反应与环境设置">
+            <article class="card reaction-card">
+                <h2 class="section-label"><span class="number">01</span> 选择可逆反应</h2>
+                <label for="reactionSelect" class="section-label" style="margin-bottom: 8px;">反应体系</label>
+                <select id="reactionSelect" aria-label="选择可逆反应"></select>
+                <div class="equation" id="reactionEquation" aria-live="polite">2 SO₂ + O₂ ⇌ 2 SO₃</div>
+                <p class="reaction-description" id="reactionDescription"></p>
+                <div class="equilibrium-tip"><strong>本体系的压强规律：</strong><span id="pressureTip"></span></div>
+            </article>
 
-        <div class="controls">
-            <div class="control-group">
-                <label for="kf">正反应速率常数 k_f (L²/mol²/s)</label>
-                <input type="number" id="kf" value="0.8" step="0.1" min="0">
-            </div>
-            <div class="control-group">
-                <label for="kr">逆反应速率常数 k_r (L/mol/s)</label>
-                <input type="number" id="kr" value="0.05" step="0.01" min="0">
-            </div>
-            <div class="control-group">
-                <label for="cA0">初始 [SO₂] (mol/L)</label>
-                <input type="number" id="cA0" value="1.0" step="0.1" min="0">
-            </div>
-            <div class="control-group">
-                <label for="cB0">初始 [O₂] (mol/L)</label>
-                <input type="number" id="cB0" value="0.6" step="0.1" min="0">
-            </div>
-            <div class="control-group">
-                <label for="cC0">初始 [SO₃] (mol/L)</label>
-                <input type="number" id="cC0" value="0.0" step="0.1" min="0">
-            </div>
-            <div class="control-group">
-                <label for="simTime">模拟时间 (s)</label>
-                <input type="number" id="simTime" value="10" step="1" min="1">
-            </div>
-        </div>
+            <article class="card condition-card">
+                <h2 class="section-label"><span class="number">02</span> 改变实验条件</h2>
+                <div class="condition-grid">
+                    <div class="condition">
+                        <div class="condition-top">
+                            <span class="condition-name">🌡️ 温度</span>
+                            <span class="condition-value" id="temperatureValue">25.0 °C</span>
+                        </div>
+                        <div class="button-row">
+                            <button class="control-button" id="temperatureDown" type="button">− 降温 10 °C</button>
+                            <button class="control-button accent" id="temperatureUp" type="button">＋ 升温 10 °C</button>
+                        </div>
+                        <p class="condition-hint">同时改变正、逆反应速率；吸热或放热会改变平衡。</p>
+                    </div>
 
-        <div class="button-group">
-            <button class="btn-start" onclick="runSimulation()">▶️ 开始仿真</button>
-            <button class="btn-reset" onclick="resetSimulation()">🔄 重置</button>
-        </div>
+                    <div class="condition">
+                        <div class="condition-top">
+                            <span class="condition-name">◈ 压强</span>
+                            <span class="condition-value" id="pressureValue">1.0 atm</span>
+                        </div>
+                        <div class="button-row">
+                            <button class="control-button" id="pressureDown" type="button">− 减压 0.5 atm</button>
+                            <button class="control-button warn" id="pressureUp" type="button">＋ 加压 0.5 atm</button>
+                        </div>
+                        <p class="condition-hint">在恒温、定容下改变气相浓度；非气相组分不变。</p>
+                    </div>
 
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-value" id="eqX">-</div>
-                <div class="stat-label">平衡反应进度 x_eq</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="eqSO2">-</div>
-                <div class="stat-label">平衡 [SO₂]</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="eqO2">-</div>
-                <div class="stat-label">平衡 [O₂]</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="eqSO3">-</div>
-                <div class="stat-label">平衡 [SO₃]</div>
-            </div>
-        </div>
+                    <div class="condition">
+                        <div class="condition-top">
+                            <span class="condition-name">⚗️ 催化剂</span>
+                            <span class="condition-value" id="catalystValue">未加入</span>
+                        </div>
+                        <div class="button-row">
+                            <button class="control-button" id="catalystOff" type="button">− 移除</button>
+                            <button class="control-button accent" id="catalystOn" type="button">＋ 加入 · 2×</button>
+                        </div>
+                        <p class="condition-hint">同时加快两个方向，不改变模型平衡常数。</p>
+                    </div>
 
-        <div class="charts-container">
-            <div class="chart-box">
-                <div class="chart-title">📈 净反应速率 vs 时间</div>
-                <canvas id="rateChart"></canvas>
-            </div>
-            <div class="chart-box">
-                <div class="chart-title">🧪 各组分浓度 vs 时间</div>
-                <canvas id="concentrationChart"></canvas>
-            </div>
-        </div>
+                    <div class="condition species-condition">
+                        <div class="condition-top">
+                            <span class="condition-name">💧 补加某一组分</span>
+                            <span class="condition-value">+0.10</span>
+                        </div>
+                        <select id="speciesSelect" aria-label="选择要补加浓度的组分"></select>
+                        <button class="control-button accent" id="addSpeciesButton" type="button">＋ 从外部补加</button>
+                        <p class="condition-hint" id="speciesHint">补加后，系统会重新趋向新的平衡。</p>
+                    </div>
+                </div>
+            </article>
+        </section>
 
-        <div class="equation-display">
-            <strong>📐 控制方程：</strong><br>
-            dx/dt = 2 · [k_f · (c_A0 - x)² · (c_B0 - x/2) - k_r · (c_C0 + x)²]<br><br>
-            <strong>浓度还原公式：</strong><br>
-            [SO₂] = c_A0 - x<br>
-            [O₂] = c_B0 - x/2<br>
-            [SO₃] = c_C0 + x
-        </div>
-    </div>
+        <section class="card apparatus-card" id="apparatusCard" aria-label="动态实验装置">
+            <div class="apparatus-stage" aria-hidden="true">
+                <svg viewBox="0 0 440 240" role="img" aria-label="反应容器动态示意">
+                    <defs>
+                        <linearGradient id="glassTint" x1="0" x2="1">
+                            <stop offset="0" stop-color="#ffffff" stop-opacity=".8"/>
+                            <stop offset=".5" stop-color="#e7efff" stop-opacity=".22"/>
+                            <stop offset="1" stop-color="#c5d6fa" stop-opacity=".65"/>
+                        </linearGradient>
+                        <clipPath id="flaskClip">
+                            <path d="M192 39 L192 82 L138 171 Q126 197 154 200 L286 200 Q314 197 302 171 L248 82 L248 39 Z"/>
+                        </clipPath>
+                    </defs>
+                    <ellipse class="heat-halo" id="visualHeatHalo" cx="220" cy="200" rx="124" ry="23" fill="#ffb76e" opacity=".08"/>
+                    <path d="M192 39 L192 82 L138 171 Q126 197 154 200 L286 200 Q314 197 302 171 L248 82 L248 39 Z" fill="url(#glassTint)" stroke="#9aacd0" stroke-width="3"/>
+                    <g clip-path="url(#flaskClip)">
+                        <path class="visual-liquid" id="visualLiquid" d="M118 125 L322 125 L322 205 L118 205 Z" fill="#dbe7fa"/>
+                        <path class="visual-wave" id="visualWave" d="M105 126 Q126 118 147 126 T189 126 T231 126 T273 126 T315 126 L315 209 L105 209 Z" fill="#ffffff" opacity=".23"/>
+                        <g fill="#ffffff">
+                            <circle class="bubble" cx="166" cy="178" r="4" style="--bubble-delay:-.3s"/>
+                            <circle class="bubble" cx="198" cy="188" r="3" style="--bubble-delay:-1.7s"/>
+                            <circle class="bubble" cx="230" cy="178" r="5" style="--bubble-delay:-.8s"/>
+                            <circle class="bubble" cx="262" cy="191" r="3.5" style="--bubble-delay:-2.4s"/>
+                            <circle class="bubble" cx="285" cy="173" r="2.7" style="--bubble-delay:-1.2s"/>
+                        </g>
+                    </g>
+                    <path d="M192 39 L192 82 L138 171 Q126 197 154 200 L286 200 Q314 197 302 171 L248 82 L248 39" fill="none" stroke="#8ca3cf" stroke-width="4" stroke-linecap="round"/>
+                    <rect x="184" y="29" width="72" height="13" rx="5" fill="#778aa8"/>
+                    <g class="piston" id="visualPiston">
+                        <rect x="190" y="45" width="60" height="9" rx="4" fill="#93a8c9"/>
+                        <rect x="218" y="16" width="4" height="31" rx="2" fill="#93a8c9"/>
+                    </g>
+                    <g class="catalyst-stars" id="visualCatalyst" fill="#ffd166">
+                        <path d="M147 151 l3 7 7 3 -7 3 -3 7 -3-7 -7-3 7-3Z"/>
+                        <path d="M288 131 l2.4 5.5 5.6 2.5 -5.6 2.5 -2.4 5.5 -2.5-5.5 -5.5-2.5 5.5-2.5Z"/>
+                        <path d="M166 109 l2 4.5 4.5 2 -4.5 2 -2 4.5 -2-4.5 -4.5-2 4.5-2Z"/>
+                    </g>
+                    <g class="dose-drop" id="visualDose" style="--dose-color:#6d9eea">
+                        <path d="M220 76 C220 76 209 91 209 101 A11 11 0 0 0 231 101 C231 91 220 76 220 76Z" fill="var(--dose-color)"/>
+                        <circle cx="216" cy="97" r="2.5" fill="#fff" opacity=".7"/>
+                    </g>
+                    <path d="M78 215 H362" stroke="#b8c8e5" stroke-width="10" stroke-linecap="round"/>
+                    <path d="M92 215 Q96 202 110 202" fill="none" stroke="#f3a262" stroke-width="3" stroke-linecap="round" opacity=".65"/>
+                    <path d="M348 215 Q344 202 330 202" fill="none" stroke="#f3a262" stroke-width="3" stroke-linecap="round" opacity=".65"/>
+                    <text x="220" y="233" text-anchor="middle" fill="#7585a0" font-size="10">恒温浴 · 活塞压力舱 · 实时反应可视化</text>
+                </svg>
+            </div>
+            <div class="apparatus-copy">
+                <h2 id="visualTitle">实验观察窗</h2>
+                <p id="visualDescription">液面、气泡和活塞会跟随当前速率与条件变化；暂停时动画也会停下。</p>
+                <div class="visual-badges">
+                    <span class="visual-badge" id="visualDirection">正向反应占优势</span>
+                    <span class="visual-badge" id="visualActivity">反应活跃</span>
+                    <span class="visual-badge" id="visualColorNote">模型颜色示意</span>
+                </div>
+                <div class="visual-readout">
+                    <div><small>当前净速率</small><strong id="visualNetRate">0.0000</strong></div>
+                    <div><small>观察到的组成变化</small><strong id="visualComposition">反应物 → 产物</strong></div>
+                </div>
+                <p class="visual-caution">装置为教学 SVG 动效，不是实验录像；多数气相反应无明显肉眼颜色，界面颜色只帮助识别组成变化。</p>
+            </div>
+        </section>
+
+        <section class="card simulation-card" aria-label="仿真实验控制与曲线">
+            <div class="playback">
+                <div class="playback-buttons">
+                    <button class="main-button" id="playButton" type="button">⏸ 暂停</button>
+                    <button class="secondary-button" id="stepButton" type="button">单步 +0.10 s</button>
+                    <button class="secondary-button" id="resetButton" type="button">↺ 重置实验</button>
+                </div>
+                <div class="playback-options">
+                    <label class="option" for="speedSelect">播放速度
+                        <select id="speedSelect">
+                            <option value="0.5">0.5×</option>
+                            <option value="1" selected>1×</option>
+                            <option value="2">2×</option>
+                            <option value="4">4×</option>
+                            <option value="8">8×</option>
+                        </select>
+                    </label>
+                    <label class="option" for="horizonSelect">预测未来
+                        <select id="horizonSelect">
+                            <option value="10">10 s</option>
+                            <option value="20" selected>20 s</option>
+                            <option value="30">30 s</option>
+                            <option value="60">60 s</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+
+            <div class="run-status" role="status" aria-live="polite">
+                <span class="status-main"><i class="status-dot" id="statusDot"></i><span id="statusText">正在推进反应进程</span></span>
+                <span id="futureSummary">预测曲线会随条件变化即时重算</span>
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">已模拟时间</div>
+                    <div class="stat-value" id="timeValue">0.0 s</div>
+                    <div class="stat-sub">从 t = 0 开始计时</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">模型平衡常数 K</div>
+                    <div class="stat-value" id="equilibriumValue">—</div>
+                    <div class="stat-sub" id="equilibriumSub">只随温度变化</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">当前反应物转化率</div>
+                    <div class="stat-value" id="conversionValue">0.0%</div>
+                    <div class="stat-sub" id="futureConversion">预计未来：—</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">当前净反应速率</div>
+                    <div class="stat-value" id="netRateValue">0.0000</div>
+                    <div class="stat-sub">r净 = r正 − r逆</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">正 / 逆反应速率</div>
+                    <div class="stat-value" id="rateRatioValue">— / —</div>
+                    <div class="stat-sub">归一化速率单位 / s</div>
+                </div>
+            </div>
+
+            <div class="charts">
+                <article class="chart-card">
+                    <div class="chart-header">
+                        <div>
+                            <h3 class="chart-title">各组分浓度随时间变化</h3>
+                            <p class="chart-note">条件改变时从当前状态继续，不会清空已发生的实验。</p>
+                        </div>
+                        <div class="line-legend" aria-label="线型说明">
+                            <span class="legend-item"><i class="legend-line"></i>已发生</span>
+                            <span class="legend-item"><i class="legend-line dashed"></i>预计</span>
+                        </div>
+                    </div>
+                    <div class="canvas-wrap">
+                        <canvas id="concentrationChart" aria-label="各组分浓度时间曲线"></canvas>
+                        <div class="chart-message" id="concentrationMessage">图表库未加载，请联网后刷新页面。</div>
+                    </div>
+                </article>
+
+                <article class="chart-card">
+                    <div class="chart-header">
+                        <div>
+                            <h3 class="chart-title">正、逆反应速率放在一起看</h3>
+                            <p class="chart-note">两条实线逐渐相遇，就是反应接近平衡的信号。</p>
+                        </div>
+                        <div class="line-legend" aria-label="线型说明">
+                            <span class="legend-item"><i class="legend-line" style="border-color:#3867f5"></i>已发生</span>
+                            <span class="legend-item"><i class="legend-line dashed" style="border-color:#8b9ab5"></i>预计</span>
+                        </div>
+                    </div>
+                    <div class="canvas-wrap">
+                        <canvas id="rateChart" aria-label="正逆反应速率时间曲线"></canvas>
+                        <div class="chart-message" id="rateMessage">图表库未加载，请联网后刷新页面。</div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section class="bottom-grid" aria-label="模型说明与实验记录">
+            <article class="card info-card">
+                <h3>📐 当前反应使用什么模型？</h3>
+                <div class="formula-box">
+                    <p class="formula" id="forwardFormula"></p>
+                    <p class="formula" id="reverseFormula"></p>
+                    <p class="formula">d cᵢ / dt = νᵢ · (r正 − r逆)</p>
+                </div>
+                <p id="modelDescription"></p>
+                <details style="margin-top:12px">
+                    <summary style="color:#405477;font-size:12px;font-weight:800;cursor:pointer">参数从哪里来？</summary>
+                    <p id="dataSourceNote"></p>
+                    <p>参考：<a href="https://webbook.nist.gov/chemistry/" target="_blank" rel="noopener noreferrer" style="color:#3867f5">NIST Chemistry WebBook 标准热化学数据</a> · <a href="https://chem.libretexts.org/Courses/Los_Angeles_Southwest_College/LASC__Chemistry_60_-_Introduction_to_General_Chemistry/13%3A_Appendices/13.07%3A_Appendix_G-_Standard_Thermodynamic_Properties_for_Selected_Substances" target="_blank" rel="noopener noreferrer" style="color:#3867f5">标准热力学性质表</a>。</p>
+                </details>
+            </article>
+
+            <article class="card info-card">
+                <h3>🧾 最近的条件操作</h3>
+                <div style="overflow-x:auto">
+                    <table class="events">
+                        <thead><tr><th>操作</th><th>时间</th><th>温度 / 压强</th><th>正 / 逆速率</th></tr></thead>
+                        <tbody id="eventRows"></tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+
+        <p class="disclaimer">
+            教学模型说明：热力学方向和参考 K 的量级参考公开热化学数据；为了在课堂时间尺度内看清变化，正、逆速率常数经过归一化，并非特定实验条件下的实测动力学参数。复杂反应可能具有不同的速率方程，纯固体以活度 1 处理，液相体系默认忽略体积与活度变化。
+        </p>
+    </main>
 
     <script>
-        let rateChart = null;
-        let concentrationChart = null;
-        let simulationRunning = false;
+        "use strict";
 
-        // 龙格 - 库塔 4 阶方法求解 ODE
-        function rk4(f, t0, y0, tf, n) {
-            const h = (tf - t0) / n;
-            const t = new Array(n + 1);
-            const y = new Array(n + 1);
-            
-            t[0] = t0;
-            y[0] = y0;
-            
-            for (let i = 0; i < n; i++) {
-                const k1 = f(t[i], y[i]);
-                const k2 = f(t[i] + h/2, y[i] + h*k1/2);
-                const k3 = f(t[i] + h/2, y[i] + h*k2/2);
-                const k4 = f(t[i] + h, y[i] + h*k3);
-                
-                y[i+1] = y[i] + (h/6) * (k1 + 2*k2 + 2*k3 + k4);
-                t[i+1] = t[i] + h;
+        // 所有速率常数均为归一化教学参数；species 中的 phase 用于压力和活度处理。
+        const REACTIONS = {
+            so2: {
+                name: "SO₂ 的催化氧化",
+                equation: "2 SO₂(g) + O₂(g) ⇌ 2 SO₃(g)",
+                description: "工业上常用 V₂O₅ 催化。压缩气体有利于气体物质的量较少的右侧；催化剂主要改变达到平衡的快慢。",
+                pressureTip: "正向气体物质的量减少。恒温下增大压强，平衡向 SO₃ 一侧移动。",
+                species: [
+                    { key: "so2", label: "SO₂", phase: "gas", color: "#f3b63f", initial: 1.00 },
+                    { key: "o2", label: "O₂", phase: "gas", color: "#23a6bb", initial: 0.60 },
+                    { key: "so3", label: "SO₃", phase: "gas", color: "#8c65e8", initial: 0.00 }
+                ],
+                stoich: [-2, -1, 2],
+                forward: [[0, 2], [1, 1]], reverse: [[2, 2]],
+                kf: 0.60, referenceK: 13.0, referenceTemperatureC: 450, defaultTemperature: 450, temperatureRange: [25, 700],
+                eaForward: 65, eaReverse: 45, activityScale: 1,
+                dataNote: "标准热化学数据给出吸热方向；参考 K 按 450 °C、1 mol·L⁻¹ 归一化后用于交互演示。",
+                direction: "正向吸热",
+                note: "该方向的简化速率式把正反应写为三级、逆反应写为二级。温度升高时，正反应加速得更明显。"
+            },
+            ammonia: {
+                name: "合成氨",
+                equation: "N₂(g) + 3 H₂(g) ⇌ 2 NH₃(g)",
+                description: "哈柏法的重要平衡。加压有利于生成更少的氨分子；铁催化剂在工业中用于显著加快反应。",
+                pressureTip: "正向由 4 mol 气体生成 2 mol 气体。增大压强，平衡向 NH₃ 一侧移动。",
+                species: [
+                    { key: "n2", label: "N₂", phase: "gas", color: "#4c78eb", initial: 1.00 },
+                    { key: "h2", label: "H₂", phase: "gas", color: "#e98aa3", initial: 3.00 },
+                    { key: "nh3", label: "NH₃", phase: "gas", color: "#16a783", initial: 0.00 }
+                ],
+                stoich: [-1, -3, 2],
+                forward: [[0, 1], [1, 3]], reverse: [[2, 2]],
+                kf: 0.80, referenceK: 13.5, referenceTemperatureC: 450, defaultTemperature: 450, temperatureRange: [300, 650],
+                eaForward: 115, eaReverse: 135, activityScale: 2,
+                dataNote: "以约 450 °C、常见工业压强范围作展示；由标准生成焓/熵估算 Kp，再换算为浓度形式。",
+                direction: "正向放热",
+                note: "合成氨是放热反应。催化剂能同时加快正、逆过程，不改变氨的平衡收率；升温则不利于氨的生成。"
+            },
+            waterGas: {
+                name: "一氧化碳变换",
+                equation: "CO(g) + H₂O(g) ⇌ CO₂(g) + H₂(g)",
+                description: "又称水煤气变换反应，是合成气处理中的常见可逆反应。可关注两侧气体总物质的量不变。",
+                pressureTip: "两侧气体总物质的量相同。改变压强会同时影响速率，但不会改变理想模型的平衡组成。",
+                species: [
+                    { key: "co", label: "CO", phase: "gas", color: "#5e7fe9", initial: 1.00 },
+                    { key: "h2o", label: "H₂O", phase: "gas", color: "#25aebc", initial: 0.80 },
+                    { key: "co2", label: "CO₂", phase: "gas", color: "#ef8c45", initial: 0.00 },
+                    { key: "h2", label: "H₂", phase: "gas", color: "#b072dc", initial: 0.00 }
+                ],
+                stoich: [-1, -1, 1, 1],
+                forward: [[0, 1], [1, 1]], reverse: [[2, 1], [3, 1]],
+                kf: 0.60, referenceK: 0.0010, referenceTemperatureC: 150, defaultTemperature: 150, temperatureRange: [25, 500],
+                eaForward: 70, eaReverse: 76, activityScale: 1,
+                dataNote: "水煤气变换的参考 K 取常见工业温度附近的量级；具体值随水蒸气分压与温度而变。",
+                direction: "正向放热",
+                note: "两侧的气体物质的量相同，所以增压能加快两个方向，却不能移动这个理想模型的平衡。降温有利于放热方向。"
+            },
+            ester: {
+                name: "乙酸乙酯水解",
+                equation: "CH₃COOH + C₂H₅OH ⇌ CH₃COOC₂H₅ + H₂O",
+                description: "酸催化下的可逆酯化反应。本页把溶液视为近似定温定容，重点看浓度与正逆速率的动态平衡。",
+                pressureTip: "各组分按液相处理。改变压强不会改变浓度，因此理想模型中的速率和平衡均不变。",
+                species: [
+                    { key: "acid", label: "乙酸", phase: "liquid", color: "#ed6b68", initial: 1.00 },
+                    { key: "ethanol", label: "乙醇", phase: "liquid", color: "#4b99df", initial: 1.00 },
+                    { key: "ester", label: "乙酸乙酯", phase: "liquid", color: "#aa73dc", initial: 0.00 },
+                    { key: "water", label: "水", phase: "liquid", color: "#2eb0a4", initial: 0.00 }
+                ],
+                stoich: [-1, -1, 1, 1],
+                forward: [[0, 1], [1, 1]], reverse: [[2, 1], [3, 1]],
+                kf: 0.25, referenceK: 4.0, referenceTemperatureC: 25, defaultTemperature: 25, temperatureRange: [10, 100],
+                eaForward: 70, eaReverse: 68, activityScale: 1,
+                dataNote: "酯化平衡高度依赖溶剂、含水量与酸催化剂；此处以常见近似 K≈4 展示可逆性。",
+                direction: "正向略微放热",
+                note: "实际酯化常需要酸催化、加热并不断移走产物。本模型用可逆的简化速率式呈现动态平衡。"
+            },
+            no2: {
+                name: "四氧化二氮分解",
+                equation: "N₂O₄(g) ⇌ 2 NO₂(g)",
+                description: "温度越高，NO₂ 的比例通常越大；这也是氮氧化物平衡与光化学烟雾研究中常见的简化体系。",
+                pressureTip: "一个 N₂O₄ 分子分解成两个 NO₂ 分子。增大压强，平衡向 N₂O₄ 一侧移动。",
+                species: [
+                    { key: "n2o4", label: "N₂O₄", phase: "gas", color: "#597bea", initial: 1.00 },
+                    { key: "no2", label: "NO₂", phase: "gas", color: "#ee8d43", initial: 0.15 }
+                ],
+                stoich: [-1, 2],
+                forward: [[0, 1]], reverse: [[1, 2]],
+                kf: 0.50, referenceK: 0.633, referenceTemperatureC: 25, defaultTemperature: 25, temperatureRange: [10, 80],
+                eaForward: 65, eaReverse: 45, activityScale: 1,
+                dataNote: "由 N₂O₄ 与 NO₂ 的 25 °C 标准生成焓、熵估算，pNO₂² / pN₂O₄ 约为 0.63。",
+                direction: "正向吸热",
+                note: "升温既加快反应，也使平衡向吸热的分解方向移动。这是区分“反应更快”和“平衡更靠右”的好例子。"
+            },
+            boudouard: {
+                name: "布多反应",
+                equation: "CO₂(g) + C(s) ⇌ 2 CO(g)",
+                description: "煤的气化等高温过程可涉及该平衡。固体碳的活度取 1，气体组分遵守简化质量作用定律。",
+                pressureTip: "正向气体物质的量从 1 增至 2。增大压强，平衡向 CO₂ 与固体碳一侧移动。",
+                species: [
+                    { key: "co2", label: "CO₂", phase: "gas", color: "#5b83de", initial: 0.40 },
+                    { key: "carbon", label: "C（固）", phase: "solid", color: "#778399", initial: 1.00 },
+                    { key: "co", label: "CO", phase: "gas", color: "#e96676", initial: 0.00 }
+                ],
+                stoich: [-1, -1, 2],
+                forward: [[1, 0]], reverse: [[2, 2]],
+                kf: 0.50, referenceK: 0.11, referenceTemperatureC: 700, defaultTemperature: 700, temperatureRange: [400, 1200],
+                eaForward: 100, eaReverse: 80, activityScale: 1,
+                dataNote: "布多反应的平衡强烈依赖温度；参考值按高温煤化工常用范围压缩为教学可读尺度。",
+                direction: "正向吸热",
+                note: "固体碳不进入压强缩放。升温有利于吸热的 CO 生成方向；增大压强则有利于左侧。"
+            },
+            carbonate: {
+                name: "碳酸钙热分解",
+                equation: "CaCO₃(s) ⇌ CaO(s) + CO₂(g)",
+                description: "石灰石煅烧的简化模型。两个纯固体活度均为 1，平衡主要取决于温度与 CO₂ 分压。",
+                pressureTip: "两侧气体物质的量差为 0。改变压强会改变瞬时速率，但不会改变理想模型的平衡位置。",
+                species: [
+                    { key: "caco3", label: "CaCO₃（固）", phase: "solid", color: "#71829e", initial: 1.00 },
+                    { key: "cao", label: "CaO（固）", phase: "solid", color: "#b88459", initial: 1.00 },
+                    { key: "co2", label: "CO₂", phase: "gas", color: "#35aab2", initial: 0.20 }
+                ],
+                stoich: [-1, -1, 1],
+                forward: [[0, 0]], reverse: [[2, 1]],
+                kf: 0.30, referenceK: 0.000092, referenceTemperatureC: 900, defaultTemperature: 900, temperatureRange: [500, 1100],
+                eaForward: 110, eaReverse: 70, activityScale: 0.01,
+                dataNote: "CaCO₃ 分解平衡以 CO₂ 分压为主；900 °C 的 pCO₂ 平衡参考约为常压量级。",
+                direction: "正向吸热",
+                note: "真实反应还涉及固体表面积、孔隙和 CO₂ 扩散。本模型将两种固体活度设为 1，适合演示“升温促进吸热分解”。"
             }
-            
-            return { t, y };
+        };
+
+        const R = 8.314;
+        const EQUILIBRIUM_TOLERANCE = 0.001;
+        const MAX_PRESSURE = 3;
+        const MIN_PRESSURE = 0.5;
+
+        const MAX_HISTORY = 1800;
+
+        let selectedKey = "so2";
+        let reaction = REACTIONS[selectedKey];
+        let state = null;
+        let history = [];
+        let eventLog = [];
+        let running = false;
+        let lastFrame = 0;
+        let animationFrame = 0;
+        let concentrationChart = null;
+        let rateChart = null;
+        let forecast = [];
+        let forecastStartTime = -Infinity;
+
+        const $ = id => document.getElementById(id);
+        const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+        const kelvin = celsius => celsius + 273.15;
+        const celsius = temperature => temperature - 273.15;
+
+        function buildReactionSelect() {
+            $("reactionSelect").innerHTML = Object.entries(REACTIONS)
+                .map(([key, item]) => `<option value="${key}">${item.name} · ${item.equation}</option>`)
+                .join("");
+            $("reactionSelect").value = selectedKey;
         }
 
-        function runSimulation() {
-            if (simulationRunning) return;
-            simulationRunning = true;
+        function buildSpeciesSelect() {
+            $("speciesSelect").innerHTML = reaction.species.map((species, index) =>
+                `<option value="${index}">补加 ${species.label}${species.phase === "solid" ? "（固体）" : ""}</option>`
+            ).join("");
+            updateSpeciesControls();
+        }
 
-            // 获取参数
-            const kf = parseFloat(document.getElementById('kf').value);
-            const kr = parseFloat(document.getElementById('kr').value);
-            const cA0 = parseFloat(document.getElementById('cA0').value);
-            const cB0 = parseFloat(document.getElementById('cB0').value);
-            const cC0 = parseFloat(document.getElementById('cC0').value);
-            const simTime = parseFloat(document.getElementById('simTime').value);
+        function updateSpeciesControls() {
+            const index = Number($("speciesSelect").value || 0);
+            const species = reaction.species[index];
+            const solid = species && species.phase === "solid";
+            $("addSpeciesButton").disabled = Boolean(solid);
+            $("speciesHint").textContent = solid
+                ? "纯固体活度按 1 处理，补加固体不会改变本模型的速率。"
+                : "从外部补加 0.10；系统会从当前组成重新趋向平衡。";
+        }
 
-            // 定义 ODE: dx/dt = 2 * [kf * (cA0-x)^2 * (cB0-x/2) - kr * (cC0+x)^2]
-            function dxdt(t, x) {
-                const cA = cA0 - x;
-                const cB = cB0 - x/2;
-                const cC = cC0 + x;
-                
-                // 防止负浓度
-                if (cA < 0 || cB < 0) return 0;
-                
-                const rf = kf * cA * cA * cB;
-                const rr = kr * cC * cC;
-                return 2 * (rf - rr);
+        function makeInitialState() {
+            const concentrations = {};
+            reaction.species.forEach(species => { concentrations[species.key] = species.initial; });
+            return {
+                time: 0,
+                concentrations,
+                temperature: reaction.defaultTemperature,
+                pressure: 1,
+                catalyst: false,
+                speed: 1,
+                horizon: 20
+            };
+        }
+
+        function getConstants(currentState = state) {
+            // 活化能与参考热力学数据决定温度响应；kf 是为课堂时间尺度归一化后的前向速率。
+            const temperature = kelvin(currentState.temperature);
+            const referenceTemperature = kelvin(reaction.referenceTemperatureC);
+            const scale = Math.exp(-reaction.eaForward / R * (1 / temperature - 1 / referenceTemperature));
+            const catalystMultiplier = currentState.catalyst ? 2 : 1;
+            const kf = reaction.kf * scale * catalystMultiplier;
+            const currentK = reaction.referenceK * Math.exp((reaction.eaForward - reaction.eaReverse) / R * (1 / temperature - 1 / referenceTemperature));
+            const kr = kf / currentK;
+            return { kf, kr, K: currentK };
+        }
+
+        function calculateRates(concentrations, constants) {
+            const evaluate = law => law.reduce((product, term) => {
+                const [index, power] = term;
+                return product * Math.pow(Math.max(0, concentrations[reaction.species[index].key]), power);
+            }, 1);
+            const forward = constants.kf * evaluate(reaction.forward);
+            const reverse = constants.kr * evaluate(reaction.reverse);
+            return { forward, reverse, net: forward - reverse };
+        }
+
+        function derivative(concentrations, constants) {
+            const rates = calculateRates(concentrations, constants);
+            const next = {};
+            reaction.species.forEach((species, index) => {
+                // 返回 dc/dt（不是浓度本身）；纯固体活度为 1，课堂中不追踪其被消耗的量。
+                next[species.key] = species.phase === "solid" ? 0 : reaction.stoich[index] * rates.net;
+            });
+            return next;
+        }
+
+        function stageConcentrations(base, derivativeValues, dt) {
+            const staged = {};
+            reaction.species.forEach(species => {
+                staged[species.key] = species.phase === "solid"
+                    ? base[species.key]
+                    : Math.max(0, base[species.key] + dt * derivativeValues[species.key]);
+            });
+            return staged;
+        }
+
+        // 小步长 RK4：交互时条件可以在任意一个采样点改变，未来始终从当前浓度重新积分。
+        function integrate(startConcentrations, seconds, constants) {
+            const step = 0.025;
+            const count = Math.ceil(seconds / step);
+            const points = [];
+            let concentrations = { ...startConcentrations };
+            let elapsed = 0;
+            for (let i = 0; i < count; i++) {
+                const dt = Math.min(step, seconds - elapsed);
+                if (dt <= 0) break;
+                const k1 = derivative(concentrations, constants);
+                const stage2 = stageConcentrations(concentrations, k1, dt / 2);
+                const k2 = derivative(stage2, constants);
+                const stage3 = stageConcentrations(concentrations, k2, dt / 2);
+                const k3 = derivative(stage3, constants);
+                const stage4 = stageConcentrations(concentrations, k3, dt);
+                const k4 = derivative(stage4, constants);
+                const next = {};
+                reaction.species.forEach(species => {
+                    next[species.key] = species.phase === "solid"
+                        ? concentrations[species.key]
+                        : Math.max(0, concentrations[species.key] + dt * (k1[species.key] + 2 * k2[species.key] + 2 * k3[species.key] + k4[species.key]) / 6);
+                });
+                concentrations = next;
+                elapsed += dt;
+                points.push({ time: state.time + elapsed, concentrations: { ...concentrations } });
             }
+            return points;
+        }
 
-            // 使用 RK4 求解
-            const n = 500;
-            const result = rk4(dxdt, 0, 0, simTime, n);
-            
-            // 计算各变量
-            const t = result.t;
-            const x = result.y;
-            const cA = x.map(xi => Math.max(0, cA0 - xi));
-            const cB = x.map(xi => Math.max(0, cB0 - xi/2));
-            const cC = x.map(xi => cC0 + xi);
-            
-            // 计算净反应速率
-            const rNet = x.map((xi, i) => {
-                const cAi = cA0 - xi;
-                const cBi = cB0 - xi/2;
-                const cCi = cC0 + xi;
-                if (cAi < 0 || cBi < 0) return 0;
-                const rf = kf * cAi * cAi * cBi;
-                const rr = kr * cCi * cCi;
-                return 2 * (rf - rr);
-            });
+        function maxExtent() {
+            // 转化率始终以重置时的初始投料为基准，避免外部补加后分母跟着漂移。
+            const limits = reaction.species
+                .map((species, index) => reaction.stoich[index] < 0 ? species.initial / Math.abs(reaction.stoich[index]) : Infinity);
+            return Math.min(...limits, 1e9);
+        }
 
-            // 计算平衡状态（最后一点）
-            const xEq = x[x.length - 1];
-            document.getElementById('eqX').textContent = xEq.toFixed(4);
-            document.getElementById('eqSO2').textContent = cA[cA.length - 1].toFixed(4);
-            document.getElementById('eqO2').textContent = cB[cB.length - 1].toFixed(4);
-            document.getElementById('eqSO3').textContent = cC[cC.length - 1].toFixed(4);
+        function getConversion(concentrations) {
+            const numerator = reaction.species.reduce((sum, species, index) => {
+                return sum + reaction.stoich[index] * (concentrations[species.key] - species.initial);
+            }, 0);
+            const divisor = reaction.species.reduce((sum, _, index) => sum + reaction.stoich[index] ** 2, 0);
+            return clamp(100 * (dividerSafe(numerator, divisor) / maxExtent()), 0, 100);
+        }
 
-            // 绘制净反应速率图
-            const rateCtx = document.getElementById('rateChart').getContext('2d');
-            if (rateChart) rateChart.destroy();
-            
-            rateChart = new Chart(rateCtx, {
-                type: 'line',
-                data: {
-                    labels: t.map(ti => ti.toFixed(2)),
-                    datasets: [{
-                        label: '净反应速率 r_net (mol/L/s)',
-                        data: rNet,
-                        borderColor: '#dc3545',
-                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false
-                        }
-                    },
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: '时间 t (s)'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: '净反应速率 (mol/L/s)'
-                            },
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
+        function dividerSafe(value, divisor) { return divisor === 0 ? 0 : value / divisor; }
 
-            // 绘制浓度图
-            const concCtx = document.getElementById('concentrationChart').getContext('2d');
+        function isNearEquilibrium(rates) {
+            return Math.abs(rates.net) <= Math.max(1e-10, (rates.forward + rates.reverse) * EQUILIBRIUM_TOLERANCE);
+        }
+
+        function currentSnapshot() {
+            const constants = getConstants();
+            const rates = calculateRates(state.concentrations, constants);
+            return {
+                time: state.time,
+                concentrations: { ...state.concentrations },
+                ...rates,
+                temperature: state.temperature,
+                pressure: state.pressure,
+                catalyst: state.catalyst,
+                K: constants.K
+            };
+        }
+
+        function addHistory(force = false) {
+            const last = history[history.length - 1];
+            if (last && Math.abs(last.time - state.time) < 1e-9) return;
+            if (last && !force && state.time - last.time < 0.045) return;
+            history.push(currentSnapshot());
+            if (history.length > MAX_HISTORY) {
+                history = history.filter((_, index) => index % 2 === 0);
+                if (history[history.length - 1].time !== state.time) history.push(currentSnapshot());
+            }
+        }
+
+        function makeForecast() {
+            const constants = getConstants();
+            const result = integrate(state.concentrations, state.horizon, constants);
+            result.unshift({ time: state.time, concentrations: { ...state.concentrations } });
+            forecast = result;
+            forecastStartTime = state.time;
+        }
+
+        function rebuildCharts() {
+            if (typeof Chart === "undefined") {
+                $("concentrationMessage").style.display = "grid";
+                $("rateMessage").style.display = "grid";
+                return;
+            }
             if (concentrationChart) concentrationChart.destroy();
-            
-            concentrationChart = new Chart(concCtx, {
-                type: 'line',
+            if (rateChart) rateChart.destroy();
+
+            const concentrationDatasets = [];
+            reaction.species.forEach(species => {
+                concentrationDatasets.push({
+                    label: species.label,
+                    data: [], parsing: false, borderColor: species.color,
+                    backgroundColor: hexToRgba(species.color, .05), borderWidth: 2.7,
+                    pointRadius: 0, tension: .25, spanGaps: false
+                });
+                concentrationDatasets.push({
+                    label: `${species.label} · 预计`,
+                    data: [], parsing: false, borderColor: hexToRgba(species.color, .72),
+                    borderWidth: 1.6, borderDash: [6, 4], pointRadius: 0,
+                    tension: .25, spanGaps: false
+                });
+            });
+
+            concentrationChart = new Chart($("concentrationChart"), {
+                type: "line",
+                data: { datasets: concentrationDatasets },
+                options: chartOptions("组分浓度（归一化）", "浓度 c")
+            });
+
+            rateChart = new Chart($("rateChart"), {
+                type: "line",
                 data: {
-                    labels: t.map(ti => ti.toFixed(2)),
                     datasets: [
-                        {
-                            label: '[SO₂] (mol/L)',
-                            data: cA,
-                            borderColor: '#ffc107',
-                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.4,
-                            pointRadius: 0
-                        },
-                        {
-                            label: '[O₂] (mol/L)',
-                            data: cB,
-                            borderColor: '#17a2b8',
-                            backgroundColor: 'rgba(23, 162, 184, 0.1)',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.4,
-                            pointRadius: 0
-                        },
-                        {
-                            label: '[SO₃] (mol/L)',
-                            data: cC,
-                            borderColor: '#28a745',
-                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.4,
-                            pointRadius: 0
-                        }
+                        { label: "正反应速率", data: [], parsing: false, borderColor: "#3867f5", borderWidth: 2.7, pointRadius: 0, tension: .25 },
+                        { label: "逆反应速率", data: [], parsing: false, borderColor: "#f59e42", borderWidth: 2.7, pointRadius: 0, tension: .25 },
+                        { label: "正反应速率 · 预计", data: [], parsing: false, borderColor: "rgba(56,103,245,.66)", borderWidth: 1.6, borderDash: [6, 4], pointRadius: 0, tension: .25 },
+                        { label: "逆反应速率 · 预计", data: [], parsing: false, borderColor: "rgba(245,158,66,.72)", borderWidth: 1.6, borderDash: [6, 4], pointRadius: 0, tension: .25 }
                     ]
                 },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false
-                        }
-                    },
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: '时间 t (s)'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: '浓度 (mol/L)'
-                            },
-                            beginAtZero: true
-                        }
-                    }
-                }
+                options: chartOptions("反应速率", "归一化速率 / s")
             });
-
-            simulationRunning = false;
         }
 
-        function resetSimulation() {
-            document.getElementById('kf').value = '0.8';
-            document.getElementById('kr').value = '0.05';
-            document.getElementById('cA0').value = '1.0';
-            document.getElementById('cB0').value = '0.6';
-            document.getElementById('cC0').value = '0.0';
-            document.getElementById('simTime').value = '10';
-            
-            document.getElementById('eqX').textContent = '-';
-            document.getElementById('eqSO2').textContent = '-';
-            document.getElementById('eqO2').textContent = '-';
-            document.getElementById('eqSO3').textContent = '-';
-            
-            if (rateChart) {
-                rateChart.data.labels = [];
-                rateChart.data.datasets.forEach(d => d.data = []);
-                rateChart.update();
+        function chartOptions(yTitle, axisTitle) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                normalized: true,
+                animation: false,
+                interaction: { mode: "nearest", intersect: false },
+                plugins: {
+                    legend: {
+                        position: "bottom",
+                        labels: { boxWidth: 18, boxHeight: 2, padding: 14, color: "#76849a", font: { size: 10 } }
+                    },
+                    tooltip: {
+                        backgroundColor: "rgba(23,35,59,.93)",
+                        padding: 10,
+                        titleFont: { size: 12 },
+                        bodyFont: { size: 11 },
+                        callbacks: { title: items => `t = ${Number(items[0].parsed.x).toFixed(2)} s` }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: "linear",
+                        title: { display: true, text: "时间 t / s", color: "#8b96a9", font: { size: 10 } },
+                        grid: { color: "rgba(214,221,234,.48)" },
+                        border: { display: false },
+                        ticks: { color: "#96a1b2", maxTicksLimit: 7, font: { size: 10 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: axisTitle, color: "#8b96a9", font: { size: 10 } },
+                        grid: { color: "rgba(214,221,234,.48)" },
+                        border: { display: false },
+                        ticks: { color: "#96a1b2", maxTicksLimit: 5, font: { size: 10 } }
+                    }
+                },
+                elements: { line: { hitTarget: 7 } }
+            };
+        }
+
+        function hexToRgba(hex, alpha) {
+            const value = hex.replace("#", "");
+            const bigint = parseInt(value, 16);
+            return `rgba(${(bigint >> 16) & 255},${(bigint >> 8) & 255},${bigint & 255},${alpha})`;
+        }
+
+        function drawCharts() {
+            if (!concentrationChart || !rateChart) return;
+            const actualConcentrations = reaction.species.map(() => []);
+            const actualForward = [];
+            const actualReverse = [];
+            history.forEach(sample => {
+                reaction.species.forEach((species, index) => {
+                    actualConcentrations[index].push({ x: sample.time, y: sample.concentrations[species.key] });
+                });
+                actualForward.push({ x: sample.time, y: sample.forward });
+                actualReverse.push({ x: sample.time, y: sample.reverse });
+            });
+            concentrationChart.data.datasets.forEach((dataset, index) => {
+                const speciesIndex = Math.floor(index / 2);
+                dataset.data = index % 2 === 0 ? actualConcentrations[speciesIndex] : forecast.map(point => ({
+                    x: point.time, y: point.concentrations[reaction.species[speciesIndex].key]
+                }));
+            });
+            rateChart.data.datasets[0].data = actualForward;
+            rateChart.data.datasets[1].data = actualReverse;
+            rateChart.data.datasets[2].data = forecast.map(point => {
+                const rates = calculateRates(point.concentrations, getConstants());
+                return { x: point.time, y: rates.forward };
+            });
+            rateChart.data.datasets[3].data = forecast.map(point => {
+                const rates = calculateRates(point.concentrations, getConstants());
+                return { x: point.time, y: rates.reverse };
+            });
+            concentrationChart.update("none");
+            rateChart.update("none");
+        }
+
+        function colorMix(from, to, fraction) {
+            const parse = color => color.match(/\w\w/g).map(value => parseInt(value, 16));
+            const a = parse(from);
+            const b = parse(to);
+            const t = clamp(fraction, 0, 1);
+            return `rgb(${a.map((value, index) => Math.round(value + (b[index] - value) * t)).join(",")})`;
+        }
+
+        function formatConcentration(value) {
+            if (value !== 0 && Math.abs(value) < .001) return value.toExponential(2);
+            return Number(value.toFixed(3)).toString();
+        }
+
+        function updateVisual(snapshot) {
+            const product = reaction.species[reaction.species.length - 1];
+            const productConcentration = snapshot.concentrations[product.key];
+            const total = snapshot.forward + snapshot.reverse;
+            const activity = Math.log10(1 + total * 12 / reaction.activityScale);
+            const near = isNearEquilibrium(snapshot);
+            const [temperatureMin, temperatureMax] = reaction.temperatureRange;
+            const heatFraction = clamp((state.temperature - temperatureMin) / (temperatureMax - temperatureMin), 0, 1);
+            let color = "#dbe7fa";
+            let colorDescription = "模型颜色示意";
+            if (selectedKey === "no2") {
+                const no2 = snapshot.concentrations.no2;
+                const fraction = clamp(no2 / Math.max(.0001, no2 + snapshot.concentrations.n2o4), 0, 1);
+                color = colorMix("#e3e7eb", "#a7502e", fraction);
+                colorDescription = fraction > .3 ? "红棕色加深：NO₂ 增多" : "浅色：N₂O₄ 较多";
+            } else if (selectedKey === "carbonate") {
+                color = colorMix("#f4f2ed", "#d6a46f", clamp(productConcentration / .0002, 0, 1));
+                colorDescription = "由浅至棕：CO₂ 含量增加";
+            } else if (selectedKey === "ester") {
+                color = colorMix("#f0ebdd", "#e9c778", clamp(productConcentration, 0, 1));
+                colorDescription = "金黄色加深：酯生成";
+            } else if (selectedKey === "boudouard") {
+                color = colorMix("#dbe0e5", "#8799a2", clamp(productConcentration * 1.5, 0, 1));
+                colorDescription = "颜色仅辅助区分 CO 与 CO₂";
             }
-            if (concentrationChart) {
-                concentrationChart.data.labels = [];
-                concentrationChart.data.datasets.forEach(d => d.data = []);
-                concentrationChart.update();
+            $("visualLiquid").setAttribute("fill", color);
+            $("visualWave").setAttribute("fill", color);
+            $("apparatusCard").classList.toggle("paused", !running);
+            $("visualCatalyst").classList.toggle("active", state.catalyst);
+            $("visualPiston").style.transform = `translateY(${(1 - state.pressure) * 5}px)`;
+            $("visualHeatHalo").setAttribute("fill", colorMix("#7ac5ff", "#ff855b", heatFraction));
+            $("visualHeatHalo").setAttribute("opacity", (.07 + heatFraction * .18).toFixed(2));
+            $("apparatusCard").style.setProperty("--bubble-duration", `${(3.25 / clamp(.55 + activity * .55, .55, 1.8)).toFixed(2)}s`);
+            $("visualTitle").textContent = `${reaction.name} · 实验观察窗`;
+            $("visualDescription").textContent = near
+                ? "正、逆反应的速率已经接近，容器里的宏观变化会越来越慢。"
+                : snapshot.net > 0 ? "气泡加快、正反应消耗反应物；推动实验后会看到容器组成逐步变化。" : "逆反应正在加快，产物正重新生成反应物。";
+            $("visualDirection").textContent = near ? "接近动态平衡" : snapshot.net > 0 ? "正向反应占优势" : "逆向反应占优势";
+            $("visualActivity").textContent = !running ? "已暂停" : near ? "趋于稳定" : activity < .2 ? "反应较平缓" : activity < .7 ? "反应活跃" : "反应剧烈";
+            $("visualColorNote").textContent = colorDescription;
+            $("visualNetRate").textContent = signed(snapshot.net, 4);
+            $("visualComposition").textContent = `${product.label} ${formatConcentration(productConcentration)}`;
+        }
+
+        function animateDose(color) {
+            const card = $("apparatusCard");
+            $("visualDose").style.setProperty("--dose-color", color);
+            card.classList.remove("dose-added");
+            void card.offsetWidth;
+            card.classList.add("dose-added");
+            window.setTimeout(() => card.classList.remove("dose-added"), 900);
+        }
+
+        function updateReadouts() {
+            const snapshot = currentSnapshot();
+            const near = isNearEquilibrium(snapshot);
+            const [temperatureMin, temperatureMax] = reaction.temperatureRange;
+            $("temperatureValue").textContent = `${Number(state.temperature.toFixed(1))} °C`;
+            $("pressureValue").textContent = `${state.pressure.toFixed(1)} atm`;
+            $("catalystValue").textContent = state.catalyst ? "已加入 · 2×" : "未加入";
+            $("temperatureUp").disabled = state.temperature >= temperatureMax;
+            $("temperatureDown").disabled = state.temperature <= temperatureMin;
+            $("pressureUp").disabled = state.pressure >= MAX_PRESSURE;
+            $("pressureDown").disabled = state.pressure <= MIN_PRESSURE;
+            $("catalystOn").disabled = state.catalyst;
+            $("catalystOff").disabled = !state.catalyst;
+            $("timeValue").textContent = `${state.time.toFixed(1)} s`;
+            $("equilibriumValue").textContent = formatConcentration(snapshot.K);
+            $("equilibriumSub").textContent = state.catalyst ? "催化剂不改 K" : "只随温度变化";
+            $("conversionValue").textContent = `${getConversion(snapshot.concentrations).toFixed(1)}%`;
+            $("netRateValue").textContent = signed(snapshot.net, 4);
+            $("rateRatioValue").textContent = `${formatConcentration(snapshot.forward)} / ${formatConcentration(snapshot.reverse)}`;
+            $("playButton").textContent = running ? "⏸ 暂停" : "▶ 继续";
+            $("statusDot").className = `status-dot${running && !near ? "" : near ? " equilibrium" : " paused"}`;
+            $("statusText").textContent = near ? "正、逆速率接近相等：接近平衡" : running ? (snapshot.net > 0 ? "正在推进：正反应占优势" : "正在推进：逆反应占优势") : "实验已暂停，可单步观察或改变条件";
+            updateSpeciesControls();
+            updateVisual(snapshot);
+            if (forecast.length) {
+                const end = forecast[forecast.length - 1];
+                const endRates = calculateRates(end.concentrations, getConstants());
+                const endConversion = getConversion(end.concentrations);
+                $("futureSummary").textContent = `保持当前条件 ${state.horizon} s：转化率约 ${endConversion.toFixed(1)}%，${isNearEquilibrium(endRates) ? "接近平衡" : "仍在变化"}`;
+                $("futureConversion").textContent = `预计未来：${endConversion.toFixed(1)}%`;
             }
         }
 
-        // 页面加载时自动运行一次仿真
-        window.addEventListener('load', runSimulation);
+        function signed(value, digits) {
+            if (Math.abs(value) < 0.5 * Math.pow(10, -digits)) return (0).toFixed(digits);
+            return `${value > 0 ? "+" : ""}${value.toFixed(digits)}`;
+        }
+
+        function refresh(forcePrediction = false) {
+            updateReadouts();
+            if (forcePrediction || state.time - forecastStartTime >= 0.1 || state.time < forecastStartTime) makeForecast();
+            drawCharts();
+        }
+
+        function updateModelText() {
+            const format = (law, label) => {
+                const terms = law.filter(term => term[1] !== 0).map(term => {
+                    const species = reaction.species[term[0]];
+                    return `c(${species.label})${term[1] === 1 ? "" : `^${term[1]}`}`;
+                });
+                return `r${label} = k${label} · ${terms.length ? terms.join(" · ") : "1"}`;
+            };
+            $("reactionEquation").textContent = reaction.equation;
+            $("reactionDescription").textContent = reaction.description;
+            $("pressureTip").textContent = reaction.pressureTip;
+            $("forwardFormula").textContent = format(reaction.forward, "正");
+            $("reverseFormula").textContent = format(reaction.reverse, "逆");
+            $("modelDescription").textContent = `${reaction.direction}；${reaction.note}`;
+            $("dataSourceNote").textContent = `${reaction.dataNote} Arrhenius 活化能差采用教材常见量级；界面中的 k 正、k 逆仅用于统一演示时间尺度。`;
+        }
+
+        function updateEventRows() {
+            $("eventRows").innerHTML = eventLog.length
+                ? eventLog.slice(0, 5).map(item => `<tr><td>${item.label}</td><td>${item.time.toFixed(2)} s</td><td>${item.conditions}</td><td>${item.rates}</td></tr>`).join("")
+                : '<tr><td colspan="4" style="color:#a1aabb;padding-top:13px">调整条件后，这里会记录最近的操作。</td></tr>';
+        }
+
+        function logEvent(label) {
+            const snapshot = currentSnapshot();
+            eventLog.unshift({
+                label,
+                time: state.time,
+                conditions: `${state.temperature.toFixed(0)}°C / ${state.pressure.toFixed(1)} atm`,
+                rates: `${snapshot.forward.toFixed(2)} / ${snapshot.reverse.toFixed(2)}`
+            });
+            eventLog = eventLog.slice(0, 5);
+            updateEventRows();
+        }
+
+        function advance(seconds) {
+            const constants = getConstants();
+            const next = derivative(state.concentrations, constants);
+            reaction.species.forEach(species => {
+                if (species.phase !== "solid") state.concentrations[species.key] = Math.max(0, state.concentrations[species.key] + seconds * next[species.key]);
+            });
+            state.time += seconds;
+            addHistory();
+        }
+
+        function setRunning(value) {
+            running = value;
+            if (running) {
+                lastFrame = 0;
+                if (!animationFrame) animationFrame = requestAnimationFrame(tick);
+            }
+            updateReadouts();
+        }
+
+        function tick(timestamp) {
+            animationFrame = 0;
+            if (!running) return;
+            if (lastFrame) {
+                const delta = Math.min((timestamp - lastFrame) / 1000, .1);
+                advance(delta * state.speed);
+                refresh();
+            }
+            lastFrame = timestamp;
+            animationFrame = requestAnimationFrame(tick);
+        }
+
+        function changeCondition(label, change) {
+            addHistory(true);
+            change();
+            refresh(true);
+            logEvent(label);
+        }
+
+        function selectReaction(key) {
+            if (!REACTIONS[key]) return;
+            selectedKey = key;
+            reaction = REACTIONS[key];
+            state = makeInitialState();
+            history = [];
+            eventLog = [];
+            forecast = [];
+            forecastStartTime = -Infinity;
+            addHistory(true);
+            makeForecast();
+            updateModelText();
+            buildSpeciesSelect();
+            rebuildCharts();
+            updateEventRows();
+            refresh();
+            setRunning(true);
+        }
+
+        function resetExperiment() {
+            setRunning(false);
+            state = makeInitialState();
+            history = [];
+            eventLog = [];
+            forecast = [];
+            forecastStartTime = -Infinity;
+            addHistory(true);
+            makeForecast();
+            buildSpeciesSelect();
+            updateEventRows();
+            refresh();
+            logEvent("重置实验");
+        }
+
+        function initializeEvents() {
+            $("reactionSelect").addEventListener("change", event => selectReaction(event.target.value));
+            $("temperatureUp").addEventListener("click", () => changeCondition("升温 +10°C", () => {
+                state.temperature = clamp(state.temperature + 10, ...reaction.temperatureRange);
+            }));
+            $("temperatureDown").addEventListener("click", () => changeCondition("降温 −10°C", () => {
+                state.temperature = clamp(state.temperature - 10, ...reaction.temperatureRange);
+            }));
+            $("pressureUp").addEventListener("click", () => changeCondition("加压 +0.5 atm", () => {
+                const target = clamp(state.pressure + .5, MIN_PRESSURE, MAX_PRESSURE);
+                const ratio = target / state.pressure;
+                reaction.species.forEach(species => {
+                    if (species.phase === "gas") state.concentrations[species.key] *= ratio;
+                });
+                state.pressure = target;
+            }));
+            $("pressureDown").addEventListener("click", () => changeCondition("减压 −0.5 atm", () => {
+                const target = clamp(state.pressure - .5, MIN_PRESSURE, MAX_PRESSURE);
+                const ratio = target / state.pressure;
+                reaction.species.forEach(species => {
+                    if (species.phase === "gas") state.concentrations[species.key] *= ratio;
+                });
+                state.pressure = target;
+            }));
+            $("catalystOn").addEventListener("click", () => changeCondition("加入催化剂", () => { state.catalyst = true; }));
+            $("catalystOff").addEventListener("click", () => changeCondition("移除催化剂", () => { state.catalyst = false; }));
+            $("speciesSelect").addEventListener("change", updateSpeciesControls);
+            $("addSpeciesButton").addEventListener("click", () => {
+                const species = reaction.species[Number($("speciesSelect").value)];
+                if (!species || species.phase === "solid") return;
+                const visualColor = selectedKey === "no2" && species.key === "no2" ? "#a7502e" : species.color;
+                changeCondition(`补加 ${species.label}`, () => {
+                    state.concentrations[species.key] += .10;
+                });
+                animateDose(visualColor);
+            });
+            $("playButton").addEventListener("click", () => {
+                if (!running) addHistory(true);
+                setRunning(!running);
+                refresh();
+            });
+            $("stepButton").addEventListener("click", () => {
+                advance(.1);
+                addHistory(true);
+                refresh(true);
+                logEvent("单步 +0.10 s");
+            });
+            $("resetButton").addEventListener("click", resetExperiment);
+            $("speedSelect").addEventListener("change", event => { state.speed = Number(event.target.value); });
+            $("horizonSelect").addEventListener("change", event => {
+                state.horizon = Number(event.target.value);
+                refresh(true);
+            });
+        }
+
+        function boot() {
+            if (typeof Chart !== "undefined") {
+                Chart.defaults.color = "#76849a";
+                Chart.defaults.font.family = '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
+            }
+            buildReactionSelect();
+            state = makeInitialState();
+            addHistory(true);
+            updateModelText();
+            buildSpeciesSelect();
+            initializeEvents();
+            rebuildCharts();
+            makeForecast();
+            refresh();
+            setRunning(true);
+        }
+
+        boot();
     </script>
 </body>
 </html>
