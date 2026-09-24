@@ -631,8 +631,8 @@
                             <span class="condition-value" id="temperatureValue">25.0 °C</span>
                         </div>
                         <div class="button-row">
-                            <button class="control-button" id="temperatureDown" type="button">− 降温 10 °C</button>
-                            <button class="control-button accent" id="temperatureUp" type="button">＋ 升温 10 °C</button>
+                            <button class="control-button" id="temperatureDown" type="button">− 降温 25 °C</button>
+                            <button class="control-button accent" id="temperatureUp" type="button">＋ 升温 25 °C</button>
                         </div>
                         <p class="condition-hint">同时改变正、逆反应速率；吸热或放热会改变平衡。</p>
                     </div>
@@ -1020,6 +1020,8 @@
         let rateChart = null;
         let forecast = [];
         let forecastStartTime = -Infinity;
+        let conditionNotice = "";
+        let conditionNoticeUntil = 0;
 
         const $ = id => document.getElementById(id);
         const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -1071,7 +1073,8 @@
             const scale = Math.exp(-reaction.eaForward / R * (1 / temperature - 1 / referenceTemperature));
             const catalystMultiplier = currentState.catalyst ? 2 : 1;
             const kf = reaction.kf * scale * catalystMultiplier;
-            const currentK = reaction.referenceK * Math.exp((reaction.eaForward - reaction.eaReverse) / R * (1 / temperature - 1 / referenceTemperature));
+            // van 't Hoff 形式：升温使吸热方向 K 增大、放热方向 K 减小。
+            const currentK = reaction.referenceK * Math.exp((reaction.eaForward - reaction.eaReverse) / R * (1 / referenceTemperature - 1 / temperature));
             const kr = kf / currentK;
             return { kf, kr, K: currentK };
         }
@@ -1323,7 +1326,8 @@
 
         function formatConcentration(value) {
             if (value !== 0 && Math.abs(value) < .001) return value.toExponential(2);
-            return Number(value.toFixed(3)).toString();
+            // 速率读数保留四位，避免 0.020 → 0.021 这类变化被界面四舍五入掉。
+            return Math.abs(value) < 1 ? value.toFixed(4) : Number(value.toFixed(3)).toString();
         }
 
         function updateVisual(snapshot) {
@@ -1400,7 +1404,9 @@
             $("rateRatioValue").textContent = `${formatConcentration(snapshot.forward)} / ${formatConcentration(snapshot.reverse)}`;
             $("playButton").textContent = running ? "⏸ 暂停" : "▶ 继续";
             $("statusDot").className = `status-dot${running && !near ? "" : near ? " equilibrium" : " paused"}`;
-            $("statusText").textContent = near ? "正、逆速率接近相等：接近平衡" : running ? (snapshot.net > 0 ? "正在推进：正反应占优势" : "正在推进：逆反应占优势") : "实验已暂停，可单步观察或改变条件";
+            $("statusText").textContent = performance.now() < conditionNoticeUntil && conditionNotice
+                ? conditionNotice
+                : near ? "正、逆速率接近相等：接近平衡" : running ? (snapshot.net > 0 ? "正在推进：正反应占优势" : "正在推进：逆反应占优势") : "实验已暂停，可单步观察或改变条件";
             updateSpeciesControls();
             updateVisual(snapshot);
             if (forecast.length) {
@@ -1452,7 +1458,7 @@
                 label,
                 time: state.time,
                 conditions: `${state.temperature.toFixed(0)}°C / ${state.pressure.toFixed(1)} atm`,
-                rates: `${snapshot.forward.toFixed(2)} / ${snapshot.reverse.toFixed(2)}`
+                rates: `${formatConcentration(snapshot.forward)} / ${formatConcentration(snapshot.reverse)}`
             });
             eventLog = eventLog.slice(0, 5);
             updateEventRows();
@@ -1489,9 +1495,13 @@
             animationFrame = requestAnimationFrame(tick);
         }
 
-        function changeCondition(label, change) {
+        function changeCondition(label, change, notice = "") {
             addHistory(true);
             change();
+            // 条件变化会立即产生新的一帧正/逆速率读数，而不是等下一次采样才生效。
+            history.push(currentSnapshot());
+            conditionNotice = notice;
+            conditionNoticeUntil = performance.now() + 1800;
             refresh(true);
             logEvent(label);
         }
@@ -1532,12 +1542,26 @@
 
         function initializeEvents() {
             $("reactionSelect").addEventListener("change", event => selectReaction(event.target.value));
-            $("temperatureUp").addEventListener("click", () => changeCondition("升温 +10°C", () => {
-                state.temperature = clamp(state.temperature + 10, ...reaction.temperatureRange);
-            }));
-            $("temperatureDown").addEventListener("click", () => changeCondition("降温 −10°C", () => {
-                state.temperature = clamp(state.temperature - 10, ...reaction.temperatureRange);
-            }));
+            $("temperatureUp").addEventListener("click", () => {
+                const before = currentSnapshot();
+                changeCondition("升温 +25°C", () => {
+                    state.temperature = clamp(state.temperature + 25, ...reaction.temperatureRange);
+                }, "温度已即时改变：正 / 逆速率已重算");
+                const after = currentSnapshot();
+                conditionNotice = `温度 +25°C：正反应 ${formatConcentration(before.forward)} → ${formatConcentration(after.forward)}`;
+                conditionNoticeUntil = performance.now() + 1800;
+                updateReadouts();
+            });
+            $("temperatureDown").addEventListener("click", () => {
+                const before = currentSnapshot();
+                changeCondition("降温 −25°C", () => {
+                    state.temperature = clamp(state.temperature - 25, ...reaction.temperatureRange);
+                }, "温度已即时改变：正 / 逆速率已重算");
+                const after = currentSnapshot();
+                conditionNotice = `温度 −25°C：逆反应 ${formatConcentration(before.reverse)} → ${formatConcentration(after.reverse)}`;
+                conditionNoticeUntil = performance.now() + 1800;
+                updateReadouts();
+            });
             $("pressureUp").addEventListener("click", () => changeCondition("加压 +0.5 atm", () => {
                 const target = clamp(state.pressure + .5, MIN_PRESSURE, MAX_PRESSURE);
                 const ratio = target / state.pressure;
