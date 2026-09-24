@@ -200,8 +200,10 @@
         this.burst(spring.x, spring.y - 10, 0xffd985, 12); Audio.play('spring');
         this.tweens.add({ targets: spring, scaleY: 0.5, duration: 75, yoyo: true });
       });
-      this.hazards.forEach(hazard => this.physics.add.overlap(this.playerBodies, hazard, player => {
+      this.hazards.forEach(hazard => this.physics.add.overlap(this.playerBodies, hazard, (first, second) => {
         if (!hazard.body.enable) return;
+        const player = first === hazard ? second : first;
+        if (!player?.body?.setAllowGravity) return;
         this.hurt(player, hazard.x + hazard.displayWidth / 2);
       }));
       this.physics.add.overlap(this.shots, this.enemyBodies, (shot, enemy) => {
@@ -224,13 +226,15 @@
       this.physics.add.collider(this.shots, this.gateBodies, shot => this.destroyShot(shot));
       this.physics.add.collider(this.enemyShots, this.solids, shot => this.destroyShot(shot), (shot, platform) => !platform.oneWay);
       if (this.boss) {
-        this.physics.add.overlap(this.shots, this.boss, shot => {
-          if (!shot.active || this.boss.dead) return;
+        this.physics.add.overlap(this.shots, this.boss, (first, second) => {
+          const shot = first === this.boss ? second : first;
+          if (!shot?.active || this.boss.dead) return;
           this.hitBoss(1, shot.owner); this.destroyShot(shot);
         });
-        this.physics.add.overlap(this.playerBodies, this.boss, player => {
+        this.physics.add.overlap(this.playerBodies, this.boss, (first, second) => {
           const boss = this.boss;
-          if (player.dead || boss.dead) return;
+          const player = first === boss ? second : first;
+          if (!player?.body || player.dead || boss.dead) return;
           const fromAbove = player.body.velocity.y > 80 && player.body.prev.y + player.body.height <= boss.body.top + 28;
           if (fromAbove) {
             player.setVelocityY(-520); player.jumps = 1;
