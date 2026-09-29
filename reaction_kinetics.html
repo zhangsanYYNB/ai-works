@@ -336,6 +336,29 @@
 
         .simulation-card { padding: 24px; }
 
+        /* 条件卡被移到仿真卡内部紧挨曲线，去掉嵌套卡片的边框与阴影，沿用原有的分隔线样式。 */
+        .simulation-card > .condition-card {
+            margin-bottom: 20px;
+            padding: 0 0 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--line);
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        /* 观察窗与反应卡并排放在首行。 */
+        .top-grid > .apparatus-card { margin: 0; padding: 21px; }
+
+        .setup-panel { margin-top: 14px; padding: 11px 14px; background: #fbfcff; border: 1px solid #e7ebf3; border-radius: 13px; }
+        .setup-panel summary { color: #405477; font-size: 12px; font-weight: 800; cursor: pointer; }
+        .setup-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 12px 0; }
+        .setup-field { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; color: #53617b; background: white; border: 1px solid #e9edf5; border-radius: 10px; font-size: 11px; font-weight: 750; }
+        .setup-field input { width: 74px; min-height: 32px; padding: 4px 8px; color: var(--ink); background: #fbfcff; border: 1px solid #dce3f1; border-radius: 8px; font-size: 12px; font-weight: 700; text-align: right; }
+        .setup-field input:focus-visible { outline: 3px solid rgba(56, 103, 245, .26); outline-offset: 2px; }
+        .setup-actions { display: flex; gap: 8px; }
+        .setup-actions .control-button { flex: 1; }
+
         .playback {
             display: flex;
             align-items: center;
@@ -580,6 +603,7 @@
             .header-note { margin-top: 13px; text-align: left; }
             .reaction-card, .condition-card, .simulation-card { padding: 17px; }
             .condition-grid { grid-template-columns: 1fr; }
+            .setup-grid { grid-template-columns: 1fr; }
             .condition { display: grid; grid-template-columns: 1fr 1.25fr; align-items: center; gap: 12px; }
             .condition-top { display: block; margin: 0; }
             .condition-hint { grid-column: 1 / -1; margin-top: 0; }
@@ -620,6 +644,15 @@
                 <div class="equation" id="reactionEquation" aria-live="polite">2 SO₂ + O₂ ⇌ 2 SO₃</div>
                 <p class="reaction-description" id="reactionDescription"></p>
                 <div class="equilibrium-tip"><strong>本体系的压强规律：</strong><span id="pressureTip"></span></div>
+                <details class="setup-panel" id="setupPanel">
+                    <summary>⚙️ 自定义初始浓度（初始投料）</summary>
+                    <div class="setup-grid" id="setupGrid"></div>
+                    <div class="setup-actions">
+                        <button class="control-button accent" id="applyInitialButton" type="button">应用并重置实验</button>
+                        <button class="control-button" id="defaultInitialButton" type="button">恢复推荐值</button>
+                    </div>
+                    <p class="condition-hint" id="setupHint">每个反应可单独设置初始投料（归一化浓度 0–5）。纯固体的活度恒为 1，不参与设置。</p>
+                </details>
             </article>
 
             <article class="card condition-card">
@@ -863,7 +896,7 @@
         </section>
 
         <p class="disclaimer">
-            教学模型说明：热力学方向和参考 K 的量级参考公开热化学数据；为了在课堂时间尺度内看清变化，正、逆速率常数经过归一化，并非特定实验条件下的实测动力学参数。复杂反应可能具有不同的速率方程，纯固体以活度 1 处理，液相体系默认忽略体积与活度变化。
+            数据来源与说明：热力学数据（ΔH°、ΔS°、ΔG°）参考 NIST Chemistry WebBook（Chase《JANAF》1998 与 CODATA 审查值）及 Atkins《物理化学》等教材附录的标准生成焓与标准熵；气相平衡常数按 K = exp(−ΔG°/RT) 计算。真实可逆反应的 ΔH 多在数十至数百 kJ·mol⁻¹，所以升温时放热反应（合成氨、SO₂ 氧化）K 迅速减小、吸热反应（碳酸钙分解、甲烷重整、乙烷裂解）K 迅速增大；酯化等近乎热中性的反应则 K 几乎不变。网页中的正、逆速率常数是为课堂时间尺度归一化的教学参数，并非特定条件下的实测动力学值；活化能除 H₂ + I₂（167 kJ·mol⁻¹）外多为表观值，随催化剂与速率方程而变。复杂反应可能具有不同的速率方程，纯固体以活度 1 处理，液相体系默认忽略体积与活度变化。
         </p>
     </main>
 
@@ -884,11 +917,11 @@
                 ],
                 stoich: [-2, -1, 2],
                 forward: [[0, 2], [1, 1]], reverse: [[2, 2]],
-                kf: 0.60, referenceK: 13.0, referenceTemperatureC: 450, defaultTemperature: 450, temperatureRange: [25, 700],
-                eaForward: 65, eaReverse: 45, activityScale: 1,
-                dataNote: "标准热化学数据给出吸热方向；参考 K 按 450 °C、1 mol·L⁻¹ 归一化后用于交互演示。",
-                direction: "正向吸热",
-                note: "该方向的简化速率式把正反应写为三级、逆反应写为二级。温度升高时，正反应加速得更明显。"
+                kf: 0.50, deltaH: -197.9, deltaS: -188, referenceTemperatureC: 780, defaultTemperature: 780, temperatureRange: [600, 1000],
+                eaForward: 74, eaReverse: 271.9, activityScale: 1,
+                dataNote: "ΔH° = −197.9 kJ·mol⁻¹、ΔS° = −188 J·mol⁻¹·K⁻¹（NIST/JANAF 标准生成焓与熵），K 由 ΔG° = ΔH° − TΔS° 算出：780 °C 时 K ≈ 1，450 °C 时约 3×10⁴。",
+                direction: "正向放热",
+                note: "V₂O₅ 上的表观活化能约 74 kJ·mol⁻¹。放热反应升温使 K 迅速减小：低温几乎完全转化，800 °C 以上 SO₃ 明显分解回 SO₂。"
             },
             ammonia: {
                 name: "合成氨",
@@ -902,11 +935,11 @@
                 ],
                 stoich: [-1, -3, 2],
                 forward: [[0, 1], [1, 3]], reverse: [[2, 2]],
-                kf: 0.80, referenceK: 13.5, referenceTemperatureC: 450, defaultTemperature: 450, temperatureRange: [300, 650],
-                eaForward: 115, eaReverse: 135, activityScale: 2,
-                dataNote: "以约 450 °C、常见工业压强范围作展示；由标准生成焓/熵估算 Kp，再换算为浓度形式。",
+                kf: 0.025, deltaH: -92.0, deltaS: -198, referenceTemperatureC: 190, defaultTemperature: 190, temperatureRange: [80, 320],
+                eaForward: 90, eaReverse: 182, activityScale: 1,
+                dataNote: "ΔH° = −92.0 kJ·mol⁻¹、ΔS° = −198 J·mol⁻¹·K⁻¹（NIST 标准生成焓/熵），190 °C 附近 K ≈ 1；工业高压条件下实际单程转化率才明显提高。",
                 direction: "正向放热",
-                note: "合成氨是放热反应。催化剂能同时加快正、逆过程，不改变氨的平衡收率；升温则不利于氨的生成。"
+                note: "哈柏法强放热且气体分子数减少：升温使 K 急剧减小、平衡大幅左移，加压（本模型的压强按钮）才有利于 NH₃。铁催化剂只加快到达平衡的速度，不改变 K。"
             },
             waterGas: {
                 name: "一氧化碳变换",
@@ -921,11 +954,11 @@
                 ],
                 stoich: [-1, -1, 1, 1],
                 forward: [[0, 1], [1, 1]], reverse: [[2, 1], [3, 1]],
-                kf: 0.60, referenceK: 0.0010, referenceTemperatureC: 150, defaultTemperature: 150, temperatureRange: [25, 500],
-                eaForward: 70, eaReverse: 76, activityScale: 1,
-                dataNote: "水煤气变换的参考 K 取常见工业温度附近的量级；具体值随水蒸气分压与温度而变。",
+                kf: 0.35, deltaH: -41.2, deltaS: -42, referenceTemperatureC: 700, defaultTemperature: 700, temperatureRange: [400, 950],
+                eaForward: 75, eaReverse: 116.2, activityScale: 1,
+                dataNote: "ΔH° = −41.2 kJ·mol⁻¹、ΔS° = −42 J·mol⁻¹·K⁻¹（NIST），700 °C 附近 K ≈ 1；工业低温变换（200–250 °C）时 K 可达数百，高温变换约 10–20。",
                 direction: "正向放热",
-                note: "两侧的气体物质的量相同，所以增压能加快两个方向，却不能移动这个理想模型的平衡。降温有利于放热方向。"
+                note: "两侧气体物质的量相同，加压只同时加快两个方向、不移动平衡。降温使放热方向的 K 增大，CO 转化率随之提高。"
             },
             ester: {
                 name: "乙酸乙酯水解",
@@ -940,11 +973,11 @@
                 ],
                 stoich: [-1, -1, 1, 1],
                 forward: [[0, 1], [1, 1]], reverse: [[2, 1], [3, 1]],
-                kf: 0.25, referenceK: 4.0, referenceTemperatureC: 25, defaultTemperature: 25, temperatureRange: [10, 100],
-                eaForward: 70, eaReverse: 68, activityScale: 1,
-                dataNote: "酯化平衡高度依赖溶剂、含水量与酸催化剂；此处以常见近似 K≈4 展示可逆性。",
-                direction: "正向略微放热",
-                note: "实际酯化常需要酸催化、加热并不断移走产物。本模型用可逆的简化速率式呈现动态平衡。"
+                kf: 0.30, deltaH: -3.0, deltaS: 0, referenceTemperatureC: 25, defaultTemperature: 25, temperatureRange: [10, 100],
+                eaForward: 58, eaReverse: 61, activityScale: 1,
+                dataNote: "酯化 ΔH° ≈ −3 kJ·mol⁻¹（近乎热中性）、ΔS° ≈ 0，故 K ≈ 3–4 且几乎不随温度改变；实际平衡受溶剂与含水量影响很大。",
+                direction: "正向近乎热中性",
+                note: "这是“升温主要加快速率、几乎不移动平衡”的典型例子：曲线整体变陡，但最终平衡组成几乎不变。酸催化与移走产物才是提高酯收率的关键。"
             },
             no2: {
                 name: "四氧化二氮分解",
@@ -957,11 +990,11 @@
                 ],
                 stoich: [-1, 2],
                 forward: [[0, 1]], reverse: [[1, 2]],
-                kf: 0.50, referenceK: 0.633, referenceTemperatureC: 25, defaultTemperature: 25, temperatureRange: [10, 80],
-                eaForward: 65, eaReverse: 45, activityScale: 1,
-                dataNote: "由 N₂O₄ 与 NO₂ 的 25 °C 标准生成焓、熵估算，pNO₂² / pN₂O₄ 约为 0.63。",
+                kf: 0.35, deltaH: 57.2, deltaS: 175.8, referenceTemperatureC: 50, defaultTemperature: 50, temperatureRange: [0, 120],
+                eaForward: 58, eaReverse: 0.8, activityScale: 1,
+                dataNote: "ΔH° = +57.2 kJ·mol⁻¹、ΔS° = +175.8 J·mol⁻¹·K⁻¹（NIST）。由 ΔG° 算出：0 °C 时 K ≈ 0.017，25 °C ≈ 0.15，52 °C ≈ 1，100 °C ≈ 15。",
                 direction: "正向吸热",
-                note: "升温既加快反应，也使平衡向吸热的分解方向移动。这是区分“反应更快”和“平衡更靠右”的好例子。"
+                note: "升温既加快反应，也使平衡向吸热的分解方向移动。这是区分“反应更快”和“平衡更靠右”的好例子：50 °C 附近 K ≈ 1，两侧都看得到。"
             },
             boudouard: {
                 name: "布多反应",
@@ -974,18 +1007,18 @@
                     { key: "co", label: "CO", phase: "gas", color: "#e96676", initial: 0.00 }
                 ],
                 stoich: [-1, -1, 2],
-                forward: [[1, 0]], reverse: [[2, 2]],
-                kf: 0.50, referenceK: 0.11, referenceTemperatureC: 700, defaultTemperature: 700, temperatureRange: [400, 1200],
-                eaForward: 100, eaReverse: 80, activityScale: 1,
-                dataNote: "布多反应的平衡强烈依赖温度；参考值按高温煤化工常用范围压缩为教学可读尺度。",
+                forward: [[0, 1]], reverse: [[2, 2]],
+                kf: 0.40, deltaH: 172.5, deltaS: 176, referenceTemperatureC: 700, defaultTemperature: 700, temperatureRange: [650, 1050],
+                eaForward: 190, eaReverse: 17.5, activityScale: 1,
+                dataNote: "ΔH° = +172.5 kJ·mol⁻¹、ΔS° = +176 J·mol⁻¹·K⁻¹（Atkins/CRC），由 ΔG° 算出 K：700 °C 时约 0.85，1000 °C 时约 240。",
                 direction: "正向吸热",
-                note: "固体碳不进入压强缩放。升温有利于吸热的 CO 生成方向；增大压强则有利于左侧。"
+                note: "固体碳不进入压强缩放（本模型的速率式按 CO₂ 的一级反应处理）。升温强烈有利于吸热的 CO 生成方向；增大压强则有利于左侧。"
             },
             carbonate: {
                 name: "碳酸钙热分解",
                 equation: "CaCO₃(s) ⇌ CaO(s) + CO₂(g)",
                 description: "石灰石煅烧的简化模型。两个纯固体活度均为 1，平衡主要取决于温度与 CO₂ 分压。",
-                pressureTip: "两侧气体物质的量差为 0。改变压强会改变瞬时速率，但不会改变理想模型的平衡位置。",
+                pressureTip: "正向生成 1 mol CO₂ 气体。增大压强，平衡向 CaCO₃ 与 CaO 固体一侧移动。",
                 species: [
                     { key: "caco3", label: "CaCO₃（固）", phase: "solid", color: "#71829e", initial: 1.00 },
                     { key: "cao", label: "CaO（固）", phase: "solid", color: "#b88459", initial: 1.00 },
@@ -993,12 +1026,115 @@
                 ],
                 stoich: [-1, -1, 1],
                 forward: [[0, 0]], reverse: [[2, 1]],
-                kf: 0.30, referenceK: 0.000092, referenceTemperatureC: 900, defaultTemperature: 900, temperatureRange: [500, 1100],
-                eaForward: 110, eaReverse: 70, activityScale: 0.01,
-                dataNote: "CaCO₃ 分解平衡以 CO₂ 分压为主；900 °C 的 pCO₂ 平衡参考约为常压量级。",
+                kf: 0.35, deltaH: 178.3, deltaS: 160.6, referenceTemperatureC: 850, defaultTemperature: 850, temperatureRange: [700, 1000],
+                eaForward: 190, eaReverse: 11.7, activityScale: 1,
+                dataNote: "ΔH° = +178.3 kJ·mol⁻¹、ΔS° = +160.6 J·mol⁻¹·K⁻¹（NIST），平衡分压 p(CO₂)=K：700 °C 约 0.07，850 °C 约 1.2，1000 °C 约 12（常压下约 897 °C 分解）。",
                 direction: "正向吸热",
-                note: "真实反应还涉及固体表面积、孔隙和 CO₂ 扩散。本模型将两种固体活度设为 1，适合演示“升温促进吸热分解”。"
-            }
+                note: "本模型把正反应写为与固体量无关的常数速率、逆反应按 CO₂ 一级处理（经典多相分解形式），因此正反应速率是一条水平线，逆反应速率随 CO₂ 增多而追上它。"
+            },
+            i2h2: {
+                name: "碘化氢的合成与分解",
+                equation: "H₂(g) + I₂(g) ⇌ 2 HI(g)",
+                description: "动力学史上的经典气相可逆反应（Bodenstein 实验）。两侧气体物质的量相同，温度对平衡位置的影响很小，但对速率影响巨大。",
+                pressureTip: "两侧气体物质的量相同（2 → 2）。改变压强只同时加快两个方向，不移动平衡。",
+                species: [
+                    { key: "h2", label: "H₂", phase: "gas", color: "#e98aa3", initial: 1.00 },
+                    { key: "i2", label: "I₂", phase: "gas", color: "#a06fe0", initial: 1.00 },
+                    { key: "hi", label: "HI", phase: "gas", color: "#2f9fb8", initial: 0.00 }
+                ],
+                stoich: [-1, -1, 2],
+                forward: [[0, 1], [1, 1]], reverse: [[2, 2]],
+                kf: 0.35, deltaH: -9.5, deltaS: 21.8, referenceTemperatureC: 450, defaultTemperature: 450, temperatureRange: [300, 700],
+                eaForward: 167, eaReverse: 176.5, activityScale: 1,
+                dataNote: "ΔH° = −9.5 kJ·mol⁻¹、ΔS° = +21.8 J·mol⁻¹·K⁻¹（Laidler 教材数据），K ≈ 67（450 °C）；文献正反应活化能约 167 kJ·mol⁻¹。",
+                direction: "正向微放热",
+                note: "ΔH 很小，所以 K 在 300–700 °C 间只从约 100 变到 45，平衡位置几乎不动；但活化能高达 167 kJ·mol⁻¹，升温仍会明显加快曲线。"},
+            noOx: {
+                name: "一氧化氮氧化",
+                equation: "2 NO(g) + O₂(g) ⇌ 2 NO₂(g)",
+                description: "氮氧化物转化与尾气处理中的常见可逆反应。三分子正反应、二级逆反应，是研究“速率方程阶数”的好例子。",
+                pressureTip: "正向由 3 mol 气体生成 2 mol 气体。增大压强，平衡向 NO₂ 一侧移动。",
+                species: [
+                    { key: "no", label: "NO", phase: "gas", color: "#5e7fe9", initial: 1.00 },
+                    { key: "o2", label: "O₂", phase: "gas", color: "#23a6bb", initial: 0.80 },
+                    { key: "no2", label: "NO₂", phase: "gas", color: "#ee8d43", initial: 0.00 }
+                ],
+                stoich: [-2, -1, 2],
+                forward: [[0, 2], [1, 1]], reverse: [[2, 2]],
+                kf: 0.45, deltaH: -114.1, deltaS: -146.6, referenceTemperatureC: 500, defaultTemperature: 500, temperatureRange: [300, 700],
+                eaForward: 10, eaReverse: 124.1, activityScale: 1,
+                dataNote: "ΔH° = −114.1 kJ·mol⁻¹、ΔS° = −146.6 J·mol⁻¹·K⁻¹（NIST），由 ΔG° 算出：300 °C 时 K ≈ 550，500 °C ≈ 1.1，700 °C ≈ 0.03。",
+                direction: "正向放热",
+                note: "表观活化能很小（三分子反应，实测接近 0），所以正反应速率对温度不敏感；而放热使 K 随升温迅速减小——正好用来对比“速率”与“平衡”。"},
+            methanol: {
+                name: "甲醇合成",
+                equation: "CO(g) + 2 H₂(g) ⇌ CH₃OH(g)",
+                description: "合成气制甲醇的核心平衡，铜基催化剂上的低压合成。气体分子数明显减少，对压强非常敏感。",
+                pressureTip: "正向由 3 mol 气体生成 1 mol 气体。增大压强，平衡强烈向 CH₃OH 一侧移动。",
+                species: [
+                    { key: "co", label: "CO", phase: "gas", color: "#5e7fe9", initial: 1.00 },
+                    { key: "h2", label: "H₂", phase: "gas", color: "#e98aa3", initial: 2.00 },
+                    { key: "ch3oh", label: "CH₃OH", phase: "gas", color: "#2eb0a4", initial: 0.00 }
+                ],
+                stoich: [-1, -2, 1],
+                forward: [[0, 1], [1, 2]], reverse: [[2, 1]],
+                kf: 0.15, deltaH: -90.6, deltaS: -219, referenceTemperatureC: 140, defaultTemperature: 140, temperatureRange: [80, 250],
+                eaForward: 70, eaReverse: 160.6, activityScale: 1,
+                dataNote: "ΔH° = −90.6 kJ·mol⁻¹、ΔS° = −219 J·mol⁻¹·K⁻¹（NIST/RSC），由 ΔG° 算出 K：140 °C 时约 1，250 °C 时约 0.004。",
+                direction: "正向放热",
+                note: "工业上必须在高压下运行：常压附近 140 °C 才勉强达到 K≈1 的平衡。升温使放热的合成方向大幅变差，这与“升温加快反应”是两回事。"},
+            reforming: {
+                name: "甲烷水蒸气重整",
+                equation: "CH₄(g) + H₂O(g) ⇌ CO(g) + 3 H₂(g)",
+                description: "工业制氢的主力反应。强吸热且气体分子数由 2 增至 4，温度和压强都强烈影响平衡。",
+                pressureTip: "正向由 2 mol 气体生成 4 mol 气体。增大压强，平衡向 CH₄ 与 H₂O 一侧移动。",
+                species: [
+                    { key: "ch4", label: "CH₄", phase: "gas", color: "#ef8c45", initial: 1.00 },
+                    { key: "h2o", label: "H₂O", phase: "gas", color: "#25aebc", initial: 1.00 },
+                    { key: "co", label: "CO", phase: "gas", color: "#5e7fe9", initial: 0.00 },
+                    { key: "h2", label: "H₂", phase: "gas", color: "#b072dc", initial: 0.00 }
+                ],
+                stoich: [-1, -1, 1, 3],
+                forward: [[0, 1], [1, 1]], reverse: [[2, 1], [3, 3]],
+                kf: 0.30, deltaH: 206.1, deltaS: 214.6, referenceTemperatureC: 750, defaultTemperature: 750, temperatureRange: [680, 900],
+                eaForward: 215, eaReverse: 8.9, activityScale: 1,
+                dataNote: "ΔH° = +206.1 kJ·mol⁻¹、ΔS° = +214.6 J·mol⁻¹·K⁻¹（NIST），由 ΔG° 算出 K：750 °C 时约 4.9，1000 °C 时约 28（Ni 基催化剂表观活化能文献值 60–100 kJ·mol⁻¹ 偏小，本模型取略高于 ΔH° 的值以保证逆反应活化能为正）。",
+                direction: "正向强吸热",
+                note: "强吸热反应：升温不仅加快曲线，还显著提高 H₂ 的平衡收率；加压虽然加快速率，却会压缩气体分子数增加的方向，反而降低转化率。"},
+            ethaneCrack: {
+                name: "乙烷裂解",
+                equation: "C₂H₆(g) ⇌ C₂H₄(g) + H₂(g)",
+                description: "乙烯生产的第一步。高温、低压有利于裂解，是“升高温度 + 减小压强”组合工艺的典型案例。",
+                pressureTip: "正向由 1 mol 气体生成 2 mol 气体。增大压强，平衡向 C₂H₆ 一侧移动，对裂解不利。",
+                species: [
+                    { key: "c2h6", label: "C₂H₆", phase: "gas", color: "#ef8c45", initial: 1.00 },
+                    { key: "c2h4", label: "C₂H₄", phase: "gas", color: "#8c65e8", initial: 0.00 },
+                    { key: "h2", label: "H₂", phase: "gas", color: "#b072dc", initial: 0.00 }
+                ],
+                stoich: [-1, 1, 1],
+                forward: [[0, 1]], reverse: [[1, 1], [2, 1]],
+                kf: 0.30, deltaH: 136.4, deltaS: 120.5, referenceTemperatureC: 860, defaultTemperature: 860, temperatureRange: [700, 1100],
+                eaForward: 160, eaReverse: 23.6, activityScale: 1,
+                dataNote: "ΔH° = +136.4 kJ·mol⁻¹、ΔS° = +120.5 J·mol⁻¹·K⁻¹（NIST），K ≈ 1 出现在约 860 °C；热裂解实测活化能约 237–280 kJ·mol⁻¹，本模型为保持逆反应活化能为正取较小值。",
+                direction: "正向吸热",
+                note: "吸热且气体分子数增加：升温使 K 迅速增大、减压使平衡右移，工业上因此用高温加低压（常加稀释蒸汽）来提高乙烯收率。"},
+            pcl5: {
+                name: "五氯化磷分解",
+                equation: "PCl₅(g) ⇌ PCl₃(g) + Cl₂(g)",
+                description: "中学与大学教材里最经典的“压强影响平衡”演示体系，只涉及一种反应物，曲线最容易读。",
+                pressureTip: "正向由 1 mol 气体生成 2 mol 气体。增大压强，平衡向 PCl₅ 一侧移动。",
+                species: [
+                    { key: "pcl5", label: "PCl₅", phase: "gas", color: "#6f86d6", initial: 1.00 },
+                    { key: "pcl3", label: "PCl₃", phase: "gas", color: "#c88f43", initial: 0.00 },
+                    { key: "cl2", label: "Cl₂", phase: "gas", color: "#35aab2", initial: 0.00 }
+                ],
+                stoich: [-1, 1, 1],
+                forward: [[0, 1]], reverse: [[1, 1], [2, 1]],
+                kf: 0.35, deltaH: 92.6, deltaS: 181.9, referenceTemperatureC: 240, defaultTemperature: 240, temperatureRange: [150, 350],
+                eaForward: 130, eaReverse: 37.4, activityScale: 1,
+                dataNote: "ΔH° = +92.6 kJ·mol⁻¹、ΔS° = +181.9 J·mol⁻¹·K⁻¹，K ≈ 1 出现在约 236 °C；教材常见活化能量级约 100 kJ·mol⁻¹。",
+                direction: "正向吸热",
+                note: "升温使 K 增大、分解更彻底；加压则把平衡推回 PCl₅。把温度与压强按钮轮流按一遍，能同时看到速率变化与平衡移动。"}
         };
 
         const R = 8.314;
@@ -1019,6 +1155,7 @@
         let concentrationChart = null;
         let rateChart = null;
         let forecast = [];
+        let plottedIndexes = [];
         let forecastStartTime = -Infinity;
         let conditionNotice = "";
         let conditionNoticeUntil = 0;
@@ -1052,12 +1189,24 @@
                 : "从外部补加 0.10；系统会从当前组成重新趋向平衡。";
         }
 
+        // 每个反应各自保存自定义的初始浓度（仅存在于本次会话）。
+        const customInitials = {};
+
+        function initialsFor(key) {
+            const override = customInitials[key] || {};
+            const values = {};
+            REACTIONS[key].species.forEach(item => {
+                values[item.key] = typeof override[item.key] === "number" ? override[item.key] : item.initial;
+            });
+            return values;
+        }
+
         function makeInitialState() {
-            const concentrations = {};
-            reaction.species.forEach(species => { concentrations[species.key] = species.initial; });
+            const initials = initialsFor(selectedKey);
             return {
                 time: 0,
-                concentrations,
+                initials,
+                concentrations: { ...initials },
                 temperature: reaction.defaultTemperature,
                 pressure: 1,
                 catalyst: false,
@@ -1067,14 +1216,15 @@
         }
 
         function getConstants(currentState = state) {
-            // 活化能与参考热力学数据决定温度响应；kf 是为课堂时间尺度归一化后的前向速率。
+            // kf 用 Arrhenius 从参考温度归一化到课堂时间尺度；K 直接由 ΔG° = ΔH° − TΔS° 算出，
+            // 这样温度一变，K、正逆速率同时跟着变，van 't Hoff 关系自动成立。
             const temperature = kelvin(currentState.temperature);
             const referenceTemperature = kelvin(reaction.referenceTemperatureC);
-            const scale = Math.exp(-reaction.eaForward / R * (1 / temperature - 1 / referenceTemperature));
+            const scale = Math.exp(-reaction.eaForward * 1000 / R * (1 / temperature - 1 / referenceTemperature));
             const catalystMultiplier = currentState.catalyst ? 2 : 1;
             const kf = reaction.kf * scale * catalystMultiplier;
-            // van 't Hoff 形式：升温使吸热方向 K 增大、放热方向 K 减小。
-            const currentK = reaction.referenceK * Math.exp((reaction.eaForward - reaction.eaReverse) / R * (1 / referenceTemperature - 1 / temperature));
+            const deltaG = reaction.deltaH * 1000 - temperature * reaction.deltaS;
+            const currentK = clamp(Math.exp(-deltaG / (R * temperature)), 1e-18, 1e18);
             const kr = kf / currentK;
             return { kf, kr, K: currentK };
         }
@@ -1109,16 +1259,15 @@
             return staged;
         }
 
-        // 小步长 RK4：交互时条件可以在任意一个采样点改变，未来始终从当前浓度重新积分。
-        function integrate(startConcentrations, seconds, constants) {
-            const step = 0.025;
-            const count = Math.ceil(seconds / step);
+        // RK4 积分：步长按当前 k正、k逆 自适应（大速率下不再震荡）；条件改变后未来总是从当前浓度重算。
+        function integrate(startConcentrations, seconds, constants, startTime) {
+            const step = clamp(0.4 / Math.max(1e-6, constants.kf + constants.kr), 0.004, 0.05);
+            const count = Math.min(Math.ceil(seconds / step), 6000);
+            const dt = seconds / count;
             const points = [];
             let concentrations = { ...startConcentrations };
             let elapsed = 0;
             for (let i = 0; i < count; i++) {
-                const dt = Math.min(step, seconds - elapsed);
-                if (dt <= 0) break;
                 const k1 = derivative(concentrations, constants);
                 const stage2 = stageConcentrations(concentrations, k1, dt / 2);
                 const k2 = derivative(stage2, constants);
@@ -1134,21 +1283,24 @@
                 });
                 concentrations = next;
                 elapsed += dt;
-                points.push({ time: state.time + elapsed, concentrations: { ...concentrations } });
+                points.push({ time: startTime + elapsed, concentrations: { ...concentrations } });
             }
             return points;
         }
 
         function maxExtent() {
-            // 转化率始终以重置时的初始投料为基准，避免外部补加后分母跟着漂移。
+            // 转化率始终以本次投料（可在“自定义初始浓度”里改）为基准，避免外部补加后分母跟着漂移。
             const limits = reaction.species
-                .map((species, index) => reaction.stoich[index] < 0 ? species.initial / Math.abs(reaction.stoich[index]) : Infinity);
-            return Math.min(...limits, 1e9);
+                .map((species, index) => reaction.stoich[index] < 0 && state.initials[species.key] > 0
+                    ? state.initials[species.key] / Math.abs(reaction.stoich[index])
+                    : Infinity);
+            const extent = Math.min(...limits, 1e9);
+            return extent > 0 ? extent : 1;
         }
 
         function getConversion(concentrations) {
             const numerator = reaction.species.reduce((sum, species, index) => {
-                return sum + reaction.stoich[index] * (concentrations[species.key] - species.initial);
+                return sum + reaction.stoich[index] * (concentrations[species.key] - state.initials[species.key]);
             }, 0);
             const divisor = reaction.species.reduce((sum, _, index) => sum + reaction.stoich[index] ** 2, 0);
             return clamp(100 * (dividerSafe(numerator, divisor) / maxExtent()), 0, 100);
@@ -1187,7 +1339,7 @@
 
         function makeForecast() {
             const constants = getConstants();
-            const result = integrate(state.concentrations, state.horizon, constants);
+            const result = integrate(state.concentrations, state.horizon, constants, state.time);
             result.unshift({ time: state.time, concentrations: { ...state.concentrations } });
             forecast = result;
             forecastStartTime = state.time;
@@ -1202,8 +1354,13 @@
             if (concentrationChart) concentrationChart.destroy();
             if (rateChart) rateChart.destroy();
 
+            // 纯固体的浓度恒等于 1，画出来只是不动的直线，因此浓度图只画真正会变化的组分。
+            plottedIndexes = reaction.species
+                .map((species, index) => species.phase === "solid" ? -1 : index)
+                .filter(index => index >= 0);
             const concentrationDatasets = [];
-            reaction.species.forEach(species => {
+            plottedIndexes.forEach(index => {
+                const species = reaction.species[index];
                 concentrationDatasets.push({
                     label: species.label,
                     data: [], parsing: false, borderColor: species.color,
@@ -1286,32 +1443,37 @@
 
         function drawCharts() {
             if (!concentrationChart || !rateChart) return;
-            const actualConcentrations = reaction.species.map(() => []);
+            const actualConcentrations = plottedIndexes.map(() => []);
             const actualForward = [];
             const actualReverse = [];
             history.forEach(sample => {
-                reaction.species.forEach((species, index) => {
-                    actualConcentrations[index].push({ x: sample.time, y: sample.concentrations[species.key] });
+                plottedIndexes.forEach((speciesIndex, slot) => {
+                    const species = reaction.species[speciesIndex];
+                    actualConcentrations[slot].push({ x: sample.time, y: sample.concentrations[species.key] });
                 });
                 actualForward.push({ x: sample.time, y: sample.forward });
                 actualReverse.push({ x: sample.time, y: sample.reverse });
             });
+            // 预计速率只算一次常数，避免逐点重复计算 K。
+            const constants = getConstants();
+            const futureForward = [];
+            const futureReverse = [];
+            forecast.forEach(point => {
+                const rates = calculateRates(point.concentrations, constants);
+                futureForward.push({ x: point.time, y: rates.forward });
+                futureReverse.push({ x: point.time, y: rates.reverse });
+            });
             concentrationChart.data.datasets.forEach((dataset, index) => {
-                const speciesIndex = Math.floor(index / 2);
-                dataset.data = index % 2 === 0 ? actualConcentrations[speciesIndex] : forecast.map(point => ({
-                    x: point.time, y: point.concentrations[reaction.species[speciesIndex].key]
+                const slot = Math.floor(index / 2);
+                const species = reaction.species[plottedIndexes[slot]];
+                dataset.data = index % 2 === 0 ? actualConcentrations[slot] : forecast.map(point => ({
+                    x: point.time, y: point.concentrations[species.key]
                 }));
             });
             rateChart.data.datasets[0].data = actualForward;
             rateChart.data.datasets[1].data = actualReverse;
-            rateChart.data.datasets[2].data = forecast.map(point => {
-                const rates = calculateRates(point.concentrations, getConstants());
-                return { x: point.time, y: rates.forward };
-            });
-            rateChart.data.datasets[3].data = forecast.map(point => {
-                const rates = calculateRates(point.concentrations, getConstants());
-                return { x: point.time, y: rates.reverse };
-            });
+            rateChart.data.datasets[2].data = futureForward;
+            rateChart.data.datasets[3].data = futureReverse;
             concentrationChart.update("none");
             rateChart.update("none");
         }
@@ -1464,13 +1626,14 @@
             updateEventRows();
         }
 
+        // 实际推进也用 RK4 小步积分，避免高倍速时单步欧拉法把浓度一步砸到 0。
         function advance(seconds) {
-            const constants = getConstants();
-            const next = derivative(state.concentrations, constants);
-            reaction.species.forEach(species => {
-                if (species.phase !== "solid") state.concentrations[species.key] = Math.max(0, state.concentrations[species.key] + seconds * next[species.key]);
-            });
-            state.time += seconds;
+            const points = integrate(state.concentrations, seconds, getConstants(), state.time);
+            const last = points[points.length - 1];
+            if (last) {
+                state.concentrations = { ...last.concentrations };
+                state.time = last.time;
+            }
             addHistory();
         }
 
@@ -1495,11 +1658,75 @@
             animationFrame = requestAnimationFrame(tick);
         }
 
+        // 条件改变的时刻在两张图上画一条竖虚线，方便看出曲线为什么在这里拐弯。
+        const changeMarkers = [];
+        const markerPlugin = {
+            id: "changeMarkers",
+            afterDatasetsDraw(chart) {
+                const area = chart.chartArea;
+                if (!area || !changeMarkers.length) return;
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.setLineDash([4, 4]);
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = "rgba(233,93,106,.6)";
+                changeMarkers.forEach(time => {
+                    const x = chart.scales.x.getPixelForValue(time);
+                    if (!isFinite(x) || x < area.left || x > area.right) return;
+                    ctx.beginPath();
+                    ctx.moveTo(x, area.top);
+                    ctx.lineTo(x, area.bottom);
+                    ctx.stroke();
+                });
+                ctx.restore();
+            }
+        };
+
+        function buildSetupGrid() {
+            const initials = initialsFor(selectedKey);
+            $("setupGrid").innerHTML = reaction.species
+                .filter(species => species.phase !== "solid")
+                .map(species => `<label class="setup-field"><span>${species.label}</span><input id="setup-${species.key}" data-species="${species.key}" type="number" min="0" max="5" step="0.05" value="${initials[species.key]}" aria-label="${species.label} 初始浓度"></label>`)
+                .join("");
+            $("setupHint").textContent = "每个反应可单独设置初始投料（归一化浓度 0–5）。纯固体的活度恒为 1，不参与设置。";
+        }
+
+        function applyInitialValues() {
+            const next = {};
+            let reactantTotal = 0;
+            reaction.species.forEach((species, index) => {
+                if (species.phase === "solid") return;
+                const input = $(`setup-${species.key}`);
+                const raw = Number(input.value);
+                const value = Number(clamp(isFinite(raw) ? raw : 0, 0, 5).toFixed(3));
+                next[species.key] = value;
+                input.value = value;
+                if (reaction.stoich[index] < 0) reactantTotal += value;
+            });
+            if (reactantTotal <= 0) {
+                $("setupHint").textContent = "至少要给一种反应物一个大于 0 的起始浓度，否则正向反应不会发生。";
+                return;
+            }
+            customInitials[selectedKey] = next;
+            resetExperiment("应用自定义初始投料");
+            setRunning(true);
+            $("setupHint").textContent = `已按自定义投料重新开始（${reaction.name}），温度与压强也回到该反应默认值。`;
+        }
+
+        function restoreDefaultInitials() {
+            delete customInitials[selectedKey];
+            buildSetupGrid();
+            resetExperiment("恢复推荐初始投料");
+            setRunning(true);
+        }
+
         function changeCondition(label, change, notice = "") {
             addHistory(true);
             change();
             // 条件变化会立即产生新的一帧正/逆速率读数，而不是等下一次采样才生效。
             history.push(currentSnapshot());
+            changeMarkers.push(state.time);
+            if (changeMarkers.length > 40) changeMarkers.shift();
             conditionNotice = notice;
             conditionNoticeUntil = performance.now() + 1800;
             refresh(true);
@@ -1515,29 +1742,32 @@
             eventLog = [];
             forecast = [];
             forecastStartTime = -Infinity;
+            changeMarkers.length = 0;
             addHistory(true);
             makeForecast();
             updateModelText();
             buildSpeciesSelect();
+            buildSetupGrid();
             rebuildCharts();
             updateEventRows();
             refresh();
             setRunning(true);
         }
 
-        function resetExperiment() {
+        function resetExperiment(label = "重置实验") {
             setRunning(false);
             state = makeInitialState();
             history = [];
             eventLog = [];
             forecast = [];
             forecastStartTime = -Infinity;
+            changeMarkers.length = 0;
             addHistory(true);
             makeForecast();
             buildSpeciesSelect();
             updateEventRows();
             refresh();
-            logEvent("重置实验");
+            logEvent(label);
         }
 
         function initializeEvents() {
@@ -1601,7 +1831,9 @@
                 refresh(true);
                 logEvent("单步 +0.10 s");
             });
-            $("resetButton").addEventListener("click", resetExperiment);
+            $("resetButton").addEventListener("click", () => resetExperiment());
+            $("applyInitialButton").addEventListener("click", applyInitialValues);
+            $("defaultInitialButton").addEventListener("click", restoreDefaultInitials);
             $("speedSelect").addEventListener("change", event => { state.speed = Number(event.target.value); });
             $("horizonSelect").addEventListener("change", event => {
                 state.horizon = Number(event.target.value);
@@ -1610,15 +1842,20 @@
         }
 
         function boot() {
+            // 让“改变实验条件”的按钮紧挨曲线：条件卡移进仿真卡，观察窗与反应卡并排在首行。
+            document.querySelector(".top-grid").appendChild(document.querySelector(".apparatus-card"));
+            document.querySelector(".charts").before(document.querySelector(".condition-card"));
             if (typeof Chart !== "undefined") {
                 Chart.defaults.color = "#76849a";
                 Chart.defaults.font.family = '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
+                Chart.register(markerPlugin);
             }
             buildReactionSelect();
             state = makeInitialState();
             addHistory(true);
             updateModelText();
             buildSpeciesSelect();
+            buildSetupGrid();
             initializeEvents();
             rebuildCharts();
             makeForecast();
