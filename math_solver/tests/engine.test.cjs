@@ -664,3 +664,32 @@ test('LaTeX pasted into the text box solves the same way as the formula field', 
   assert.match(String(engine.solve("x^2-5x+6=0", { mode: "solve" }).answerLatex), /x=2/);
   near(number(engine.solve('1/3+1/6', { mode: 'evaluate' }).exact), 0.5);
 });
+
+test('ASCII-math division from the formula field ("-:") is accepted', () => {
+  const value = (text, mode) => engine.solve(text, Object.assign({ mode: 'evaluate' }, mode)).answerText;
+  assert.equal(engine.normalize('6-:2'), '6/2');
+  assert.equal(value('6-:2'), '3');
+  assert.equal(value('1-:3'), '1/3');
+  assert.equal(value('1-:3-:2'), '1/6');
+  assert.equal(value('2x-:4=0', { mode: 'solve' }), 'x = 0');
+  assert.equal(value('4-:2x=0', { mode: 'solve' }), 'x = 0');
+  assert.equal(engine.normalize('4-:2x=0'), '4/2*x=0');
+  // ":" outside a division is still rejected.
+  ChineseError('a:b', { mode: 'evaluate' });
+});
+
+test('unit spellings mathjs lacks are accepted (mph, sqft, btu, degK, tonne)', () => {
+  const to = (text) => String(engine.solve(text, { mode: 'units' }).answerText);
+  const value = (text) => Number(to(text).replace(/[^0-9.eE+-]/g, ''));
+  near(value('100 km/h to mph'), 62.13711922);
+  near(value('60 mph to km/h'), 96.56064);
+  near(value('1 sqft to m^2'), 0.09290304, 1e-6);
+  near(value('1 btu to J'), 1055.055853);
+  near(value('1 tonne to kg'), 907.18474);
+  near(value('1 metre to cm'), 100);
+  assert.equal(to('1 degK to degC'), '-272.15 degC');
+  assert.equal(to('32 degF to degC'), '0 degC');
+  assert.equal(to('100 degC to degF'), '212 degF');
+  // Units mathjs has no definition for still report a clear Chinese error.
+  ChineseError('1 cal to J', { mode: 'units' }, /单位/);
+});

@@ -49,7 +49,11 @@
       key('derivative', 'd/dx', '\\frac{\\mathrm{d}}{\\mathrm{d}x}\\left(#0\\right)', { function: true, aria: '插入求导号', variants: [alt('二阶导', '\\frac{\\mathrm{d}}{\\mathrm{d}x}\\left(#0\\right)', { mode: 'derivative', order: 2 }), alt('三阶导', '\\frac{\\mathrm{d}}{\\mathrm{d}x}\\left(#0\\right)', { mode: 'derivative', order: 3 })] }),
       key('integral', '∫', '\\int_{#?}^{#?}\\left(#0\\right)', { function: true, aria: '插入积分号', variants: [alt('不定积分', '\\int\\left(#0\\right)'), alt('二重积分', '\\int_{#?}^{#?}\\int_{#?}^{#?}\\left(#0\\right)')] }),
       key('limit', 'lim', '\\lim_{#?\\to #?}\\left(#0\\right)', { function: true, aria: '插入极限号', variants: [alt('x→∞', '\\lim_{x\\to #?}\\left(#0\\right)'), alt('x→0⁺', '\\lim_{x\\to #?^{+}}\\left(#0\\right)'), alt('x→0⁻', '\\lim_{x\\to #?^{-}}\\left(#0\\right)')] }),
-      fn('sum', '∑', '#0,k,1,#?'), fn('product', '∏', '#0,k,1,#?'), key('infinity', '∞', '\\infty', { function: true }), key('calc-e', 'e', 'e', { function: true }),
+      key('sum', '∑', '\\sum_{k=#?}^{#?}\\left(#0\\right)', { function: true, aria: '插入求和号',
+        variants: [alt('n=1..n', '\\sum_{n=#?}^{#?}\\left(#0\\right)'), alt('i=1..n', '\\sum_{i=#?}^{#?}\\left(#0\\right)'), alt('乘积 ∏', '\\prod_{k=#?}^{#?}\\left(#0\\right)')] }),
+      key('product', '∏', '\\prod_{k=#?}^{#?}\\left(#0\\right)', { function: true, aria: '插入连乘号',
+        variants: [alt('n=1..n', '\\prod_{n=#?}^{#?}\\left(#0\\right)'), alt('求和 ∑', '\\sum_{k=#?}^{#?}\\left(#0\\right)')] }),
+      key('infinity', '∞', '\\infty', { function: true }), key('calc-e', 'e', 'e', { function: true }),
       key('calc-x', 'x', 'x'), key('calc-t', 't', 't'), key('calc-k', 'k', 'k'), key('calc-n', 'n', 'n'), key('calc-power', 'xⁿ', '#0^{#?}', { function: true }), key('calc-sqrt', '√', '\\sqrt{#0}', { function: true }), key('calc-pi', 'π', '\\pi', { function: true }),
       trig('sin'), trig('cos'), trig('tan'), key('calc-ln', 'ln', '\\ln\\left(#0\\right)', { function: true }), key('calc-exp', 'eˣ', 'e^{#0}', { function: true }), key('calc-frac', 'a/b', '\\frac{#0}{#?}', { function: true }), key('calc-abs', '|x|', '\\left|#0\\right|', { function: true }),
       key('calc-lparen', '(', '('), key('calc-rparen', ')', ')'), key('calc-plus', '+', '+'), key('calc-minus', '−', '-'), key('calc-times', '×', '\\times'), key('calc-backspace', '⌫', '', { action: 'deleteBackward', function: true }), key('calc-submit', '↵', '', { action: 'solve', submit: true })

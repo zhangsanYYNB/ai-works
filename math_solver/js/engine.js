@@ -419,6 +419,9 @@
     const greek = { α: 'alpha', β: 'beta', γ: 'gamma', δ: 'delta', ε: 'epsilon', θ: 'theta', λ: 'lambda', μ: 'mu', ρ: 'rho', σ: 'sigma', φ: 'phi', ω: 'omega' };
     text = text.replace(/[αβγδεθλμρσφω]/g, c => ' ' + greek[c] + ' ');
     text = latexInput(text);
+    // MathLive's ASCII-math export writes the division sign as "-:", whose colon would
+    // otherwise be rejected as a syntax character.
+    text = text.replace(/-\s*:/g, '/');
     text = functionPowers(text);
     text = asciiGroups(text);
     text = rootInput(text);
@@ -2431,8 +2434,25 @@
     if (count === 1) output.notes.push('样本方差和样本标准差需要至少两个数据，不能除以 n−1=0。');
     return output;
   }
+  /* Only spellings mathjs lacks are aliased, and only to pure unit expressions: mathjs
+   * rejects a number inside the unit part ("4.184 J"), so conversions that would need one
+   * (calories, knots, stone) keep their explicit "unsupported unit" message instead. */
+  const UNIT_ALIASES = new Map([
+    ['mph', 'mi/h'], ['mi/hr', 'mi/h'], ['mile/hr', 'mile/h'], ['milesperhour', 'mi/h'],
+    ['btu', 'BTU'],
+    ['sqft', 'ft^2'], ['sqin', 'in^2'], ['sqmi', 'mile^2'], ['sqyd', 'yd^2'],
+    ['cuft', 'ft^3'], ['cubicfoot', 'ft^3'], ['cubicinch', 'in^3'], ['cubicmeter', 'm^3'],
+    ['degk', 'K'], ['kelvin', 'K'],
+    ['litre', 'l'], ['liters', 'l'], ['litres', 'l'], ['tonne', 'ton'],
+    ['metre', 'm'], ['metres', 'm'], ['meter', 'm'], ['meters', 'm'],
+    ['gram', 'g'], ['grams', 'g'], ['second', 's'], ['seconds', 's'], ['minute', 'min'], ['minutes', 'min']
+  ]);
+  function applyUnitAliases(text) {
+    return text.replace(/[a-zA-Z]+/g, word => UNIT_ALIASES.get(word.toLowerCase()) || word);
+  }
   function units(input, normalized, opts) {
     libraries(false);
+    normalized = applyUnitAliases(normalized);
     const pieces = normalized.split(/\s+to\s+/);
     if (pieces.length !== 2 || !pieces[0] || !pieces[1]) fail('单位换算请使用“数值 原单位 to 目标单位”，例如 2 inch to cm。');
     if (/["'`:@?;\[\]{}]/.test(normalized)) fail('单位换算只接受数值、单位和基本运算符。');

@@ -36,6 +36,19 @@
     try { element.innerHTML=M.convertLatexToMarkup(latex,{letterShapeStyle:'tex',defaultMode:'math'}); }
     catch (_) { element.textContent=fallback || latex; }
   }
+  /* MathLive writes \operatorname{sum} as "s u m". Word boundaries cannot be used to find
+   * the name again because the preceding token may be a digit ("2s u m"), which silently
+   * turned every upright operator into a product of letters. */
+  function collapseOperatorNames(ascii, latex) {
+    for (const match of latex.matchAll(/\\(?:operatorname|mathrm)\{([a-zA-Z][a-zA-Z0-9_]*)\}/g)) {
+      const name=match[1];
+      if(name.length<2) continue;
+      const spaced=Array.from(name).join('\\s*');
+      ascii=ascii.replace(new RegExp(spaced+'(?=\\s*\\()','g'),name)
+                 .replace(new RegExp(spaced+'(?![a-zA-Z0-9_])','g'),name);
+    }
+    return ascii;
+  }
   function latexFor(text) { try { return engine.toLatex(text); } catch (_) { try { return M.convertAsciiMathToLatex(text); } catch (_) { return ''; } } }
   function sourceFromField() {
     const mf=$('expression'), latex=mf.value || '';
@@ -45,12 +58,7 @@
     // from the LaTeX itself and handed to the engine as an explicit command.
     const translated=engine.fromLatex(latex,{variable:$('variable').value.trim()});
     if(translated!==null) return translated;
-    let ascii=mf.getValue('ascii-math');
-    // MathLive serializes custom upright operator names as spaced letters.
-    for (const match of latex.matchAll(/\\(?:operatorname|mathrm)\{([a-zA-Z][a-zA-Z0-9_]*)\}/g)) {
-      const name=match[1];
-      if(name.length>1) ascii=ascii.replace(new RegExp('\\b'+Array.from(name).join('\\s*')+'\\b','g'),name);
-    }
+    let ascii=collapseOperatorNames(mf.getValue('ascii-math'), latex);
     return ascii.replace(/\\text\{([^}]*)\}/g,'$1').replace(/\u200b/g,'').trim();
   }
   function currentInput() { return state.format === 'text' ? $('raw-expression').value.trim() : sourceFromField(); }
@@ -638,7 +646,7 @@
     }
     // Use an unattached MathLive conversion for complete fragments; templates use selectable □ placeholders.
     let text=M.convertLatexToAsciiMath(latex.replace(/#0/g,'\\placeholder{}').replace(/#\?/g,'\\placeholder{}'));
-    for(const match of latex.matchAll(/\\operatorname\{([a-zA-Z][a-zA-Z0-9_]*)\}/g)) text=text.replace(new RegExp('\\b'+Array.from(match[1]).join('\\s*')+'\\b','g'),match[1]);
+    text=collapseOperatorNames(text,latex);
     text=text.replace(/\u200b/g,'');
     if(item?.id==='square') text='^2';else if(item?.id==='power') text='^()';
     const el=$('raw-expression'),start=el.selectionStart,end=el.selectionEnd,selection=el.value.slice(start,end);
