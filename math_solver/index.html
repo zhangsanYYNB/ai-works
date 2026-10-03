@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#087f5b">
+  <meta name="description" content="完全在浏览器中运行的数学求解器。科学计算、代数、方程、微积分、矩阵、统计与交互式绘图，支持手机长按数学键盘。">
+  <title>Math Solver · 数学求解器</title>
+  <link rel="stylesheet" href="vendor/mathlive-fonts.css">
+  <link rel="stylesheet" href="vendor/mathlive-static.css">
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <script defer src="vendor/math.min.js"></script>
+  <script defer src="vendor/nerdamer.min.js"></script>
+  <script defer src="vendor/mathlive.min.js"></script>
+  <script defer src="js/engine.js?v=6"></script>
+  <script defer src="js/graph.js?v=6"></script>
+  <script defer src="js/keyboard.js?v=6"></script>
+  <script defer src="js/catalog.js?v=6"></script>
+  <script defer src="js/app.js?v=6"></script>
+</head>
+<body>
+  <a class="skip-link" href="#expression">跳到数学输入</a>
+  <header class="site-header">
+    <a class="brand" href="./index.html" aria-label="Math Solver 首页"><span class="brand-mark" aria-hidden="true">∑</span><span>Math Solver<small>数学求解器</small></span></a>
+    <nav class="top-nav" aria-label="页面导航"><button type="button" class="active" data-view="solver">求解器</button><button type="button" data-view="graph">函数图像</button><button type="button" data-view="reference">数学参考</button></nav>
+    <div class="header-actions"><span class="local-badge"><span></span>本地计算</span><button type="button" class="icon-button" id="history-button" title="计算历史" aria-label="查看计算历史"><svg><use href="#icon-history"/></svg></button><button type="button" class="icon-button" id="theme-button" title="切换主题" aria-label="切换深色主题"><svg><use href="#icon-sun"/></svg></button><button type="button" class="icon-button" id="help-button" title="使用指南" aria-label="使用指南"><svg><use href="#icon-help"/></svg></button></div>
+  </header>
+  <div class="page-layout">
+    <aside class="sidebar" aria-label="计算分类">
+      <p class="nav-caption">数学工具箱</p>
+      <div class="mode-nav" id="mode-nav">
+        <button type="button" data-mode="auto" class="active"><svg><use href="#icon-spark"/></svg><span>智能求解<small>自动识别题型</small></span></button>
+        <button type="button" data-mode="evaluate"><svg><use href="#icon-calculator"/></svg><span>科学计算<small>分数 · 三角 · 复数</small></span></button>
+        <button type="button" data-mode="simplify"><svg><use href="#icon-algebra"/></svg><span>代数与变形<small>化简 · 展开 · 因式分解</small></span></button>
+        <button type="button" data-mode="solve"><svg><use href="#icon-equation"/></svg><span>方程与不等式<small>单变量 · 线性方程组</small></span></button>
+        <button type="button" data-mode="derivative"><svg><use href="#icon-calculus"/></svg><span>微积分<small>求导 · 积分 · 极限</small></span></button>
+        <button type="button" data-mode="matrix"><svg><use href="#icon-matrix"/></svg><span>矩阵与向量<small>行列式 · 逆矩阵</small></span></button>
+        <button type="button" data-mode="statistics"><svg><use href="#icon-chart"/></svg><span>数据与统计<small>均值 · 方差 · 分布</small></span></button>
+        <button type="button" data-mode="units"><svg><use href="#icon-ruler"/></svg><span>单位换算<small>长度 · 质量 · 温度</small></span></button>
+        <button type="button" data-view="graph"><svg><use href="#icon-chart"/></svg><span>函数图像<small>多曲线 · 参数滑块</small></span></button>
+        <button type="button" data-view="reference"><svg><use href="#icon-help"/></svg><span>数学参考<small>常用公式 · 进制换算</small></span></button>
+      </div>
+      <div class="sidebar-bottom"><div class="small-key">⌨</div><strong>从输入，到理解</strong><p>长按带角标的按键<br>发现更多数学符号。</p><button type="button" class="text-button" id="shortcut-help">查看输入指南 <span>↗</span></button></div>
+      <a href="../index.html" class="back-link">← 返回项目列表</a>
+    </aside>
+    <main id="main-content">
+      <section id="solver-view" class="view active">
+        <div class="intro"><div><p class="eyebrow">YOUR EVERYDAY MATH COMPANION</p><h1>让每一道题，<span>都有思路。</span></h1><p class="intro-desc">输入问题，查看答案、解题步骤与函数图像。</p></div><span class="intro-symbol" aria-hidden="true">ƒ(x)</span></div>
+        <div class="workspace">
+          <div class="input-column">
+            <section class="card editor-card" aria-labelledby="editor-title">
+              <div class="card-heading"><h2 id="editor-title"><span class="step-dot">1</span>输入数学问题</h2><div class="editor-tools"><button type="button" class="text-button" id="input-format" aria-pressed="false" title="在公式编辑与文本输入之间切换">文本输入</button><button type="button" class="icon-button" id="clear-input" title="清空输入" aria-label="清空输入"><svg><use href="#icon-trash"/></svg></button></div></div>
+              <div class="operation-row"><label for="operation">运算</label><select id="operation"><option value="auto">智能识别</option><option value="evaluate">计算数值</option><option value="simplify">化简表达式</option><option value="expand">展开表达式</option><option value="factor">因式分解</option><option value="solve">方程 / 不等式</option><option value="derivative">求导</option><option value="integral">积分</option><option value="limit">极限</option><option value="matrix">矩阵 / 向量</option><option value="statistics">数据统计</option><option value="units">单位换算</option></select><div class="angle-toggle" aria-label="三角函数角度单位"><button type="button" data-angle="rad" class="active" aria-pressed="true">RAD</button><button type="button" data-angle="deg" aria-pressed="false">DEG</button></div></div>
+              <div class="expression-wrap" id="expression-wrap"><math-field id="expression" math-virtual-keyboard-policy="manual" aria-label="数学表达式" placeholder="x^2-5x+6=0"></math-field><textarea id="raw-expression" aria-label="数学表达式（文本）" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="例如 x^2 - 5x + 6 = 0&#10;方程组用分号或换行分隔" rows="3" hidden></textarea></div>
+              <div class="input-meta"><span id="input-hint">输入式子，或试试下方的例题</span><button type="button" class="text-button" id="paste-input" title="粘贴表达式">粘贴</button></div>
+              <div class="advanced-options" id="advanced-options" hidden><label>变量<input id="variable" value="x" maxlength="16" autocapitalize="off" spellcheck="false"></label><label id="root-lower-label" hidden>实根搜索下限<input id="root-lower" value="-10" spellcheck="false"></label><label id="root-upper-label" hidden>实根搜索上限<input id="root-upper" value="10" spellcheck="false"></label><label id="order-label" hidden>阶数<select id="order"><option value="1">一阶</option><option value="2">二阶</option><option value="3">三阶</option><option value="4">四阶</option><option value="5">五阶</option></select></label><label id="lower-label" hidden>下限<input id="lower" placeholder="留空：不定积分" spellcheck="false"></label><label id="upper-label" hidden>上限<input id="upper" placeholder="例如 pi" spellcheck="false"></label><label id="point-label" hidden>趋近<input id="limit-point" value="0" placeholder="0 / Infinity" spellcheck="false"></label><label id="direction-label" hidden>方向<select id="limit-direction"><option value="both">双侧</option><option value="left">从左侧</option><option value="right">从右侧</option></select></label></div>
+              <div class="mode-hint" id="mode-hint" hidden></div>
+              <div class="solve-row"><span class="enter-hint"><kbd>Enter</kbd> 开始求解</span><button type="button" id="solve-button" class="primary-button">求解 <svg><use href="#icon-arrow"/></svg></button></div>
+              <div id="input-error" class="error-message" role="alert" hidden></div>
+              <div class="keyboard" id="math-keyboard" aria-label="数学虚拟键盘"></div>
+            </section>
+            <section class="card examples-card"><div class="card-heading"><h2>从一个例题开始</h2><button type="button" class="text-button" id="all-examples">全部例题 <span>↗</span></button></div><div class="example-grid" id="example-grid"></div></section>
+          </div>
+          <div class="result-column" id="result-column">
+            <section class="card welcome-card" id="welcome-card"><div class="welcome-art" aria-hidden="true"><div class="art-grid"></div><svg viewBox="0 0 260 170"><path d="M22 124 C62 124 70 40 118 40 S180 143 238 83"/><path d="M22 148 L238 148 M42 160 L42 20" class="art-axes"/><circle cx="118" cy="40" r="5"/><circle cx="206" cy="118" r="4" class="blue-dot"/></svg><span class="art-formula">x² − 5x + 6 = 0</span></div><p class="eyebrow">A LITTLE CLARITY GOES A LONG WAY</p><h2>答案之外，<br>还有为什么。</h2><p>从基础运算到微积分，<br>把复杂问题拆成可以理解的步骤。</p><div class="welcome-features"><span>✓ 精确与近似结果</span><span>✓ 逐步解题</span><span>✓ 可交互的图像</span></div><p class="offline-note"><svg><use href="#icon-shield"/></svg>表达式在设备本地计算</p></section>
+            <section class="card answer-card" id="answer-card" hidden aria-labelledby="answer-heading"><div class="card-heading"><h2 id="answer-heading"><span class="step-dot">2</span><span id="result-title">计算结果</span></h2><div class="answer-actions"><button type="button" class="icon-button" id="copy-result" aria-label="复制答案" title="复制答案"><svg><use href="#icon-copy"/></svg></button><button type="button" class="icon-button" id="save-result" aria-label="收藏本题" title="收藏本题"><svg><use href="#icon-star"/></svg></button></div></div><div class="problem-line" id="result-problem"></div><div class="answer-box"><span class="answer-caption">答案</span><div class="math-display answer-math" id="result-answer"></div><div class="approximate" id="result-approximate" hidden></div></div><div class="result-notes" id="result-notes"></div><div class="result-tabs" role="tablist" aria-label="结果详情"><button type="button" class="active" data-result-tab="steps" role="tab" aria-selected="true">解题步骤</button><button type="button" data-result-tab="graph" role="tab" aria-selected="false">函数图像</button><button type="button" data-result-tab="table" role="tab" aria-selected="false">数值表</button></div><div class="result-panel active" id="steps-panel" role="tabpanel"><div id="steps-list"></div><div id="data-table-wrap"></div><div id="stats-chart"></div></div><div class="result-panel" id="graph-panel" role="tabpanel"><div class="plot-toolbar"><span>拖动平移 · 滚轮 / 双指缩放</span><div><button type="button" class="icon-button" data-result-graph="zoom-in" aria-label="放大图像">＋</button><button type="button" class="icon-button" data-result-graph="zoom-out" aria-label="缩小图像">−</button><button type="button" class="text-button" data-result-graph="reset">复位</button></div></div><div class="plot-container" id="result-plot"></div><div id="result-graph-legend" class="graph-legend"></div><button type="button" class="text-button plot-full" id="open-full-graph">在完整绘图器中打开 ↗</button></div><div class="result-panel" id="table-panel" role="tabpanel"><div class="table-options"><label>起点<input type="number" id="table-start" value="-3" step="any"></label><label>步长<input type="number" id="table-step" value="1" step="any"></label><label>行数<input type="number" id="table-count" value="10" min="2" max="100"></label><button type="button" class="secondary-button" id="update-table">生成</button></div><div class="table-scroll" id="value-table"></div><button type="button" class="text-button" id="export-table">导出 CSV ↓</button></div><div class="related-actions" id="related-actions"></div></section>
+            <section class="card practice-card" id="practice-card" hidden><div class="card-heading"><h2>举一反三</h2><span class="pill">自己试一试</span></div><p id="practice-question"></p><div id="practice-formula" class="math-display"></div><div class="practice-input"><input id="practice-answer" placeholder="输入答案，多个解用逗号分隔" aria-label="练习答案" spellcheck="false"><button type="button" class="secondary-button" id="check-practice">检查</button></div><p id="practice-feedback" role="status"></p><button type="button" class="text-button" id="practice-solution">查看本题步骤 ↗</button></section>
+          </div>
+        </div>
+      </section>
+      <section id="graph-view" class="view" hidden><div class="view-heading"><p class="eyebrow">EXPLORE THE SHAPE OF MATH</p><h1>看见函数的变化。</h1><p class="intro-desc">同时比较多条曲线，改变参数，探索每一个坐标。</p></div><div class="graph-workspace"><section class="card graph-controls"><div class="card-heading"><h2>函数列表</h2><span class="pill">最多 6 条</span></div><div class="operation-row"><span class="muted">角度单位</span><div class="angle-toggle" aria-label="绘图角度单位"><button type="button" data-angle="rad" class="active" aria-pressed="true">RAD</button><button type="button" data-angle="deg" aria-pressed="false">DEG</button></div></div><div id="function-list"></div><button type="button" class="secondary-button full-width" id="add-function">＋ 添加函数</button><div class="parameter-section"><h3>参数滑块</h3><p class="muted">在函数中使用 a、b、c，例如 a*x^2+b。</p><div id="parameter-controls"></div></div><div class="range-section"><h3>坐标范围</h3><div class="range-grid"><label>x 最小<input id="graph-xmin" type="number" value="-10" step="any"></label><label>x 最大<input id="graph-xmax" type="number" value="10" step="any"></label><label>y 最小<input id="graph-ymin" type="number" value="-6" step="any"></label><label>y 最大<input id="graph-ymax" type="number" value="6" step="any"></label></div><button type="button" class="text-button" id="apply-range">应用范围 →</button></div><div class="graph-quick"><h3>试试这些图像</h3><button type="button" data-graph-example="parabola">抛物线</button><button type="button" data-graph-example="trig">三角函数</button><button type="button" data-graph-example="rational">反比例</button><button type="button" data-graph-example="parameter">参数探索</button></div><p class="mode-hint">绘制关于 x 的实函数；复数值、未定义点和渐近线处会断开。</p></section><section class="card graph-main"><div class="plot-toolbar"><span>拖动平移 · 滚轮 / 双指缩放</span><div><button type="button" class="icon-button" data-full-graph="zoom-in" aria-label="放大">＋</button><button type="button" class="icon-button" data-full-graph="zoom-out" aria-label="缩小">−</button><button type="button" class="text-button" data-full-graph="reset">复位</button><button type="button" class="text-button" id="export-graph">保存图片 ↓</button></div></div><div id="full-plot" class="plot-container large-plot"></div><div id="full-graph-legend" class="graph-legend"></div><div class="graph-table-heading"><h3>函数数值表</h3><button type="button" class="text-button" id="full-export-table">导出 CSV ↓</button></div><div class="table-scroll" id="full-value-table"></div></section></div></section>
+      <section id="reference-view" class="view" hidden><div class="view-heading"><p class="eyebrow">A REFERENCE WITHIN REACH</p><h1>常用公式，随时查阅。</h1><p class="intro-desc">点击示例填入求解器，公式与计算连在一起。</p></div><div class="reference-grid" id="reference-grid"></div></section>
+      <footer class="page-footer"><span>Math Solver · 纯前端数学工具</span><button type="button" class="text-button" id="about-button">功能与使用说明</button><span>灵感来自 Microsoft Math Solver</span></footer>
+    </main>
+  </div>
+  <dialog id="examples-dialog" class="modal"><div class="modal-heading"><div><p class="eyebrow">PICK A PROBLEM</p><h2>例题库</h2></div><button type="button" class="icon-button" data-close aria-label="关闭">✕</button></div><div class="example-filter" id="example-filter"></div><div class="dialog-examples" id="dialog-examples"></div></dialog>
+  <dialog id="history-dialog" class="modal"><div class="modal-heading"><div><p class="eyebrow">YOUR MATH NOTEBOOK</p><h2>计算记录</h2></div><button type="button" class="icon-button" data-close aria-label="关闭">✕</button></div><div class="history-toolbar"><div class="segmented"><button type="button" class="active" data-history-tab="all">全部</button><button type="button" data-history-tab="saved">收藏</button></div><button type="button" class="text-button" id="export-history">导出记录</button><button type="button" class="text-button danger" id="clear-history">清空历史</button></div><div id="history-list"></div></dialog>
+  <dialog id="help-dialog" class="modal help-modal"><div class="modal-heading"><div><p class="eyebrow">MAKE YOURSELF AT HOME</p><h2>输入与计算指南</h2></div><button type="button" class="icon-button" data-close aria-label="关闭">✕</button></div><div class="help-content"><h3>键盘与公式编辑</h3><p>直接输入，或点按虚拟键盘。分数、根号、幂支持公式编辑；方向键移动光标，Tab 跳到下一处占位。长按带角标的按键约 0.4 秒，滑动到目标符号后松手，也可点选弹出的符号。</p><p>按 Enter 求解；文本输入中 Shift + Enter 换行。公式 / 文本可切换，方程组、矩阵和带逗号的函数建议使用文本输入。计算历史和收藏保存在当前浏览器。</p><h3>表达式语法</h3><div class="help-syntax"><code>2x + 3(x+1)</code><span>允许省略乘号</span><code>x^2 - 5x + 6 = 0</code><span>方程；&lt;、&gt;、&lt;=、&gt;= 为不等式</span><code>2x+y=7; x-y=2</code><span>分号 / 换行分隔线性方程组</span><code>sqrt(2), nthRoot(8,3)</code><span>平方根与 n 次根</span><code>ln(e), log(8,2), log10(100)</code><span>自然对数、指定底数、常用对数</span><code>sin(pi/6), asin(0.5)</code><span>三角 / 反三角；RAD / DEG 切换单位</span><code>combinations(10,3), 5!</code><span>组合数与阶乘</span><code>[1,2;3,4], inv([1,2;3,4])</code><span>矩阵与矩阵函数</span><code>1, 2, 3, 4, 5</code><span>统计数据，可加方括号</span><code>diff(x^3,x), integrate(x^2,x)</code><span>也可以选择求导或积分模式</span><code>sum(k^2,k,1,10)</code><span>有限求和；product 为有限连乘</span><code>5 cm to inch, 32 degF to degC</code><span>单位换算，数值和单位用空格分开</span></div><h3>支持的计算</h3><p>科学计算、分数与复数、代数化简 / 展开 / 因式分解、单变量多项式方程、非多项式方程的区间实根搜索、线性方程组、多项式与有理式不等式、导数、不定 / 定积分、极限、矩阵与向量、描述统计、单位换算，以及最多六条实函数的交互式图像。</p><h3>结果如何阅读</h3><p>能给出符号结果时显示精确答案，同时补充近似值。步骤根据具体计算生成；数值求根或数值积分会说明方法和范围。复杂表达式可能超出本地符号引擎的能力，此时会明确提示。积分常数、定义域和不可取的分母零点请留意结果说明。</p><p>这是一款独立实现的工具，与微软没有隶属关系。没有服务器计算接口，计算库、公式字体均随页面本地加载，直接打开 <code>math_solver/index.html</code> 即可使用。</p><div class="settings-row"><label for="precision">近似结果精度</label><select id="precision"><option value="6">6 位有效数字</option><option value="10" selected>10 位有效数字</option><option value="14">14 位有效数字</option></select></div></div></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <svg class="svg-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="icon-history" viewBox="0 0 24 24"><path d="M3 11a9 9 0 1 1 2.5 7M3 4v7h7M12 7v5l3 2"/></symbol>
+    <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></symbol>
+    <symbol id="icon-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4m0 3h.01"/></symbol>
+    <symbol id="icon-calculator" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h1m3 0h1m3 0h.01M8 15h1m3 0h1m3 0h.01M8 18h1m3 0h1m3 0h.01"/></symbol>
+    <symbol id="icon-spark" viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></symbol>
+    <symbol id="icon-algebra" viewBox="0 0 24 24"><path d="m5 6 10 12M15 6 5 18M17 5h5m-2.5-2.5v5M17 15h5"/></symbol>
+    <symbol id="icon-equation" viewBox="0 0 24 24"><path d="M4 8h16M4 15h16"/></symbol>
+    <symbol id="icon-calculus" viewBox="0 0 24 24"><path d="M16 3c-4-2-5 4-5 9s-1 11-5 9M15 8l5 8m0-8-5 8"/></symbol>
+    <symbol id="icon-matrix" viewBox="0 0 24 24"><path d="M6 3H3v18h3M18 3h3v18h-3M8 8h1m6 0h1M8 16h1m6 0h1"/></symbol>
+    <symbol id="icon-chart" viewBox="0 0 24 24"><path d="M4 3v17h17M8 16v-5m5 5V6m5 10v-8"/></symbol>
+    <symbol id="icon-ruler" viewBox="0 0 24 24"><path d="m3 16 13-13 5 5L8 21l-5-5Zm6-6 3 3m2-8 3 3M4 15l3 3"/></symbol>
+    <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></symbol>
+    <symbol id="icon-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></symbol>
+    <symbol id="icon-star" viewBox="0 0 24 24"><path d="m12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1 3-6Z"/></symbol>
+    <symbol id="icon-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/></symbol>
+  </defs></svg>
+  <noscript><p class="error-message">数学求解器需要启用 JavaScript。</p></noscript>
+</body>
+</html>
