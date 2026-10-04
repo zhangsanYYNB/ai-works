@@ -536,3 +536,12 @@ _BinDeployableAssemblies/
 # 星际方块：独立游戏及本地运行依赖
 !starbound_blocks/
 !starbound_blocks/**
+
+# 数学求解器：页面、脚本与离线计算依赖
+!math_solver/
+!math_solver/**
+# 临时探针脚本，不属于测试套件
+math_solver/tests/probe.cjs
+
+# pi agent 本地会话与运行日志
+.pi/
