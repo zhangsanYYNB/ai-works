@@ -23,25 +23,25 @@
   const groups = {
     basic: { label: '基础', keys: [
       key('7', '7', '7'), key('8', '8', '8'), key('9', '9', '9'),
-      key('divide', '÷', '\\div', { function: true, escape: true, variants: [alt('a/b', '\\frac{#0}{#?}'), alt('1/x', '\\frac{1}{#0}')] }),
+      key('divide', '÷', '\\div', { function: true, variants: [alt('a/b', '\\frac{#0}{#?}'), alt('1/x', '\\frac{1}{#0}')] }),
       key('sqrt', '√', '\\sqrt{#0}', { function: true, variants: [alt('∛', '\\sqrt[3]{#0}'), alt('∜', '\\sqrt[4]{#0}'), alt('ⁿ√', '\\sqrt[#?]{#0}')] }),
       key('square', 'x²', '#0^{2}', { function: true, variants: [alt('x³', '#0^{3}'), alt('xⁿ', '#0^{#?}'), alt('x⁻¹', '#0^{-1}')] }),
       key('backspace', '⌫', '', { action: 'deleteBackward', function: true, aria: '退格，按住连续删除' }),
       key('4', '4', '4'), key('5', '5', '5'), key('6', '6', '6'),
-      key('multiply', '×', '\\times', { function: true, escape: true, variants: [alt('·', '\\cdot'), alt('n!', '#0!'), alt('%', '\\%')] }),
+      key('multiply', '×', '\\times', { function: true, variants: [alt('·', '\\cdot'), alt('n!', '#0!'), alt('%', '\\%')] }),
       key('lparen', '(', '(', { function: true, variants: [alt('[', '['), alt('{', '\\{'), alt('|x|', '\\left|#0\\right|')] }),
       key('rparen', ')', ')', { function: true, variants: [alt(']', ']'), alt('}', '\\}')] }),
       key('fraction', 'a/b', '\\frac{#0}{#?}', { function: true, variants: [alt('1/x', '\\frac{1}{#0}'), alt('xⁿ', '#0^{#?}')] }),
       key('1', '1', '1'), key('2', '2', '2'), key('3', '3', '3'),
-      key('minus', '−', '-', { function: true, escape: true, variants: [alt('±', '\\pm'), alt('−x', '-\\left(#0\\right)')] }),
+      key('minus', '−', '-', { function: true, variants: [alt('±', '\\pm'), alt('−x', '-\\left(#0\\right)')] }),
       key('x', 'x', 'x', { function: true, variants: [alt('y', 'y'), alt('z', 'z'), alt('t', 't'), alt('a', 'a')] }),
       key('power', 'xⁿ', '#0^{#?}', { function: true, variants: [alt('x²', '#0^{2}'), alt('x³', '#0^{3}'), alt('10ˣ', '10^{#0}')] }),
       key('pi', 'π', '\\pi', { function: true, variants: [alt('e', 'e'), alt('i', '\\imaginaryI'), alt('∞', '\\infty')] }),
       key('0', '0', '0'), key('decimal', '.', '.'),
-      key('equals', '=', '=', { function: true, escape: true, variants: [alt('≠', '\\ne'), alt('≤', '\\le'), alt('≥', '\\ge')] }),
-      key('plus', '+', '+', { function: true, escape: true }),
-      key('relation', '<', '<', { function: true, escape: true, variants: [alt('>', '>'), alt('≤', '\\le'), alt('≥', '\\ge'), alt('≠', '\\ne')] }),
-      key('comma', ',', ',', { function: true, escape: true, variants: [alt(';', ';'), alt(':', ':'), alt('%', '\\%')] }),
+      key('equals', '=', '=', { function: true, variants: [alt('≠', '\\ne'), alt('≤', '\\le'), alt('≥', '\\ge')] }),
+      key('plus', '+', '+', { function: true }),
+      key('relation', '<', '<', { function: true, variants: [alt('>', '>'), alt('≤', '\\le'), alt('≥', '\\ge'), alt('≠', '\\ne')] }),
+      key('comma', ',', ',', { function: true, variants: [alt(';', ';'), alt(':', ':'), alt('%', '\\%')] }),
       key('submit', '↵', '', { action: 'solve', submit: true })
     ] },
     functions: { label: '函数', keys: functionKeys },
@@ -132,7 +132,7 @@
         grid.append(button);
       }
       const bottom = document.createElement('div'); bottom.className = 'keyboard-bottom';
-      for (const [label, command, aria] of [['↶','undo','撤销'],['↷','redo','重做'],['←','moveToPreviousChar','光标左移'],['→','moveToNextChar','光标右移'],['⇥','moveToNextPlaceholder','下一处占位']]) {
+      for (const [label, command, aria] of [['↶','undo','撤销'],['↷','redo','重做'],['←','moveToPreviousChar','光标左移'],['→','moveToNextChar','光标右移'],['⇥','moveToNextPlaceholder','下一处占位'],['↗','moveAfterParent','跳出当前结构']]) {
         const button = document.createElement('button'); button.type = 'button'; button.textContent = label; button.title = aria; button.setAttribute('aria-label', aria);
         button.addEventListener('pointerdown', e => e.preventDefault());
         button.addEventListener('click', () => { if (this.options.onCommand) this.options.onCommand(command); }); bottom.append(button);
@@ -188,6 +188,7 @@
       for (const [index, variant] of this.variants.entries()) {
         const option = document.createElement('button'); option.type = 'button'; option.className = 'key-variant'; option.setAttribute('role', 'menuitem'); option.dataset.variantIndex = index;
         const text = document.createElement('span'); text.textContent = variant.label; if (variant.label.length > 3) text.className = 'variant-small'; option.append(text);
+        option.addEventListener('pointerdown', e => e.preventDefault());
         option.addEventListener('click', () => { this.activate(variant); this.closePopup(); });
         option.addEventListener('keydown', e => {
           if (e.key === 'Escape') { this.closePopup(); button.focus(); }

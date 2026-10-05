@@ -16,7 +16,7 @@
     functions:[{expression:'sin(x)',label:'sin(x)',color:COLORS[0]}],parameters:{},practice:null,historyTab:'all',table:null,fullTable:null};
   let worker = null, workerDisabled = location.protocol === 'file:', jobId = 0;
   const pending = new Map();
-  let toastTimer, graphTimer;
+  let toastTimer, graphTimer, inputScrollFrame;
   let keyboard;
 
   function make(tag, className, text) { const el=document.createElement(tag); if(className) el.className=className; if(text !== undefined) el.textContent=text; return el; }
@@ -92,9 +92,19 @@
   }
   // Only a real edit clears the error: MathLive also emits "input" when the selection
   // moves, which used to erase the message right after a failed solve.
+  function keepInputVisible() {
+    if(!keyboard?.visible || !matchMedia('(max-width:720px)').matches) return;
+    cancelAnimationFrame(inputScrollFrame);
+    inputScrollFrame=requestAnimationFrame(()=>{
+      if(!keyboard?.visible) return;
+      const input=$('expression-wrap').getBoundingClientRect(),top=$('math-keyboard').getBoundingClientRect().top;
+      if(input.bottom>top-12) window.scrollBy({top:input.bottom-top+12,behavior:'instant'});
+    });
+  }
   function inputChanged() {
     updateInputHint();
     if (!$('input-error').hidden && safeSource() !== errorSource) clearError();
+    keepInputVisible();
   }
   function setMode(mode, extra) {
     if(!Object.prototype.hasOwnProperty.call(modeLabels,mode)) mode='auto';
@@ -229,8 +239,11 @@
     if(result.kind==='units') $('result-problem').textContent=result.input;
     else mathDisplay($('result-problem'),latexFor(result.normalized || result.input),result.input);
     mathDisplay($('result-answer'),result.answerLatex,result.answerText || result.exact);
-    $('result-approximate').hidden=!result.approximate;
-    $('result-approximate').textContent=result.approximate ? '近似值  '+result.approximate : '';
+    const approximation=result.exact && !result.numerical && result.approximate && result.approximate!==result.answerText && result.approximate!==result.exact;
+    $('toggle-approximate').hidden=!approximation;
+    $('toggle-approximate').setAttribute('aria-pressed','false');
+    $('result-approximate').hidden=true;
+    $('result-approximate').textContent=approximation ? '≈ '+result.approximate : '';
     $('result-notes').replaceChildren();
     for(const note of result.notes || []) {
       const paragraph=make('p');
@@ -250,7 +263,7 @@
     });
     if(!result.steps?.length) $('steps-list').append(make('p','muted','此表达式由本地数学引擎直接计算。'));
     $('data-table-wrap').replaceChildren(); $('stats-chart').replaceChildren();
-    if(result.table) { const wrapper=make('div','table-scroll');wrapper.append(buildTable(result.table.headers,result.table.rows));$('data-table-wrap').append(wrapper); }
+    if(result.table) { const wrapper=make('div','table-scroll');wrapper.append(buildTable(result.table.headers,result.table.rows,result.table.latexRows));$('data-table-wrap').append(wrapper); }
     if(result.kind==='statistics') renderStatisticsChart(result.normalized);
     const palette=state.theme==='dark' ? ['#63d5a6','#8bb9ff','#efb369','#bf99ef','#f093ac','#68ced9'] : COLORS;
     const graphs=(result.graphs || []).map((fn,index)=>({...fn,color:palette[index%palette.length]}));
@@ -295,10 +308,10 @@
     });
     if(tab==='table') updateResultTable();
   }
-  function buildTable(headers,rows) {
+  function buildTable(headers,rows,latexRows) {
     const table=make('table'),head=make('thead'),body=make('tbody'),hr=make('tr');
     (headers || []).forEach(text=>{const cell=make('th','',String(text));cell.scope='col';hr.append(cell);});head.append(hr);
-    (rows || []).forEach(row=>{const tr=make('tr');row.forEach(value=>tr.append(make('td','',value===null || value===undefined ? '—' : String(value))));body.append(tr);});
+    (rows || []).forEach((row,index)=>{const tr=make('tr');row.forEach((value,column)=>{const cell=make('td');const latex=latexRows?.[index]?.[column];if(latex) {cell.className='table-math';mathDisplay(cell,latex,String(value));}else cell.textContent=value===null || value===undefined ? '—' : String(value);tr.append(cell);});body.append(tr);});
     table.append(head,body);return table;
   }
   function formatValue(value,precision) {
@@ -483,174 +496,23 @@
     card.append(form,output);root.append(card);
   }
 
-  /* MathLive addresses positions as offsets into the field's LaTeX, so the operand a key
-   * should wrap is found by scanning the LaTeX backwards. MathLive's own insert() treats
-   * "#0" as a fresh placeholder, which produced empty-base superscripts and silently
-   * dropped exponents; resolving the slots here keeps the base attached. */
-  function latexGroupStart(latex, pos) {
-    const close = latex[pos - 1];
-    if (close !== '}' && close !== ')' && close !== ']') return -1;
-    const open = close === '}' ? '{' : close === ')' ? '(' : '[';
-    let depth = 1;
-    for (let i = pos - 2; i >= 0; i--) {
-      if (latex[i] === close) depth++;
-      else if (latex[i] === open && --depth === 0) {
-        let start = i;
-        if (open !== '{' && latex.slice(Math.max(0, start - 5), start) === '\\left') start -= 5;
-        return start;
-      }
-    }
-    return -1;
-  }
-  function latexCommandStart(latex, pos) {
-    let i = pos - 1;
-    while (i >= 0 && /[a-zA-Z]/.test(latex[i])) i--;
-    return latex[i] === '\\' ? i + 1 : pos - 1;
-  }
-  const TWO_ARGUMENT_COMMANDS = new Set(['frac', 'dfrac', 'tfrac', 'cfrac', 'binom', 'dbinom', 'tbinom']);
-  const OPERATORS = new Set(['+', '-', '*', '/', '^', '_', '=', '<', '>', ',', ';', '(', '[', '{', '!', ':']);
-  function latexAtomStart(latex, pos) {
-    if (pos <= 0) return 0;
-    const previous = latex[pos - 1];
-    if (OPERATORS.has(previous)) return pos;               // nothing to wrap yet
-    const group = latexGroupStart(latex, pos);
-    if (group < 0) {
-      if (previous === '\\') return latexCommandStart(latex, pos);
-      let from = pos - 1;
-      // "\left|x\right|" keeps the closing bar after \right; the atom is the whole
-      // fence, because cutting at \right would leave the head with an unclosed \left.
-      if (previous === '|' && latex.slice(from - 6, from) === '\\right') {
-        const open = latex.lastIndexOf('\\left', from - 7);
-        from = open >= 0 && latex[open + 5] === '|' ? open : from - 6;
-      }
-      // "\\sqrt2" ends in a bare atom that belongs to the command in front of it.
-      const owner = latexCommandStart(latex, from);
-      return owner < from && latex[owner - 1] === '\\' ? owner - 1 : from;
-    }
-    let start = group;
-    // \frac{a}{b}: the atom is the command together with both arguments.
-    if (latex[start - 1] === '}') {
-      const first = latexGroupStart(latex, start);
-      if (first < 0) return start;
-      const nameStart = latexCommandStart(latex, first);
-      if (latex[nameStart - 1] === '\\' && TWO_ARGUMENT_COMMANDS.has(latex.slice(nameStart - 1, first).slice(1))) return nameStart - 1;
-      return first;
-    }
-    const nameStart = latexCommandStart(latex, start);
-    if (latex[nameStart - 1] !== '\\') return start;
-    // "\\left|x\\right|" puts the closing bar after \\right, so take that delimiter too.
-    let from = nameStart - 1;
-    if (latex.slice(from, from + 6) === '\\right' && /[|)\]}]/.test(latex[from + 6] || '')) from += 7;
-    return from;
-  }
-    /* MathLive addresses the caret with a model offset, not a LaTeX index: "\frac{1}{2}" has
-   * five atoms but eleven LaTeX characters, and assigning an out-of-range offset throws.
-   * A throwaway marker atom is therefore inserted to learn where the caret really sits in
-   * the LaTeX, the field is restored, and the rebuild is handed to MathLive's own insert()
-   * so the placeholder ends up selected without computing model offsets by hand. */
-  const CARET_MARKER = '\\mathrel{\\square}';
-  const SLOT = '\\placeholder{}';
-  function latexCaretOffset(mf) {
-    const original = mf.value;
-    mf.insert(CARET_MARKER, { selectionMode: 'after' });
-    const marked = mf.value;
-    mf.value = original;
-    const at = marked.indexOf(CARET_MARKER);
-    // A marker typed inside "\sqrt{2}" or a matrix is pulled into that structure, so only
-    // a result that reproduced the field byte for byte tells us where the caret really is.
-    if (at < 0 || marked !== original.slice(0, at) + CARET_MARKER + original.slice(at)) return -1;
-    return at;
-  }
-  /* After pressing x^n the caret sits inside the exponent, and after pressing |x| it sits
-   * between the fences. A following "+" or "=" has to leave that construct first: leave the
-   * script outright, or close an unfinished fence before writing the operator. Returns
-   * null when the caret is already at the top level. */
-  function scriptExit(mf) {
-    const value = mf.value, head = value.slice(0, latexCaretOffset(mf)), open = [];
-    for (let i = 0; i < head.length; i++) {
-      if (head[i] === '{') open.push(i);
-      else if (head[i] === '}') open.pop();
-    }
-    if (open.length && /\^$|_$/.test(value.slice(0, open[open.length - 1]))) {
-      let depth = 1, index = open[open.length - 1] + 1;
-      for (; index < value.length; index++) {
-        if (value[index] === '{') depth++;
-        else if (value[index] === '}' && --depth === 0) break;
-      }
-      return { at: index + 1, closer: '' };
-    }
-    let fences = 0, start = -1;
-    for (let i = head.length - 1; i >= 0; i--) {
-      if (head.startsWith('\\right', i)) { fences++; i -= 4; continue; }
-      if (head.startsWith('\\left', i)) { if (!fences--) { start = i; break; } i -= 4; }
-    }
-    if (start >= 0) {
-      let depth = 1;
-      for (let i = start + 5; i < value.length; i++) {   // the opening fence is already counted
-        if (value.startsWith('\\left', i)) { depth++; i += 4; }
-        else if (value.startsWith('\\right', i)) {
-          if (--depth === 0) {
-            let after = i + 6;                                   // past the \right command
-            if (/[|)\]}.,]/.test(value[after] || '')) after++; // and past its delimiter
-            return { at: after, closer: '' };
-          }
-          i += 5;
-        }
-      }
-      return { at: value.length, closer: '\\right' + (value[start + 5] === '.' ? '|' : value[start + 5] || '|') };
-    }
-    return null;
-  }
-  function squareDepth(text, pos) {
-    let depth = 0;
-    for (let i = 0; i < pos && i < text.length; i++) {
-      if (text[i] === '[') depth++;
-      else if (text[i] === ']') depth--;
-    }
-    return depth;
-  }
   function insertMath(latex, item) {
     if(state.format==='math') {
-      const mf=$('expression'),exit=item&&item.escape?scriptExit(mf):null;
-      if(exit) {
-        const value=mf.value;
-        mf.value=value.slice(0,exit.at);
-        mf.insert(exit.closer+latex+value.slice(exit.at),{selectionMode:'after',focus:true});
-      } else if(/^[()[\]]$/.test(latex) || /^\\[{}]$/.test(latex)) {
-        const delimiter=latex.replace(/^\\/,'');
-        mf.executeCommand(['typedText',delimiter,{mode:'math'}]);
-      } else if(/#(?:0|\?)/.test(latex)) {
-        const value=mf.value;
-        let caret=latexCaretOffset(mf);
-        // Inside a matrix or another "[...]" structure a LaTeX index cannot describe the
-        // caret, and rewriting around it would shred the input.
-        if(caret>=0 && squareDepth(value,caret)>0) caret=-1;
-        const from=caret<0?0:(latex.includes('#0')?latexAtomStart(value,caret):caret);
-        const operand=caret<0?'':value.slice(from,caret);
-        let body='';
-        for(let i=0;i<latex.length;) {
-          if(latex.startsWith('#0',i)) { body+=operand||SLOT; i+=2; }
-          else if(latex.startsWith('#?',i)) { body+=SLOT; i+=2; }
-          else { body+=latex[i]; i++; }
-        }
-        if(caret<0) {
-          // The caret is somewhere a LaTeX index cannot describe (inside a matrix, say);
-          // offer an empty slot rather than rewrite the formula around a guess.
-          mf.insert(body,{selectionMode:'placeholder'});
-        } else {
-          mf.value=value.slice(0,from);
-          mf.insert(body+value.slice(caret),{selectionMode:body.includes(SLOT)?'placeholder':'after'});
-        }
-      } else mf.insert(latex,{selectionMode:'after',focus:true});
-      mf.focus();inputChanged();return;
+      window.MathSolverEditor.insert($('expression'),latex);
+      inputChanged();return;
     }
-    // Use an unattached MathLive conversion for complete fragments; templates use selectable □ placeholders.
-    let text=M.convertLatexToAsciiMath(latex.replace(/#0/g,'\\placeholder{}').replace(/#\?/g,'\\placeholder{}'));
-    text=collapseOperatorNames(text,latex);
-    text=text.replace(/\u200b/g,'');
-    if(item?.id==='square') text='^2';else if(item?.id==='power') text='^()';
     const el=$('raw-expression'),start=el.selectionStart,end=el.selectionEnd,selection=el.value.slice(start,end);
-    if(selection && /#0/.test(latex)) {text=M.convertLatexToAsciiMath(latex.replace(/#0/g,editorLatex(selection)).replace(/#\?/g,'\\placeholder{}'));}
+    // Standalone MathLive placeholders export as empty parentheses; use a named
+    // temporary token during conversion so every text slot remains selectable.
+    const slot='\\operatorname{msinputslot}';
+    const ascii=fragment=>collapseOperatorNames(M.convertLatexToAsciiMath(fragment),fragment).replace(/msinputslot/g,'□').replace(/\u200b/g,'').trim();
+    const fragment=latex.replace(/#0/g,()=>selection ? editorLatex(selection) : slot).replace(/#\?/g,()=>slot);
+    let text=ascii(fragment);
+    const power=/^#0\^\{([\s\S]*)\}$/.exec(latex);
+    if(power) {
+      const exponent=ascii(power[1].replace(/#\?/g,()=>slot));
+      text=(selection ? '('+selection+')' : '')+'^'+(/^[-+]?\d+$/.test(exponent) ? exponent : '('+exponent+')');
+    } else if(latex==='#0!') text=(selection ? '('+selection+')' : '')+'!';
     text=text.replace(/\?+/g,'□');
     el.setRangeText(text,start,end,'end');const at=el.value.indexOf('□',start);if(at>=0) el.setSelectionRange(at,at+1);el.focus();el.dispatchEvent(new Event('input',{bubbles:true}));
   }
@@ -661,6 +523,14 @@
     else if(command==='moveToPreviousChar') el.setSelectionRange(Math.max(0,start-1),Math.max(0,start-1));
     else if(command==='moveToNextChar') el.setSelectionRange(Math.min(el.value.length,end+1),Math.min(el.value.length,end+1));
     else if(command==='moveToNextPlaceholder') {const next=el.value.indexOf('□',end);const index=next>=0 ? next : el.value.indexOf('□');if(index>=0) el.setSelectionRange(index,index+1);}
+    else if(command==='moveAfterParent') {
+      const opens=[],matching={')':'(',']':'[','}':'{'};
+      for(let index=0;index<el.value.length;index++) {
+        const char=el.value[index];
+        if('([{'.includes(char)) opens.push({char,index});
+        else if(matching[char]) {const open=opens.pop();if(open?.char===matching[char] && open.index<start && index>=end) {el.setSelectionRange(index+1,index+1);break;}}
+      }
+    }
     else if(command==='undo' || command==='redo') {el.focus();document.execCommand(command);}
     el.focus();inputChanged();
   }
@@ -684,6 +554,7 @@
     $('solve-button').addEventListener('click',solve);
     all('[data-result-tab]').forEach(button=>button.addEventListener('click',()=>selectResultTab(button.dataset.resultTab)));
     $('copy-result').addEventListener('click',()=>{if(state.current) copyText(state.current.answerText,'答案已复制');});
+    $('toggle-approximate').addEventListener('click',()=>{const show=$('result-approximate').hidden;$('result-approximate').hidden=!show;$('toggle-approximate').setAttribute('aria-pressed',String(show));});
     $('save-result').addEventListener('click',()=>toggleSave());
     all('[data-result-graph]').forEach(button=>button.addEventListener('click',()=>graphAction(state.resultGraph,button.dataset.resultGraph)));
     $('open-full-graph').addEventListener('click',openResultInGraph);
@@ -709,18 +580,19 @@
     try {const params=new URLSearchParams(location.hash.slice(1)),input=params.get('q');if(!input || input.length>1200) return;const options=JSON.parse(params.get('o') || '{}');applyOptions(options);setInput(input);solve();}catch(_){toast('题目链接无效，请重新输入。');}
   }
   async function initialize() {
-    if(!engine || !M || !catalog || !window.MathSolverKeyboard || !window.MathSolverGraph) {showError('本地资源加载失败，请确认 math_solver 文件夹完整。');return;}
+    if(!engine || !M || !catalog || !window.MathSolverEditor || !window.MathSolverKeyboard || !window.MathSolverGraph) {showError('本地资源加载失败，请确认 math_solver 文件夹完整。');return;}
     await customElements.whenDefined('math-field');
     const cls=window.MathfieldElement || M.MathfieldElement;
     cls.fontsDirectory=new URL('vendor/fonts/',document.baseURI).href;cls.soundsDirectory=null;cls.keypressSound=null;cls.plonkSound=null;cls.keypressVibration=false;cls.locale='zh-CN';cls.computeEngine=null;
-    const mf=$('expression');mf.mathVirtualKeyboardPolicy='manual';mf.smartFence=true;mf.smartMode=false;mf.menuItems=[];
+    const mf=$('expression');mf.mathVirtualKeyboardPolicy='manual';mf.smartFence=true;mf.smartMode=false;mf.smartSuperscript=false;mf.menuItems=[];
     mf.onScrollIntoView=()=>false;
     mf.addEventListener('keydown',event=>{
-      if(state.format!=='math' || event.isComposing || event.ctrlKey || event.metaKey || event.altKey || !/^[()[\]{}]$/.test(event.key)) return;
+      if(state.format!=='math' || event.isComposing || event.ctrlKey || event.metaKey || event.altKey || !/^[()[\]{}\/]$/.test(event.key)) return;
       event.preventDefault();event.stopImmediatePropagation();
-      mf.executeCommand(['typedText',event.key,{mode:'math'}]);inputChanged();
+      window.MathSolverEditor.insert(mf,event.key==='/'?'\\frac{#0}{#?}':event.key);
+      inputChanged();
     },true);
-    keyboard=new window.MathSolverKeyboard($('math-keyboard'),{onInsert:insertMath,onCommand:editorCommand,onSolve:solve,onMode:(mode,item)=>{setMode(mode,item);focusEditor();},onFocus:()=>{if(state.format==='math') mf.focus();},onVisibility:(_visible,mobileOpen)=>{$('raw-expression').inputMode=mobileOpen ? 'none' : 'text';}});
+    keyboard=new window.MathSolverKeyboard($('math-keyboard'),{onInsert:insertMath,onCommand:editorCommand,onSolve:solve,onMode:(mode,item)=>{setMode(mode,item);focusEditor();},onFocus:()=>{if(state.format==='math') mf.focus();},onVisibility:(_visible,mobileOpen)=>{$('raw-expression').inputMode=mobileOpen ? 'none' : 'text';if(mobileOpen) keepInputVisible();}});
     setTheme(state.theme);setAngle(state.angle);setMode('auto');renderReference();bind();restoreShared();
     window.MathSolverApp=Object.freeze({setInput,setMode,setView,setFormat,solve,sourceFromField,getState:()=>({view:state.view,format:state.format,mode:state.mode,angle:state.angle,result:state.current,busy:state.busy}),getKeyboard:()=>keyboard});
   }

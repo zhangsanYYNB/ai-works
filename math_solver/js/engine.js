@@ -686,6 +686,22 @@
     function rowLatex(row) {
       const parts = row.split(/(<=|>=|!=|==|=|<|>)/);
       return parts.map((p, i) => i % 2 ? ({ '<=': '\\le ', '>=': '\\ge ', '!=': '\\ne ', '==': '=', '=': '=', '<': '<', '>': '>' })[p] : parse(p).toTex({ parenthesis: 'auto', implicit: 'hide', handler: node => {
+        if (node.isOperatorNode && node.fn === 'pow') {
+          const exponent = unwrap(node.args[1]);
+          if (exponent.isOperatorNode && exponent.fn === 'unaryMinus') {
+            const magnitude = unwrap(exponent.args[0]);
+            if (magnitude.isConstantNode && magnitude.value === 1) return '\\frac{1}{' + toLatex(plain(node.args[0])).trim() + '}';
+          }
+          if (exponent.isOperatorNode && exponent.fn === 'divide') {
+            const numerator = unwrap(exponent.args[0]), denominator = unwrap(exponent.args[1]);
+            if (numerator.isConstantNode && numerator.value === 1 && denominator.isConstantNode && Number.isInteger(denominator.value) && denominator.value >= 2 && denominator.value <= 64) {
+              let realBase = false;
+              try { realBase = !symbols(node.args[0]).length && scalarNumber(evaluateNode(node.args[0], Object.create(null), optionsFor())) >= 0; } catch (_) { /* Unknown or complex bases retain their principal-power notation. */ }
+              if (denominator.value % 2 === 1 && !realBase) return undefined;
+              return '\\sqrt' + (denominator.value === 2 ? '' : '[' + denominator.value + ']') + '{' + toLatex(plain(node.args[0])) + '}';
+            }
+          }
+        }
         if (!node.isConstantNode) return undefined;
         const literal = node._engineLiteral || String(node.value);
         const scientific = /^([\d.]+)[eE]([+-]?\d+)$/.exec(literal);
@@ -713,7 +729,8 @@
     libraries(true);
     expression = expression.replace(/(?<![a-zA-Z0-9_.])\.(\d+)/g, (_, digits) => '0.' + digits)
       .replace(/(?<![a-zA-Z0-9_.])(\d+)\.(?!\d)/g, '$1');
-    expression = scientificFractions(expression);
+    expression = scientificFractions(expression).replace(/(?<![a-zA-Z0-9_.])(\d+)\.(\d+)/g,
+      (_, integer, decimal) => '(' + (integer + decimal).replace(/^0+(?=\d)/, '') + '/10^' + decimal.length + ')');
     boundedText(expression, LIMITS.output);
     try {
       const command = action ? action + '(' + expression + ')' : expression;
@@ -1677,11 +1694,12 @@
       }
     }
     const expression = plain(node, opts), output = result(mode, { simplify: '代数化简', expand: '展开表达式', factor: '因式分解' }[mode], input, normalized);
-    let answer = cas(expression, mode);
+    const exact = exactContext(opts);
+    let answer = exact.simplify(expression, mode);
     if (uncomputed(answer) || new RegExp('\\b' + mode + '\\s*\\(').test(answer)) fail('符号库未完成此代数运算，请简化输入。');
     if (probeEquivalence(expression, answer) === false) {
       if (mode !== 'simplify') fail('符号计算结果未通过代入等价检查，暂不输出可能错误的变形。');
-      answer = cas(expression, 'expand');
+      answer = exact.simplify(expression, 'expand');
       if (probeEquivalence(expression, answer) === false) fail('符号化简未通过等价检查，请拆开表达式计算。');
       output.notes.push('符号库的 simplify 结果未通过代入检查，已保留通过检查的等价形式。');
     }
@@ -1706,6 +1724,7 @@
   }
   function numericSteps(node, output, opts) {
     let visited = 0;
+    const context = exactContext(opts);
     function visit(n) {
       n = unwrap(n);
       if (output.steps.length >= 8 || ++visited > 40) return;
@@ -1716,7 +1735,12 @@
         if (n === unwrap(node) && output.exact) value = evaluateNode(parse(output.exact), Object.create(null), Object.assign({}, opts, { angle: 'rad' }));
         const name = n.isOperatorNode ? n.fn : n.fn.name;
         const explanation = ['sum', 'prod', 'product'].includes(name) && n.args.length === 4 ? '按整数上下限逐项计算，最多 200 项。' : DIRECT_TRIG.has(name) ? '该三角函数按' + (opts.angle === 'deg' ? '角度' : '弧度') + '解释参数。' : name === 'factorial' ? '阶乘为从 1 到 n 的整数乘积（0! = 1）。' : '依据括号和运算优先级，计算这一子表达式。';
-        step(output, '计算 ' + ({ add: '加法', subtract: '减法', multiply: '乘法', divide: '除法', pow: '幂', factorial: '阶乘' }[name] || name), explanation, toLatex(plain(n)) + '\\approx' + valueLatex(value, opts));
+        let right = '\\approx' + valueLatex(value && value.isFraction ? scalarNumber(value) : value, opts);
+        try {
+          const exact = n === unwrap(node) && output.exact ? output.exact : context.serialized(context.node(n));
+          right = '=' + toLatex(exact);
+        } catch (_) { /* Local unsupported operations are explicitly approximate. */ }
+        step(output, '计算 ' + ({ add: '加法', subtract: '减法', multiply: '乘法', divide: '除法', pow: '幂', factorial: '阶乘' }[name] || name), explanation, toLatex(plain(n)) + right);
       } catch (_) { /* Main evaluation already validates; do not invent missing substeps. */ }
     }
     visit(node);
@@ -1743,28 +1767,61 @@
     }
     return null;
   }
-  function numericCASExpression(node, opts) {
-    const n = unwrap(node);
-    if (n.isConstantNode || n.isSymbolNode) return plain(n);
-    if (n.isOperatorNode) {
-      const args = n.args.map(a => numericCASExpression(a, opts));
-      if (n.fn === 'factorial') {
-        const exact = exactIntegerFunction('factorial', [scalarNumber(evaluateNode(n.args[0], Object.create(null), opts))]);
-        return exact === null ? operatorExpression(n, args) : exact;
-      }
-      return operatorExpression(n, args);
-    }
-    if (!n.isFunctionNode) return plain(n, opts);
+  function exactScalarFunction(n, opts, args) {
     const name = n.fn.name;
-    if (['sum', 'prod', 'product'].includes(name) && n.args.length === 4) return plain(n, opts);
-    const args = n.args.map(a => numericCASExpression(a, opts));
+    const fractions = args.map(rationalText);
+    if (fractions.every(Boolean) && ['floor', 'ceil', 'round', 'mod'].includes(name)) {
+      if (name !== 'round' || args.length === 1 || fractions[1].d === 1n && Math.abs(scalarNumber(fractions[1])) <= 100) {
+        const values = name === 'round' && args.length > 1 ? [fractions[0], scalarNumber(fractions[1])] : fractions;
+        const exact = math[name](...values);
+        if (exact?.isFraction) return fractionText(exact);
+      }
+    }
+    if (name === 'sign' && fractions[0]) return fractions[0].n === 0n ? '0' : fractions[0].s.toString();
+    if (args[0] === '0') {
+      if (['exp', 'cosh', 'erfc'].includes(name)) return '1';
+      if (['sinh', 'tanh', 'asinh', 'atanh', 'erf'].includes(name)) return '0';
+    }
+    if (name === 'exp' && args[0] === '1') return 'e';
+    if (['log', 'log2', 'log10'].includes(name) && args[0] === '1') return '0';
+    if (name === 'complex' && fractions.every(Boolean) && args.length === 2) return cas('(' + args[0] + ')+(' + args[1] + ')*i');
+    if (['re', 'im', 'conj'].includes(name)) {
+      function gaussianRational(node) {
+        const part = unwrap(node);
+        if (part.isConstantNode) return true;
+        if (part.isSymbolNode) return part.name === 'i';
+        if (!part.isOperatorNode || !['add', 'subtract', 'multiply', 'divide', 'pow', 'unaryMinus', 'unaryPlus'].includes(part.fn)) return false;
+        if (part.fn === 'pow') {
+          if (symbols(part.args[1]).length) return false;
+          const exponent = scalarNumber(evaluateNode(part.args[1], Object.create(null), opts));
+          if (!Number.isSafeInteger(exponent) || Math.abs(exponent) > 1024) return false;
+        }
+        return part.args.every(gaussianRational);
+      }
+      if (gaussianRational(parse(args[0]))) return cas(({re:'realpart',im:'imagpart',conj:'conjugate'})[name] + '(' + args[0] + ')');
+    }
     if (['factorial', 'gamma', 'combinations', 'permutations', 'gcd', 'lcm'].includes(name)) {
-      const exact = exactIntegerFunction(name, n.args.map(a => scalarNumber(evaluateNode(a, Object.create(null), opts))));
+      const values = args.map(a => rationalText(a));
+      const exact = values.every(a => a && a.d === 1n) ? exactIntegerFunction(name, values.map(scalarNumber)) : null;
       if (exact !== null) return exact;
     }
     if (['log', 'log2', 'log10'].includes(name)) {
-      const value = scalarNumber(evaluateNode(n, Object.create(null), opts)), base = name === 'log2' ? '2' : name === 'log10' ? '10' : args[1] || 'e';
-      if (Number.isSafeInteger(value) && Math.abs(value) <= 1024 && zero(csub(cpow(base, String(value)), cas(args[0])))) return String(value);
+      const base = name === 'log2' ? '2' : name === 'log10' ? '10' : args[1] || 'e';
+      if (base === 'e' && args[0] === 'e') return '1';
+      const argument = rationalText(args[0]), radix = rationalText(base);
+      if (argument && radix && scalarNumber(argument) > 0 && scalarNumber(radix) > 0 && scalarNumber(radix) !== 1) {
+        const value = Math.round(Math.log(scalarNumber(argument)) / Math.log(scalarNumber(radix)));
+        if (Number.isSafeInteger(value) && Math.abs(value) <= 1024
+          && (radix.n.toString().length + radix.d.toString().length) * Math.abs(value) <= 4096
+          && math.equal(math.pow(radix, value), argument)) return String(value);
+      }
+      // These are structural identities, not a test that a floating result is near an integer.
+      if (base === 'e') {
+        const realArgument = scalarNumber(evaluateNode(parse(args[0]), Object.create(null), Object.assign({}, opts, { angle: 'rad' })));
+        const argumentNode = unwrap(parse(args[0]));
+        if (realArgument > 0 && argumentNode.isFunctionNode && argumentNode.fn.name === 'exp' && Number.isFinite(scalarNumber(evaluateNode(argumentNode.args[0], Object.create(null), optionsFor())))) return plain(argumentNode.args[0]);
+        if (realArgument > 0 && argumentNode.isOperatorNode && argumentNode.fn === 'pow' && plain(argumentNode.args[0]) === 'e' && Number.isFinite(scalarNumber(evaluateNode(argumentNode.args[1], Object.create(null), optionsFor())))) return plain(argumentNode.args[1]);
+      }
     }
     if (['asin', 'acos', 'atan'].includes(name)) {
       const values = {
@@ -1772,14 +1829,16 @@
         acos: { '0': 'pi/2', '1/2': 'pi/3', '-1/2': '2*pi/3', '1': '0', '-1': 'pi', '(1/2)*sqrt(2)': 'pi/4', '(-1/2)*sqrt(2)': '3*pi/4', '(1/2)*sqrt(3)': 'pi/6', '(-1/2)*sqrt(3)': '5*pi/6' },
         atan: { '0': '0', '1': 'pi/4', '-1': '-pi/4', 'sqrt(3)': 'pi/3', '-sqrt(3)': '-pi/3', '(1/3)*sqrt(3)': 'pi/6', '(-1/3)*sqrt(3)': '-pi/6' }
       };
-      const argument = cas(args[0]);
+      const argument = args[0];
       if (own(values[name], argument)) return opts.angle === 'deg' ? cmul(values[name][argument], '180/pi') : values[name][argument];
     }
     if (name === 'nthRoot' || name === 'cbrt') {
       const value = scalarNumber(evaluateNode(n, Object.create(null), opts)), degree = name === 'cbrt' ? 3 : scalarNumber(evaluateNode(n.args[1], Object.create(null), opts));
-      if (Number.isSafeInteger(value) && Number.isInteger(degree) && degree > 0 && degree <= 64 && zero(csub(cpow(String(value), String(degree)), cas(args[0])))) return String(value);
-      const argument = scalarNumber(evaluateNode(n.args[0], Object.create(null), opts));
-      if (Number.isInteger(degree) && Math.abs(degree) % 2 === 1 && argument < 0) return '(-((abs(' + args[0] + '))^(1/(' + degree + '))))';
+      const argument = rationalText(args[0]);
+      if (argument && Number.isSafeInteger(value) && Number.isInteger(degree) && degree > 0 && degree <= 64 && math.equal(math.pow(math.fraction(value), degree), argument)) return String(value);
+      const realArgument = scalarNumber(evaluateNode(n.args[0], Object.create(null), opts));
+      if (Number.isInteger(degree) && Math.abs(degree) % 2 === 1 && realArgument < 0 && argument) return '-((' + fractionText(math.abs(argument)) + ')^(1/(' + degree + ')))';
+      if (!argument || Math.abs(scalarNumber(argument)) > 1e12 || !Number.isInteger(degree) || Math.abs(degree) > 64) return name + '(' + args.join(',') + ')';
     }
     if (opts.angle === 'deg') {
       if (DIRECT_TRIG.has(name)) args[0] = '(' + args[0] + '*pi/180)';
@@ -1790,47 +1849,284 @@
     if (name === 'nthRoot' || name === 'cbrt') return '((' + args[0] + ')^(1/(' + (name === 'cbrt' ? '3' : args[1]) + ')))';
     return name + '(' + args.join(',') + ')';
   }
-  function rationalArithmeticOnly(node) {
-    const n = unwrap(node);
-    if (n.isConstantNode) return true;
-    if (!n.isOperatorNode || !['add', 'subtract', 'multiply', 'divide', 'unaryMinus', 'unaryPlus', 'pow', 'factorial'].includes(n.fn)) return false;
-    if (n.fn === 'pow') { try { if (!Number.isSafeInteger(scalarNumber(evaluateNode(n.args[1], Object.create(null), optionsFor())))) return false; } catch (_) { return false; } }
-    return n.args.every(rationalArithmeticOnly);
+  function fractionText(value) {
+    const numerator = value.s * value.n;
+    return numerator.toString() + (value.d === 1n ? '' : '/' + value.d.toString());
   }
+  function rationalText(text) {
+    return typeof text === 'string' && /^-?\d+(?:\/\d+)?$/.test(text) ? math.fraction(text) : null;
+  }
+  function exactLiteral(node) {
+    const pieces = (node._engineLiteral || String(node.value)).split(/[eE]/);
+    let value = math.fraction(pieces[0]);
+    const exponent = Number(pieces[1] || 0);
+    if (Math.abs(exponent) > 350) fail('精确数值指数超过限制。');
+    if (exponent) {
+      const scale = math.fraction(10n ** BigInt(Math.abs(exponent)));
+      value = exponent > 0 ? math.multiply(value, scale) : math.divide(value, scale);
+    }
+    return fractionText(value);
+  }
+  // Exact work is separate from evaluateAt: literals become BigInt-backed Fractions,
+  // while unsupported constants are opaque CAS symbols, never fitted numeric values.
+  function exactContext(opts) {
+    let work = 0, casWork = 0;
+    const cache = new Map();
+    const charge = () => { if (++work > 4000) fail('精确计算量超过限制。'); };
+    function bounded(text) { return boundedText(text, 4096); }
+    function simplify(expression, action) {
+      bounded(expression);
+      const key = (action || 'expand') + ':' + expression;
+      if (cache.has(key)) return cache.get(key);
+      if (++casWork > 128) fail('精确符号计算量超过限制。');
+      const atoms = new Map(), restored = new Map(), occupied = new Set(symbols(parse(expression)));
+      let atomIndex = 0;
+      function opaque(text) {
+        if (!atoms.has(text)) {
+          let name;
+          do { name = 'zzexact' + atomIndex++; } while (occupied.has(name));
+          atoms.set(text, name); restored.set(name, text);
+        }
+        return atoms.get(text);
+      }
+      function protect(node) {
+        const n = unwrap(node);
+        if (n.isConstantNode || n.isSymbolNode) return plain(n);
+        if (n.isOperatorNode) {
+          if (n.fn === 'pow') {
+            const base = rationalText(renderRational(n.args[0])), exponent = rationalText(renderRational(n.args[1]));
+            const safeInteger = exponent && exponent.d === 1n && Math.abs(scalarNumber(exponent)) <= 1024;
+            const safeRoot = base && base.s > 0n && exponent && base.n <= 1000000000000n && base.d <= 1000000000000n && exponent.d <= 64n;
+            if (!safeInteger && !safeRoot) return opaque(plain(n));
+          }
+          return operatorExpression(n, n.args.map(protect));
+        }
+        if (n.isFunctionNode) {
+          const name = n.fn.name;
+          if (name === 'sqrt' && n.args.length === 1) {
+            const argument = rationalText(renderRational(n.args[0]));
+            if (argument && argument.n <= 1000000000000n && argument.d <= 1000000000000n) return 'sqrt(' + fractionText(argument) + ')';
+          }
+          if (DIRECT_TRIG.has(name) && n.args.length === 1) {
+            const coefficient = piCoefficient(n.args[0]);
+            if (coefficient && [1n, 2n, 3n, 4n, 6n].includes(coefficient.d)) return name + '((' + fractionText(coefficient) + ')*pi)';
+            const argument = renderRational(n.args[0]);
+            if (argument === '0') return name + '(0)';
+          }
+          return opaque(plain(n));
+        }
+        return opaque(plain(n));
+      }
+      let answer;
+      try {
+        const protectedExpression = protect(parse(expression));
+        answer = cas(protectedExpression, action || 'expand').replace(/\bzzexact\d+\b/g, name => restored.has(name) ? '(' + restored.get(name) + ')' : name);
+        bounded(answer);
+        // CAS has known tiny-root/sign bugs. Opaque atoms prevent approximation from
+        // becoming a rational; this check independently rejects incorrect rewrites.
+        const rad = Object.assign({}, opts, { angle: 'rad' });
+        if (symbols(parse(expression)).length) {
+          if (probeEquivalence(expression, answer) === false) answer = expression;
+        } else if (!numericallyEqual(evaluateNode(parse(expression), Object.create(null), rad), evaluateNode(parse(answer), Object.create(null), rad))) answer = expression;
+      } catch (_) { answer = expression; }
+      cache.set(key, answer);
+      return answer;
+    }
+    function piCoefficient(node) {
+      charge();
+      const n = unwrap(node);
+      if (n.isSymbolNode && n.name === 'pi') return math.fraction(1);
+      if (!n.isOperatorNode) return null;
+      const left = piCoefficient(n.args[0]);
+      if (['unaryMinus', 'unaryPlus'].includes(n.fn)) return left && math[n.fn](left);
+      if (!['multiply', 'divide', 'add', 'subtract'].includes(n.fn)) return null;
+      const right = piCoefficient(n.args[1]), a = rationalText(renderRational(n.args[0])), b = rationalText(renderRational(n.args[1]));
+      if (['add', 'subtract'].includes(n.fn)) return left && right && math[n.fn](left, right);
+      if (left && b) return math[n.fn](left, b);
+      return n.fn === 'multiply' && a && right ? math.multiply(a, right) : null;
+    }
+    function renderRational(node) {
+      charge();
+      const n = unwrap(node);
+      if (n.isConstantNode) return exactLiteral(n);
+      if (!n.isOperatorNode || !['add', 'subtract', 'multiply', 'divide', 'pow', 'unaryMinus', 'unaryPlus'].includes(n.fn)) return '';
+      const args = n.args.map(renderRational).map(rationalText);
+      if (args.some(a => !a) || n.fn === 'pow' && (args[1].d !== 1n || Math.abs(scalarNumber(args[1])) > 1024)) return '';
+      if (n.fn === 'pow' && (args[0].n.toString().length + args[0].d.toString().length) * Math.abs(scalarNumber(args[1])) > 4096) fail('精确幂结果过长。');
+      try { return bounded(fractionText(math[n.fn](...args))); } catch (_) { return ''; }
+    }
+    function scalar(name, args) {
+      charge();
+      if (args.some(Array.isArray)) fail('此精确操作需要标量。');
+      const fractions = args.map(rationalText);
+      if (fractions.every(Boolean) && ['add', 'subtract', 'multiply', 'divide', 'pow', 'unaryMinus', 'unaryPlus', 'abs', 'mod'].includes(name)
+        && (name !== 'pow' || fractions[1].d === 1n && Math.abs(scalarNumber(fractions[1])) <= 1024)) {
+        if (name === 'pow' && (fractions[0].n.toString().length + fractions[0].d.toString().length) * Math.abs(scalarNumber(fractions[1])) > 4096) fail('精确幂结果过长。');
+        const value = math[name](...fractions);
+        if (value && value.isFraction) return bounded(fractionText(value));
+      }
+      if (name === 'add' && args[0] === '0') return args[1];
+      if (name === 'add' && args[1] === '0') return args[0];
+      if (name === 'multiply' && args.includes('0')) return '0';
+      if (name === 'multiply' && args[0] === '1') return args[1];
+      if (name === 'multiply' && args[1] === '1') return args[0];
+      if (name === 'subtract' && args[0] === args[1]) return '0';
+      const operators = { add: '+', subtract: '-', multiply: '*', divide: '/', pow: '^' };
+      return simplify(operators[name] ? args.map(a => '(' + a + ')').join(operators[name])
+        : name === 'unaryMinus' ? '-(' + args[0] + ')' : name === 'unaryPlus' ? args[0] : name + '(' + args.join(',') + ')');
+    }
+    function sorted(values) {
+      return values.slice().sort((a, b) => {
+        const x = rationalText(a), y = rationalText(b);
+        if (x && y) return math.compare(x, y);
+        if (a === b) return 0;
+        const rad = Object.assign({}, opts, { angle: 'rad' });
+        const av = scalarNumber(evaluateNode(parse(a), Object.create(null), rad)), bv = scalarNumber(evaluateNode(parse(b), Object.create(null), rad));
+        if (!Number.isFinite(av) || !Number.isFinite(bv) || Math.abs(av - bv) <= 2e-14 * Math.max(Math.abs(av), Math.abs(bv), Number.MIN_VALUE)) fail('无法可靠确定精确数据的顺序。');
+        return av - bv;
+      });
+    }
+    const fold = (values, name, seed) => values.reduce((a, b) => scalar(name, [a, b]), seed);
+    function median(values) {
+      const n = values.length;
+      return n % 2 ? values[(n - 1) / 2] : scalar('divide', [scalar('add', [values[n / 2 - 1], values[n / 2]]), '2']);
+    }
+    function reduce(name, values) {
+      if (!values.length || values.some(Array.isArray)) fail('精确统计需要非空一维列表。');
+      if (['sum', 'prod', 'product'].includes(name)) return fold(values, name === 'sum' ? 'add' : 'multiply', name === 'sum' ? '0' : '1');
+      if (name === 'mean') return scalar('divide', [reduce('sum', values), String(values.length)]);
+      if (['median', 'min', 'max'].includes(name)) {
+        const ordered = sorted(values);
+        return name === 'median' ? median(ordered) : name === 'min' ? ordered[0] : ordered[ordered.length - 1];
+      }
+      if (['variance', 'std'].includes(name)) {
+        if (values.length < 2) fail('样本方差至少需要两个数据。');
+        const average = reduce('mean', values), deviations = values.map(v => scalar('pow', [scalar('subtract', [v, average]), '2']));
+        const variance = scalar('divide', [reduce('sum', deviations), String(values.length - 1)]);
+        return name === 'std' ? scalar('sqrt', [variance]) : variance;
+      }
+      fail('暂不支持此精确列表运算。');
+    }
+    function serialized(value) { return bounded(Array.isArray(value) ? '[' + value.map(serialized).join(', ') + ']' : value); }
+    function operate(name, args) {
+      if (!args.some(Array.isArray)) return scalar(name, args);
+      if (['sum', 'prod', 'product', 'mean', 'median', 'min', 'max', 'variance', 'std'].includes(name)) return reduce(name, args.length === 1 ? args[0] : args);
+      if (name === 'norm' && args.length === 1 && !args[0].some(Array.isArray)) return scalar('sqrt', [reduce('sum', args[0].map(v => scalar('pow', [scalar('abs', [v]), '2'])))]);
+      const asFraction = value => Array.isArray(value) ? value.map(asFraction) : rationalText(value) || fail('矩阵包含非有理数元素。');
+      const fromFraction = value => {
+        if (isMatrix(value)) return fromFraction(value.toArray());
+        if (Array.isArray(value)) return value.map(fromFraction);
+        if (value && value.isFraction) return bounded(fractionText(value));
+        if (Number.isSafeInteger(value)) return String(value);
+        fail('此矩阵操作未得到精确分数。');
+      };
+      const allowed = ['add', 'subtract', 'multiply', 'divide', 'dotMultiply', 'dotDivide', 'dotPow', 'pow', 'unaryMinus', 'unaryPlus', 'inv', 'det', 'transpose', 'trace', 'diag', 'dot', 'cross'];
+      if (!allowed.includes(name)) fail('暂不支持此精确矩阵运算。');
+      charge();
+      const values = args.map(a => Array.isArray(a) ? math.matrix(asFraction(a)) : asFraction(a));
+      if (['pow', 'dotPow'].includes(name)) values[1] = scalarNumber(values[1]);
+      return fromFraction(math[name](...values));
+    }
+    function nodeValue(node, scope) {
+      charge();
+      const n = unwrap(node);
+      if (n.isConstantNode) return exactLiteral(n);
+      if (n.isSymbolNode) return scope && own(scope, n.name) ? scope[n.name] : n.name;
+      if (n.isArrayNode) return n.items.map(a => nodeValue(a, scope));
+      if (n.isFunctionNode && ['sum', 'prod', 'product'].includes(n.fn.name) && n.args.length === 4 && unwrap(n.args[1]).isSymbolNode) {
+        const rad = Object.assign({}, opts, { angle: 'rad' });
+        const start = scalarNumber(evaluateNode(parse(nodeValue(n.args[2], scope)), Object.create(null), rad)), end = scalarNumber(evaluateNode(parse(nodeValue(n.args[3], scope)), Object.create(null), rad));
+        if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || end - start + 1 > LIMITS.series) fail('精确求和最多 200 项。');
+        const local = Object.assign(Object.create(null), scope), values = [];
+        for (let k = start; k <= end; k++) { local[unwrap(n.args[1]).name] = String(k); values.push(nodeValue(n.args[0], local)); }
+        return fold(values, n.fn.name === 'sum' ? 'add' : 'multiply', n.fn.name === 'sum' ? '0' : '1');
+      }
+      const args = n.args.map(a => nodeValue(a, scope)), name = n.isOperatorNode ? n.fn : n.fn.name;
+      if (n.isOperatorNode && name !== 'factorial') return operate(name, args);
+      if (n.isOperatorNode) return exactIntegerFunction('factorial', args.map(a => scalarNumber(rationalText(a)))) || fail('阶乘参数无法精确转换。');
+      if (args.some(Array.isArray) || ['sum', 'prod', 'product', 'mean', 'median', 'min', 'max', 'variance', 'std'].includes(name)) return args.some(Array.isArray) ? operate(name, args) : reduce(name, args);
+      if (name === 'fraction') {
+        const value = rationalText(args[0]);
+        if (!value) fail('fraction 的数值拟合不属于精确符号运算。');
+        return fractionText(value);
+      }
+      if (['identity', 'zeros', 'ones', 'size'].includes(name)) {
+        const rad = Object.assign({}, opts, { angle: 'rad' });
+        const value = evaluateNode(parse(name + '(' + args.map(serialized).join(',') + ')'), Object.create(null), rad);
+        function dimensionsOrEntries(part) {
+          if (isMatrix(part)) return dimensionsOrEntries(part.toArray());
+          if (Array.isArray(part)) return part.map(dimensionsOrEntries);
+          if (Number.isSafeInteger(part)) return String(part);
+          fail('矩阵生成结果未得到精确整数。');
+        }
+        return dimensionsOrEntries(value);
+      }
+      if (name === 'abs' && rationalText(args[0])) return scalar(name, args);
+      return simplify(exactScalarFunction(parse(name + '(' + args.join(',') + ')'), opts, args));
+    }
+    return { node: nodeValue, scalar, reduce, sorted, median, serialized, simplify };
+  }
+  function exactValueLatex(value) {
+    if (!Array.isArray(value)) return toLatex(value);
+    const rows = Array.isArray(value[0]) ? value : [value];
+    return '\\begin{bmatrix}' + rows.map(row => row.map(toLatex).join(' & ')).join(' \\\\ ') + '\\end{bmatrix}';
+  }
+  function numericCASExpression(node, opts) {
+    const context = exactContext(opts);
+    return context.serialized(context.node(node));
+  }
+
+  function approximateText(value, opts) {
+    if (value && value.isFraction) return formatNumber(value.valueOf(), opts.precision);
+    if (value && value.isBigNumber) return formatNumber(value.toNumber(), opts.precision);
+    return formatValue(value, opts);
+  }
+
   function numeric(input, normalized, opts, forcedMatrix) {
     const node = parse(normalized);
     let value = evaluateNode(node, Object.create(null), opts);
     const matrix = isMatrix(value) || containsMatrix(node) || forcedMatrix;
     const output = result(matrix ? 'matrix' : 'evaluate', matrix ? '矩阵计算' : '数值计算', input, normalized);
-    output.answerText = formatValue(value, opts); output.answerLatex = valueLatex(value, opts);
-    output.approximate = isMatrix(value) ? null : formatValue(value, opts);
+    output.answerText = approximateText(value, opts); output.answerLatex = valueLatex(value && value.isFraction ? scalarNumber(value) : value, opts);
+    output.approximate = isMatrix(value) ? null : approximateText(value, opts);
+    const context = exactContext(opts);
+    let exactValue;
+    try {
+      const candidate = context.node(node), exact = context.serialized(candidate);
+      const check = evaluateNode(parse(exact), Object.create(null), Object.assign({}, opts, { angle: 'rad' }));
+      function equal(a, b) {
+        if (isMatrix(a)) a = a.toArray();
+        if (isMatrix(b)) b = b.toArray();
+        return Array.isArray(a) && Array.isArray(b) ? a.length === b.length && a.every((v, i) => equal(v, b[i])) : !Array.isArray(a) && !Array.isArray(b) && numericallyEqual(a, b, 1e-10);
+      }
+      const allRational = v => Array.isArray(v) ? v.every(allRational) : !!rationalText(v);
+      if (allRational(candidate) || equal(value, check)) {
+        exactValue = candidate;
+        if (!equal(value, check)) output.notes.push('有理数运算采用精确分数结果，避免大数相减时丢失小量。');
+        value = check;
+        output.exact = exact; output.answerText = exact; output.answerLatex = exactValueLatex(candidate);
+        if (!isMatrix(value)) output.approximate = formatValue(check, opts);
+      }
+    } catch (_) { /* Unsupported or over-budget exact work preserves the validated numeric fallback. */ }
+    if (!output.exact) {
+      output.numerical = true;
+      output.answerText = '≈ ' + approximateText(value, opts); output.answerLatex = '\\approx ' + valueLatex(value && value.isFraction ? scalarNumber(value) : value, opts);
+      output.notes.push('此结果为数值近似；未给出未经验证的精确形式。');
+    }
     if (!matrix) {
-      try {
-        guardSymbolic(node, 'evaluate');
-        const exact = cas(numericCASExpression(node, opts), 'expand');
-        if (!uncomputed(exact) && !symbols(parse(exact)).length) {
-          const check = evaluateNode(parse(exact), Object.create(null), Object.assign({}, opts, { angle: 'rad' }));
-          if (!numericallyEqual(value, check, 1e-10) && rationalArithmeticOnly(node)) {
-            value = check;
-            output.approximate = formatValue(check, opts);
-            output.notes.push('纯有理数运算采用精确分数结果，避免大数相减时丢失小量。');
-          }
-          if (numericallyEqual(value, check, 1e-10)) {
-            output.exact = exact; output.answerText = exact; output.answerLatex = toLatex(exact);
-          }
-        }
-      } catch (_) { /* Numeric-only functions still return their verified numeric value. */ }
       numericSteps(node, output, opts);
       if (!output.steps.length) step(output, '读取数值', '按指定有效数字显示结果。', output.answerLatex);
       if (value && value.isComplex) output.notes.push('结果位于复数域；i² = −1，复对数和根式采用计算库的主值。');
       if (opts.angle === 'deg') output.notes.push('三角函数参数使用角度；反三角函数返回角度。其他运算仍按通常数学定义。');
-      if (!output.exact) output.notes.push('此结果为数值计算；未给出未经验证的精确形式。');
     } else {
       matrixSteps(node, value, output, opts);
       if (isMatrix(value)) {
         const rows = value.toArray();
         const body = Array.isArray(rows[0]) ? rows : [rows];
-        output.table = { headers: body[0].map((_, i) => '第 ' + (i + 1) + ' 列'), rows: body.map(row => row.map(v => formatValue(v, opts))) };
+        const exactBody = Array.isArray(exactValue) && (Array.isArray(exactValue[0]) ? exactValue : [exactValue]);
+        output.table = { headers: body[0].map((_, i) => '第 ' + (i + 1) + ' 列'),
+          rows: exactBody || body.map(row => row.map(v => '≈ ' + formatValue(v, opts))),
+          latexRows: exactBody ? exactBody.map(row => row.map(toLatex)) : body.map(row => row.map(v => '\\approx ' + valueLatex(v, opts))) };
       }
     }
     return output;
@@ -1838,25 +2134,50 @@
   function containsMatrix(node) { const n = unwrap(node); return !!(n.isArrayNode || n.args && n.args.some(containsMatrix)); }
   function matrixSteps(node, value, output, opts) {
     const n = unwrap(node);
+    if (output.exact) {
+      try {
+        const context = exactContext(opts), tex = exactValueLatex;
+        const sub = (name, args) => context.scalar(name, args);
+        if (n.isFunctionNode && ['det', 'inv', 'transpose'].includes(n.fn.name)) {
+          const rows = context.node(n.args[0]);
+          step(output, '读取矩阵', '保留各元素的精确值，并检查行列数。', tex(rows));
+          if (rows.length === 2 && rows[0].length === 2 && ['det', 'inv'].includes(n.fn.name)) {
+            const [r, s] = rows, determinant = sub('subtract', [sub('multiply', [r[0], s[1]]), sub('multiply', [r[1], s[0]])]);
+            step(output, '计算二阶行列式', '使用 ad−bc；求逆要求行列式非零。', '(' + tex(r[0]) + ')(' + tex(s[1]) + ')-(' + tex(r[1]) + ')(' + tex(s[0]) + ')=' + tex(determinant));
+            if (n.fn.name === 'inv') step(output, '交换对角元并取反非对角元', '伴随矩阵除以精确行列式。', '\\frac{1}{' + tex(determinant) + '}' + tex([[s[1], sub('unaryMinus', [r[1]])], [sub('unaryMinus', [s[0]]), r[0]]]));
+          }
+          if (n.fn.name === 'transpose') step(output, '交换行列', '第 i 行第 j 列移到第 j 行第 i 列。', output.answerLatex);
+        } else if (n.isOperatorNode && n.fn === 'multiply') {
+          const a = context.node(n.args[0]), b = context.node(n.args[1]);
+          if (Array.isArray(a) && Array.isArray(b) && Array.isArray(a[0]) && Array.isArray(b[0])) {
+            const products = a[0].map((v, i) => sub('multiply', [v, b[i][0]]));
+            step(output, '按行乘列', '第一行与第一列的乘积之和使用精确元素计算。', a[0].map((v, i) => '(' + tex(v) + ')(' + tex(b[i][0]) + ')').join('+') + '=' + tex(context.reduce('sum', products)));
+          }
+        }
+      } catch (_) { /* Optional detail cannot replace or invalidate the exact main result. */ }
+      step(output, '计算结果', '有理元素使用精确分数运算；保留已得到的精确结果。', output.answerLatex);
+      output.notes.push('矩阵最多 10×10；求逆最多 8×8。十进制字面量按其输入值作精确有理数处理。');
+      return;
+    }
     if (n.isFunctionNode && ['det', 'inv', 'transpose'].includes(n.fn.name)) {
       const a = evaluateNode(n.args[0], Object.create(null), opts), rows = a.toArray();
-      step(output, '读取矩阵', '首先计算矩阵的每个元素，并检查行列数。', valueLatex(a, opts));
+      step(output, '读取矩阵', '首先计算矩阵的每个元素，并检查行列数；以下为数值近似。', '\\approx ' + valueLatex(a, opts));
       if (rows.length === 2 && rows[0].length === 2 && ['det', 'inv'].includes(n.fn.name)) {
         const [r, s] = rows;
         const determinant = math.subtract(math.multiply(r[0], s[1]), math.multiply(r[1], s[0]));
-        step(output, '计算二阶行列式', '使用 ad−bc；求逆要求此行列式非零。', '(' + valueLatex(r[0], opts) + ')(' + valueLatex(s[1], opts) + ')-(' + valueLatex(r[1], opts) + ')(' + valueLatex(s[0], opts) + ')=' + valueLatex(determinant, opts));
-        if (n.fn.name === 'inv') step(output, '交换对角元并取反非对角元', '将伴随矩阵除以实际计算的行列式。', '\\frac{1}{' + valueLatex(determinant, opts) + '}' + valueLatex([[s[1], math.unaryMinus(r[1])], [math.unaryMinus(s[0]), r[0]]], opts));
+        step(output, '计算二阶行列式', '使用 ad−bc；求逆要求此行列式非零。', '(' + valueLatex(r[0], opts) + ')(' + valueLatex(s[1], opts) + ')-(' + valueLatex(r[1], opts) + ')(' + valueLatex(s[0], opts) + ')\\approx' + valueLatex(determinant, opts));
+        if (n.fn.name === 'inv') step(output, '交换对角元并取反非对角元', '将伴随矩阵除以数值近似行列式。', '\\approx \\frac{1}{' + valueLatex(determinant, opts) + '}' + valueLatex([[s[1], math.unaryMinus(r[1])], [math.unaryMinus(s[0]), r[0]]], opts));
       }
-      if (n.fn.name === 'transpose') step(output, '交换行列', '原矩阵第 i 行第 j 列的元素移到第 j 行第 i 列。', valueLatex(value, opts));
+      if (n.fn.name === 'transpose') step(output, '交换行列', '原矩阵第 i 行第 j 列的元素移到第 j 行第 i 列。', output.answerLatex);
     } else if (n.isOperatorNode && n.fn === 'multiply') {
       const a = evaluateNode(n.args[0], Object.create(null), opts), b = evaluateNode(n.args[1], Object.create(null), opts);
       if (isMatrix(a) && isMatrix(b) && a.size().length === 2 && b.size().length === 2) {
         const ar = a.toArray(), br = b.toArray();
-        step(output, '按行乘列', '结果的 (1,1) 元素是左矩阵第一行与右矩阵第一列的点积。', ar[0].map((v, i) => '(' + valueLatex(v, opts) + ')(' + valueLatex(br[i][0], opts) + ')').join('+') + '=' + valueLatex(value.toArray()[0][0], opts));
+        step(output, '按行乘列', '结果的 (1,1) 元素是左矩阵第一行与右矩阵第一列的点积。', ar[0].map((v, i) => '(' + valueLatex(v, opts) + ')(' + valueLatex(br[i][0], opts) + ')').join('+') + '\\approx' + valueLatex(value.toArray()[0][0], opts));
       }
     }
-    step(output, '计算结果', '使用数学库完成矩阵运算；维数不匹配和奇异矩阵会明确报错。', valueLatex(value, opts));
-    output.notes.push('矩阵最多 10×10；求逆最多 8×8。小数元素按浮点数计算。');
+    step(output, '计算结果', '使用数学库完成数值矩阵运算；结果为近似值。', output.answerLatex);
+    output.notes.push('矩阵最多 10×10；求逆最多 8×8。未得到受限精确形式的运算采用浮点近似。');
   }
   function derivativeExpression(expression, variable) {
     const d = cas('diff(' + expression + ',' + variable + ')');
@@ -2389,16 +2710,18 @@
 
   function medianOf(sorted) { const n = sorted.length; return n % 2 ? sorted[(n - 1) / 2] : sorted[n / 2 - 1] / 2 + sorted[n / 2] / 2; }
   function statistics(input, normalized, opts) {
-    let data;
+    let data, dataNodes;
     const parts = splitTop(normalized, ',');
     const list = parts.length === 1 ? unwrap(parse(normalized)) : null;
     if (list && list.isArrayNode) {
       if (list.items.some(item => unwrap(item).isArrayNode)) fail('描述统计需要一维数据列表；二维数据请使用矩阵模式。');
-      data = list.items.map(item => evaluateNode(item, Object.create(null), opts));
+      dataNodes = list.items;
+      data = dataNodes.map(item => evaluateNode(item, Object.create(null), opts));
     } else {
       if (parts.some(p => !p)) fail('数据列表中的每个逗号之间都需要数值。');
       if (parts.length > LIMITS.data) fail('描述统计最多支持 256 个数据。');
-      data = parts.map(p => evaluateNode(parse(p), Object.create(null), opts));
+      dataNodes = parts.map(parse);
+      data = dataNodes.map(node => evaluateNode(node, Object.create(null), opts));
     }
     if (!data.length || data.length > LIMITS.data) fail('描述统计需要 1 到 256 个有限实数。');
     const values = data.map(v => { const n = scalarNumber(v); if (!Number.isFinite(n)) fail('描述统计只支持有限实数，不能包含复数或未赋值变量。'); return n; });
@@ -2432,6 +2755,39 @@
     step(output, '总体与样本离散程度', '总体方差除以 n；样本方差除以 n−1。使用稳定的逐项中心矩计算，避免大数平方相减。', '\\sum(x_i-\\bar{x})^2=' + valueLatex(m2, opts) + ',\\quad\\sigma^2=\\frac{' + valueLatex(m2, opts) + '}{' + count + '}=' + valueLatex(variance, opts));
     output.notes.push('四分位数采用上下半组中位数法：奇数个数据时，从两半中排除整体中位数；一个数据时 Q1=Q2=Q3。不同软件的插值定义可能不同。');
     if (count === 1) output.notes.push('样本方差和样本标准差需要至少两个数据，不能除以 n−1=0。');
+    try {
+      const context = exactContext(opts), exactData = dataNodes.map(node => context.node(node));
+      const ordered = context.sorted(exactData), total = context.reduce('sum', exactData), average = context.scalar('divide', [total, String(count)]);
+      const center = context.median(ordered), lower = count === 1 ? ordered[0] : context.median(ordered.slice(0, middle));
+      const upper = count === 1 ? ordered[0] : context.median(ordered.slice(count % 2 ? middle + 1 : middle));
+      const squares = exactData.map(v => context.scalar('pow', [context.scalar('subtract', [v, average]), '2']));
+      const centeredSum = context.reduce('sum', squares), population = context.scalar('divide', [centeredSum, String(count)]);
+      const sample = count > 1 ? context.scalar('divide', [centeredSum, String(count - 1)]) : null;
+      const exactValues = [String(count), total, average, center, null, ordered[0], ordered[count - 1],
+        context.scalar('subtract', [ordered[count - 1], ordered[0]]), population, context.scalar('sqrt', [population]),
+        sample, sample === null ? null : context.scalar('sqrt', [sample]), lower, center, upper, context.scalar('subtract', [upper, lower])];
+      const counts = new Map(); exactData.forEach(v => counts.set(v, (counts.get(v) || 0) + 1));
+      const frequency = Math.max(...counts.values()), modal = context.sorted(Array.from(counts).filter(pair => pair[1] === frequency).map(pair => pair[0]));
+      const exactMode = frequency === 1 ? '无众数（各值仅出现一次）' : modal.join('，') + '（各出现 ' + frequency + ' 次）';
+      const latexRows = exactValues.map(v => [null, v === null ? null : toLatex(v)]);
+      if (frequency > 1) latexRows[4][1] = modal.map(toLatex).join(',\\;') + '\\quad\\text{各出现 ' + frequency + ' 次}';
+      const approxMean = approximateText(evaluateNode(parse(average), Object.create(null), Object.assign({}, opts, { angle: 'rad' })), opts);
+      output.table.rows = output.table.rows.map((row, i) => [row[0], i === 4 ? exactMode : exactValues[i] === null ? row[1] : exactValues[i]]);
+      output.table.latexRows = latexRows;
+      output.exact = 'mean=' + average + ';median=' + center;
+      output.answerText = '共 ' + count + ' 个数据；平均数 ' + average + '；中位数 ' + center;
+      output.answerLatex = 'n=' + count + ',\\quad\\bar{x}=' + toLatex(average) + ',\\quad\\mathrm{median}=' + toLatex(center);
+      output.approximate = approxMean;
+      output.steps = [];
+      step(output, '排序与计数', '保留输入数据的精确表达式；有理数使用精确比较，其他实数仅在顺序可可靠区分时排序。', '[' + ordered.slice(0, 40).map(toLatex).join(',') + (count > 40 ? ',\\ldots' : '') + '],\\quad n=' + count);
+      step(output, '平均数与中位数', '总和除以个数；偶数个数据的中位数取中间两个精确值的平均。', '\\bar{x}=\\frac{' + toLatex(total) + '}{' + count + '}=' + toLatex(average));
+      step(output, '总体与样本离散程度', '使用精确中心差的平方和；总体除以 n，样本除以 n−1，标准差保留根式。', '\\sum(x_i-\\bar{x})^2=' + toLatex(centeredSum) + ',\\quad\\sigma^2=' + toLatex(population));
+    } catch (_) {
+      output.numerical = true;
+      output.answerText = '近似统计：' + output.answerText; output.answerLatex = output.answerLatex.replace(/=/g, '\\approx ');
+      output.table.rows = output.table.rows.map((row, i) => [row[0], i && i !== 4 && !/未定义/.test(row[1]) ? '≈ ' + row[1] : row[1]]);
+      output.notes.push('精确统计超出预算或无法可靠排序；表中标有 ≈ 的数值为近似结果。');
+    }
     return output;
   }
   /* Only spellings mathjs lacks are aliased, and only to pure unit expressions: mathjs

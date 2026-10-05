@@ -468,10 +468,10 @@ test('statistics expose count, center, spread, quartiles and the sample denomina
   assert.equal(statistic(r, '数据个数 n'), '8');
   assert.equal(statistic(r, '总和'), '40');
   assert.equal(statistic(r, '平均数'), '5');
-  assert.equal(statistic(r, '中位数'), '4.5');
+  assert.equal(statistic(r, '中位数'), '9/2');
   assert.match(statistic(r, '众数'), /^4/);
   assert.equal(statistic(r, '总体方差 σ²'), '4');
-  near(Number(statistic(r, '样本方差 s²')), 32 / 7);
+  assert.equal(statistic(r, '样本方差 s²'), '32/7');
   assert.equal(statistic(r, '第一四分位数 Q1'), '4');
   assert.equal(statistic(r, '第三四分位数 Q3'), '6');
   assert.equal(statistic(r, '极差'), '7');
@@ -485,7 +485,7 @@ test('one-point/list statistics and duplicate modes avoid NaN', () => {
   const multiple = engine.solve('[1,1,2,2,3]', { mode: 'statistics' });
   assert.match(statistic(multiple, '众数'), /1，2/);
   const stable = engine.solve('1000000000001,1000000000002,1000000000003', { mode: 'statistics' });
-  near(Number(statistic(stable, '总体方差 σ²')), 2 / 3);
+  assert.equal(statistic(stable, '总体方差 σ²'), '2/3');
 });
 
 test('matrix evaluation, determinant, inverse, transpose, dot/cross and multiplication', () => {
@@ -563,6 +563,186 @@ test('browser/Worker UMD path exports globalThis.MathSolverEngine without Node d
   assert.equal(context.MathSolverEngine.solve('1/3+1/6').exact, '1/2');
   const r = context.MathSolverEngine.solve('abs(x)/x', { mode: 'limit' });
   assert.match(r.answerText, /不存在/);
+});
+
+test('solver worker imports the matching engine version and returns cloneable exact results', () => {
+  let receive;
+  const posted=[], imports=[];
+  const context=vm.createContext({console});
+  context.self=context;
+  context.location={search:'?v=10'};
+  context.addEventListener=(name,handler)=>{assert.equal(name,'message');receive=handler;};
+  context.postMessage=message=>posted.push(JSON.parse(JSON.stringify(message)));
+  context.importScripts=(...urls)=>{
+    for(const url of urls) {
+      imports.push(url);
+      const file=path.resolve(__dirname,'../js',url.split('?')[0]);
+      vm.runInContext(fs.readFileSync(file,'utf8'),context,{timeout:5000});
+    }
+  };
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/solver-worker.js'),'utf8'),context,{timeout:5000});
+  assert.ok(imports.includes('engine.js?v=10'));
+  receive({data:{id:1,input:'1/3+sqrt(2)',options:{}}});
+  receive({data:{id:2,input:'inv([2,1;1,2])',options:{}}});
+  receive({data:{id:3,input:'1/0',options:{}}});
+  assert.equal(posted[0].id,1);assert.equal(posted[0].result.exact,'1/3+sqrt(2)');
+  assert.equal(posted[1].result.exact,'[[2/3, -1/3], [-1/3, 2/3]]');
+  assert.match(posted[1].result.table.latexRows[0][0],/frac/);
+  assert.equal(posted[2].id,3);assert.match(posted[2].error,/[\u3400-\u9fff]/);
+});
+
+test('symbolic-first evaluation preserves fractions, radicals, trig and irrational function constants', () => {
+  const cases = [
+    ['mean([1/3,2/3])', '1/2'], ['median([1/3,2/3])', '1/2'],
+    ['variance([1/3,2/3])', '1/18'], ['sum([1/3,2/3])', '1'],
+    ['prod([1/3,2/3])', '2/9'], ['sum(1/k,k,1,5)', '137/60'],
+    ['product(1/k,k,1,5)', '1/120'], ['sum(sum(1/j,j,1,k),k,1,3)', '13/3'],
+    ['sqrt(2)', 'sqrt(2)'], ['sqrt(8)', '2*sqrt(2)'], ['norm([1,1])', 'sqrt(2)'],
+    ['nthRoot(2,3)', '2^(1/3)'], ['nthRoot(-2,3)', '-2^(1/3)'], ['nthRoot(2,-3)', '2^(-1/3)'],
+    ['sin(pi/6)', '1/2'], ['cos(2*pi/3)', '-1/2']
+  ];
+  for (const [input, exact] of cases) {
+    const r = engine.solve(input);
+    contract(r);
+    assert.equal(r.exact, exact, input);
+    assert.equal(r.answerText, exact, input);
+    assert.ok(!r.numerical, input);
+    near(number(r.exact), Number(r.approximate), 2e-9);
+  }
+  for (const input of ['sin(1)', 'sin(sqrt(2))', 'cos(pi/7)', 'asin(1/3)', 'gamma(1/3)', 'erf(1)', 'log(pi)', 'sqrt(pi)', '2^sqrt(2)']) {
+    const r = engine.solve(input);
+    assert.ok(r.exact, input);
+    assert.ok(/[a-z]/.test(r.exact), 'must retain irrational symbols: ' + input);
+    near(number(r.exact), number(input), 2e-11);
+  }
+  const degrees = engine.solve('sin(30)+cos(60)', { angle: 'deg' });
+  assert.equal(degrees.exact, '1');
+  assert.equal(engine.solve('asin(1/2)', { angle: 'deg' }).exact, '30');
+  assert.match(engine.solve('std([1/3,2/3])').answerLatex, /sqrt/);
+  assert.ok(engine.solve('1/3+sqrt(2)').steps.every(s => !/approx/.test(s.latex)));
+});
+
+test('elementary functions on exact rational and Gaussian rational arguments are actually simplified', () => {
+  const cases = [['exp(0)','1'],['exp(1)','e'],['log(1)','0'],['log10(1)','0'],['cosh(0)','1'],
+    ['floor(3/2)','1'],['ceil(-3/2)','-1'],['round(1/3)','0'],['round(-3/2)','-1'],['round(1/3,2)','33/100'],
+    ['mod(17,5)','2'],['mod(11/2,2)','3/2'],['sign(-1/3)','-1'],['abs(-1/3)','1/3'],
+    ['re(1/3+(2/7)*i)','1/3'],['im(1/3+(2/7)*i)','2/7'],['re(complex(1/3,2/7))','1/3']];
+  for(const [input,exact] of cases) {
+    const r=engine.solve(input);contract(r);assert.equal(r.exact,exact,input);assert.ok(!r.numerical,input);
+  }
+  const conjugate=engine.solve('conj(1/3+(2/7)*i)');
+  const v=number(conjugate.exact);near(v.re,1/3);near(v.im,-2/7);
+  assert.match(conjugate.exact,/1\/3/);assert.match(conjugate.exact,/2\/7/);
+  assert.match(engine.solve('re(sin(1)+i)').exact,/sin\(1\)/);
+});
+
+test('decimal literals stay exact and CAS cannot fit them to nearby small-denominator fractions', () => {
+  const literal = '0.1234567890123456789';
+  assert.equal(engine.solve(literal).exact, '1234567890123456789/10000000000000000000');
+  assert.equal(engine.solve('0.1+0.2').exact, '3/10');
+  assert.equal(engine.solve('0.1234567890123456789-0.1234567890123456788').exact, '1/10000000000000000000');
+  for (const input of ['sin(' + literal + ')', 'sqrt(' + literal + ')', 'atan(' + literal + ')']) {
+    const r = engine.solve(input);
+    assert.match(r.exact, /1234567890123456789/);
+    assert.match(r.exact, /10000000000000000000/);
+    assert.doesNotMatch(r.exact, /17832647|144444442/);
+    assert.equal(r.answerText, r.exact);
+  }
+  const collision = engine.solve('sin(1)+zzexact0', { mode: 'simplify' });
+  near(number(collision.exact, { zzexact0: 2 }), Math.sin(1) + 2);
+  assert.match(collision.exact, /zzexact0/);
+  assert.match(collision.exact, /sin\(1\)/);
+  const algebra = engine.solve('sin(' + literal + ')+x', { mode: 'simplify' });
+  assert.match(algebra.exact, /1234567890123456789/);
+});
+
+test('root LaTeX distinguishes real odd roots from negative principal powers', () => {
+  assert.equal(engine.solve('sqrt(2)').answerLatex, '\\sqrt{2}');
+  assert.equal(engine.solve('nthRoot(2,3)').answerLatex, '\\sqrt[3]{2}');
+  assert.equal(engine.solve('nthRoot(-2,3)').answerLatex, '-\\sqrt[3]{2}');
+  assert.match(engine.toLatex('2^(1/2)'), /sqrt/);
+  assert.equal(engine.toLatex('sqrt(2)^(-1)'), '\\frac{1}{\\sqrt{2}}');
+  assert.equal(engine.toLatex('x^(-1)'), '\\frac{1}{x}');
+  assert.doesNotMatch(engine.toLatex('(-2)^(1/3)'), /sqrt/);
+  const principal = number('(-2)^(1/3)');
+  assert.ok(principal.isComplex && principal.im !== 0);
+  assert.ok(engine.solve('log(e^(2*pi*i))').exact !== '2*i*pi');
+  assert.ok(engine.solve('log(exp(complex(0,7)))').exact !== 'complex(0,7)');
+  const result = engine.solve('(-2)^(1/3)');
+  assert.doesNotMatch(result.answerLatex, /sqrt/);
+  near(number(result.exact).im, principal.im);
+});
+
+test('rational matrix results, tables and worked steps all preserve exact values', () => {
+  const inverse = engine.solve('inv([2,1;1,2])');
+  assert.equal(inverse.exact, '[[2/3, -1/3], [-1/3, 2/3]]');
+  assert.equal(inverse.answerText, inverse.exact);
+  assert.match(inverse.answerLatex, /frac/);
+  assert.deepEqual(inverse.table.rows, [['2/3', '-1/3'], ['-1/3', '2/3']]);
+  assert.match(inverse.table.latexRows[0][0], /frac/);
+  assert.equal(inverse.steps.at(-1).latex, inverse.answerLatex);
+  assert.doesNotMatch(inverse.notes.join(' '), /小数元素按浮点数/);
+  const product = engine.solve('[1/3,1/2;2/3,3/4]*[1/2,0;0,1/3]');
+  assert.equal(product.exact, '[[1/6, 1/6], [1/3, 1/4]]');
+  assert.match(product.steps.find(s => /行乘列/.test(s.title)).latex, /frac/);
+  assert.equal(product.steps.at(-1).latex, product.answerLatex);
+  assert.equal(engine.solve('det([1/3,1/2;2/3,3/4])').exact, '-1/12');
+  assert.equal(engine.solve('inv([0.2,0;0,0.3])').exact, '[[5, 0], [0, 10/3]]');
+  assert.equal(engine.solve('dot([1/3,1/2],[1/2,1/3])').exact, '1/3');
+  assert.equal(engine.solve('identity(2)').exact, '[[1, 0], [0, 1]]');
+  assert.equal(engine.solve('zeros(2)').exact, '[0, 0]');
+  assert.equal(engine.solve('ones(2)').exact, '[1, 1]');
+});
+
+test('statistics retain exact center, spread, quartiles, radicals and large integer ordering', () => {
+  const r = engine.solve('[1/3,2/3]');
+  contract(r);
+  assert.equal(statistic(r, '平均数'), '1/2');
+  assert.equal(statistic(r, '总体方差 σ²'), '1/36');
+  assert.equal(statistic(r, '样本方差 s²'), '1/18');
+  assert.equal(statistic(r, '总体标准差 σ'), '1/6');
+  assert.equal(statistic(r, '第一四分位数 Q1'), '1/3');
+  assert.equal(statistic(r, '四分位距 IQR'), '1/3');
+  assert.match(r.table.latexRows[2][1], /frac/);
+  assert.match(r.table.latexRows[11][1], /sqrt/);
+  assert.equal(r.table.latexRows[0][0], null);
+  assert.equal(r.table.latexRows[4][1], null);
+  const roots = engine.solve('[sqrt(2),sqrt(8)]');
+  assert.equal(statistic(roots, '平均数'), '(3/2)*sqrt(2)');
+  assert.equal(statistic(roots, '总体方差 σ²'), '1/2');
+  assert.match(roots.answerLatex, /sqrt/);
+  const big = engine.solve('[9007199254740993,9007199254740992]');
+  assert.equal(statistic(big, '中位数'), '18014398509481985/2');
+  assert.equal(statistic(big, '最小值'), '9007199254740992');
+  assert.equal(statistic(big, '最大值'), '9007199254740993');
+  assert.equal(statistic(big, '总体方差 σ²'), '1/4');
+  assert.match(statistic(big, '众数'), /无众数/);
+});
+
+test('numeric-only and over-budget exact calculations explicitly label approximate fallback', () => {
+  for (const input of ['fraction(pi)', '[sqrt(2),0;0,1]*[1,0;0,1]', '(1e-100)^100']) {
+    const r = engine.solve(input);
+    contract(r);
+    assert.equal(r.exact, undefined, input);
+    assert.equal(r.numerical, true, input);
+    assert.match(r.answerText, /≈/, input);
+    assert.match(r.answerLatex, /approx/, input);
+  }
+  assert.doesNotMatch(engine.solve('fraction(pi)').answerText, /11985110|3814979/);
+  const ambiguous = engine.solve('[pi,3.141592653589793]');
+  assert.equal(ambiguous.numerical, true);
+  assert.equal(ambiguous.exact, undefined);
+  assert.match(statistic(ambiguous, '平均数'), /≈/);
+  const largeRoot = engine.solve('sqrt(10000000000001)');
+  assert.match(largeRoot.exact, /sqrt\(10000000000001\)/);
+  ChineseError('171!', {}, /170/);
+  ChineseError('sum(1/k,k,1,201)', {}, /200/);
+  ChineseError('2^1025', {}, /指数/);
+  ChineseError('inv(identity(9))', {}, /8/);
+  ChineseError('log(0)', {}, /有限|定义域/);
+  const roots = engine.solve('cos(x)=x');
+  assert.equal(roots.exact, undefined);
+  assert.ok(roots.solutions.every(s => s.numerical));
 });
 
 // --- LaTeX written inside the formula field ---------------------------------
