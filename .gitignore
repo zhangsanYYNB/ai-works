@@ -1,4 +1,3 @@
-```gitignore
 # Compiled and build artifacts
 *.pyc
 __pycache__/
@@ -145,8 +144,7 @@ zig-cache/
 zig-out/
 
 # Web specific
-*.min.js
-*.min.css
+# *.min.js / *.min.css —— 已注释：本仓库把压缩后的离线库作为静态资源提交
 .sass-cache/
 
 # Database
@@ -219,7 +217,8 @@ venv.bak/
 node_modules/
 jspm_packages/
 bower_components/
-vendor/
+# vendor/  —— 本仓库的 vendor/ 是提交进库的本地离线依赖（three/phaser/mathlive 等），
+# 不能整体忽略，否则子目录内新增依赖文件会被静默丢弃
 Pods/
 Carthage/Build/
 
@@ -322,10 +321,11 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# FastAPI
-*.html
-*.css
-*.js
+# FastAPI 模板规则已注释：本仓库是纯静态站点，*.html/*.css/*.js 均为源码，
+# 保留这些规则会导致新建页面被静默忽略。
+# *.html
+# *.css
+# *.js
 
 # Vue
 dist/
@@ -473,62 +473,22 @@ _BinDeployableAssemblies/
 *.VC.db
 *.VC.VC.opendb-shm
 *.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opendb-shm
-*.VC.VC.opendb-wal
-*.VC.VC.opend......
-```
+
+# ===================================================================
+# 本仓库是纯静态前端站点：所有 .html / .css / .js 都是要提交的源码。
+# 因此下面这些“构建产物”类规则已注释掉，否则新写的页面会被静默忽略
+# （历史上 pelican_bicycle.html 就这样丢过）。
+# ===================================================================
+
+# 临时探针脚本，不属于测试套件
+math_solver/tests/probe.cjs
+
+# pi agent 本地会话与运行日志
+.pi/
+
+# -------------------------------------------------------------------
+# 各项目白名单：确保子目录源码与本地依赖被跟踪
+# -------------------------------------------------------------------
 # 后室游戏（例外：需要跟踪其中的 html/css/js）
 !backrooms_game/
 !backrooms_game/**
@@ -540,8 +500,31 @@ _BinDeployableAssemblies/
 # 数学求解器：页面、脚本与离线计算依赖
 !math_solver/
 !math_solver/**
-# 临时探针脚本，不属于测试套件
-math_solver/tests/probe.cjs
 
-# pi agent 本地会话与运行日志
-.pi/
+# 星火双行：页面、脚本与本地 phaser/lucide 依赖
+!ember_duo/
+!ember_duo/**
+
+# 云端一跃：页面脚本与本地 three 依赖
+!jump_game/
+!jump_game/**
+
+# 果蝇全脑仿真：源码与脚本（data/results 见下方排除）
+!fly_brain_sim/
+!fly_brain_sim/**
+
+# ===================================================================
+# ！！！注意：下面这段必须在所有 ! 白名单之后！！！
+# gitignore 是“后出现的规则覆盖先出现的”，放前面会被 !xxx/** 重新放行。
+# ===================================================================
+# 运行时 / 大体积目录（不属于站点源码）
+.hon-profile/
+tmp/
+.tmp/
+fly_brain_sim/node_modules/
+fly_brain_sim/data/
+fly_brain_sim/results/
+fly_brain_sim/tmp/
+
+# 临时探针脚本，不属于测试套件（必须在 !math_solver/** 之后）
+math_solver/tests/probe.cjs
