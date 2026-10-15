@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f6f8f7">
+<meta name="description" content="人船、半圆槽小球与车摆的交互实验：分阶段观察水平位移与船长、半径、摆长的关系。">
+<title>XC · 看见相对运动</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230d756b'/%3E%3Cpath d='M13 24h36m-8-8 8 8-8 8M51 42H15m8-8-8 8 8 8' fill='none' stroke='white' stroke-width='5'/%3E%3C/svg%3E">
+<style>
+:root{--ink:#203a3a;--muted:#697f7c;--green:#0d756b;--green-soft:#e8f3ee;--orange:#d87936;--purple:#8a6aab;--line:#e0e8e3;--paper:#fff;--bg:#f6f8f7;--radius:20px;--mono:ui-monospace,SFMono-Regular,Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input,select{font:inherit}button,select,input[type=range],input[type=checkbox]{cursor:pointer}button{color:inherit}button,a,input,select{-webkit-tap-highlight-color:transparent}button{touch-action:manipulation}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #69b6a1;outline-offset:4px}button:disabled{cursor:default;opacity:.35}svg{display:block;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.shell{max-width:1280px;margin:0 auto;padding:28px 40px 32px}.masthead{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:38px}.brand{display:flex;align-items:center;gap:11px;font-weight:750;font-size:15px;letter-spacing:.06em}.brand-mark{width:37px;height:37px;display:grid;place-items:center;border-radius:11px;background:var(--green);color:#fff}.home{color:var(--muted);text-decoration:none;font-size:12px}.home:hover{color:var(--green)}.hero{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:29px}.eyebrow{font-size:10px;font-weight:750;letter-spacing:.22em;color:var(--green);margin-bottom:10px}.hero h1{font-size:clamp(28px,4vw,40px);line-height:1.25;letter-spacing:-.04em;margin:0 0 13px;font-weight:760}.hero p{color:var(--muted);margin:0;font-size:14px}.principle{padding:16px 23px;border-left:2px solid #bad4c7;flex-shrink:0}.principle small{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}.principle strong{font-family:var(--mono);font-size:15px;font-weight:550}.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:#eaf0ec;padding:6px;border-radius:16px;margin-bottom:22px}.tab{border:0;border-radius:11px;padding:15px;display:flex;align-items:center;justify-content:center;gap:13px;background:transparent;transition:background .15s,color .15s;color:var(--muted)}.tab[aria-selected=true]{background:var(--paper);box-shadow:0 2px 7px #203a3a08;color:var(--green)}.tab .num{font-family:var(--mono);font-size:11px;opacity:.6}.tab .tab-name{font-weight:700;font-size:14px}.workspace{display:grid;grid-template-columns:minmax(0,1fr) 286px;gap:20px;align-items:start}.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);min-width:0}.experiment{overflow:hidden}.scene-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:20px 23px 16px}.scene-head h2{font-size:16px;margin:0 0 3px}.scene-head p{font-size:11px;color:var(--muted);margin:0}.tag{font-size:10px;white-space:nowrap;color:var(--green);background:var(--green-soft);border:1px solid #dbece2;padding:5px 10px;border-radius:7px}.drawing{margin:0 13px;border-radius:12px;background:#f8faf8;overflow:hidden;position:relative}.drawing canvas{display:block;width:100%;height:410px}.legend{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:10px;padding:9px 12px 13px}.legend span{display:flex;align-items:center;gap:6px}.dot{width:7px;height:7px;border-radius:50%;background:var(--green)}.dot.orange{background:var(--orange)}.dot.purple{background:var(--purple)}.ghost-line{width:17px;border-top:2px dashed #a3afaa}.stage-track{display:flex;position:relative;justify-content:space-between;gap:4px;padding:19px 21px 16px}.stage-track:before{content:"";position:absolute;top:29px;left:40px;right:40px;height:1px;background:var(--line)}.stage-point{border:0;background:transparent;position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;min-width:42px;padding:0 3px;color:var(--muted);font-size:10px}.stage-point i{width:20px;height:20px;border:5px solid white;background:#dce6de;border-radius:50%;box-shadow:0 0 0 1px #dce6de;transition:background .15s}.stage-point.passed i{background:#8ab9a3;box-shadow:0 0 0 1px #8ab9a3}.stage-point[aria-current=step]{color:var(--green);font-weight:700}.stage-point[aria-current=step] i{background:var(--green);box-shadow:0 0 0 1px var(--green)}.transport{padding:0 22px 18px}.progress-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px;color:var(--muted);margin-bottom:5px}.progress-meta output{font-family:var(--mono);font-size:10px;white-space:nowrap}input[type=range]{width:100%;height:20px;accent-color:var(--green);margin:0;background:transparent;touch-action:pan-y}.timeline{display:block}.transport-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px}.playback{display:flex;gap:7px}.icon-btn,.play-btn{height:39px;border:1px solid var(--line);border-radius:9px;display:flex;justify-content:center;align-items:center;background:white;gap:7px}.icon-btn{width:37px;flex-shrink:0}.icon-btn svg{width:16px;height:16px}.icon-btn:hover:enabled{background:var(--green-soft)}.play-btn{min-width:103px;padding:0 15px;background:var(--green);color:white;border-color:var(--green);font-weight:650;font-size:12px}.play-btn:hover{background:#0b645b}.play-btn svg{width:15px;height:15px}.speed{font-size:11px;color:var(--muted);display:flex;gap:5px;align-items:center}.speed select{border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);padding:6px 4px;font-size:11px;max-width:78px}.switch-line{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:13px;color:var(--muted);font-size:10px}.check{display:inline-flex;align-items:center;gap:5px;cursor:pointer}.check input{accent-color:var(--green);width:13px;height:13px;margin:0}.status-dot{width:5px;height:5px;display:inline-block;background:#87a195;border-radius:50%;margin-right:5px}.status-dot.running{background:var(--orange)}.sidebar{display:grid;gap:16px}.parameters{padding:21px}.section-label{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 20px;font-size:13px;font-weight:700}.section-label small{font-size:9px;color:var(--muted);font-weight:400}.param{margin-bottom:18px}.param-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}.param-row label{font-size:11px;color:var(--muted)}.param-row label b{color:var(--ink);font-weight:650}.number-unit{display:flex;gap:4px;align-items:center;color:var(--muted);font-size:10px}.number-unit input{width:64px;background:#f6f8f6;border:1px solid #e4eae4;border-radius:6px;text-align:right;padding:4px 6px;font-size:12px;color:var(--ink);font-family:var(--mono)}.param-note{font-size:10px;color:var(--muted);margin:-2px 0 16px}.mass-ratio{border-top:1px solid var(--line);padding-top:16px}.ratio-label{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);gap:8px}.ratio-label b{color:var(--orange);font-family:var(--mono)}.ratio-bar{display:flex;height:6px;background:#e1eee7;border-radius:4px;overflow:hidden;margin:10px 0}.ratio-bar span{background:var(--orange);width:25%;transition:width .15s}.ratio-formula{font-family:var(--mono);font-size:12px;color:var(--green);margin-top:7px}.insight{padding:20px 21px;background:#edf4ee;border-color:#dce8dd}.insight h3{font-size:12px;margin:0 0 10px;display:flex;gap:7px;align-items:center}.insight h3 svg{width:16px;height:16px}.insight p{font-size:12px;line-height:1.9;margin:0;color:#4f6e60}.display-options{padding:17px 21px;display:flex;flex-direction:column;gap:11px;font-size:11px;color:var(--muted)}.display-options h3{font-size:12px;margin:0 0 1px;color:var(--ink)}.readout{margin-top:19px}.readout-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:11px}.readout h2{font-size:13px;margin:0}.segmented{display:flex;gap:3px;border:1px solid var(--line);background:#edf2ee;padding:3px;border-radius:8px}.segmented button{background:transparent;border:0;border-radius:5px;font-size:10px;color:var(--muted);padding:4px 11px}.segmented button[aria-pressed=true]{background:white;color:var(--green);box-shadow:0 1px 4px #203a3a08}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.metric{padding:15px 17px;border-radius:13px;background:white;border:1px solid var(--line);min-width:0}.metric label{font-size:10px;color:var(--muted);display:block;line-height:1.5}.metric strong{display:block;font-family:var(--mono);font-size:23px;line-height:1.3;letter-spacing:-.06em;margin:8px 0 3px;font-weight:600;color:var(--ink);white-space:nowrap}.metric strong small{font-family:inherit;font-size:11px;letter-spacing:0;font-weight:400;margin-left:3px}.metric output{font-size:10px;font-family:var(--mono);color:var(--muted)}.metric.base strong{color:var(--green)}.metric.object strong{color:var(--orange)}.readout-note{font-size:10px;color:var(--muted);margin:8px 1px 0;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.reference-dot{color:var(--purple)}.comparison{margin-top:24px;padding:23px 25px}.section-heading{display:flex;justify-content:space-between;gap:16px;align-items:baseline;margin-bottom:18px}.section-heading h2{font-size:15px;margin:0}.section-heading p{font-size:10px;color:var(--muted);margin:0}.table-scroll{overflow-x:auto;overscroll-behavior-x:contain}.table-hint{display:none}table{width:100%;border-collapse:collapse;text-align:left;min-width:610px;font-size:12px}th{font-size:10px;font-weight:500;color:var(--muted);padding:0 14px 11px;border-bottom:1px solid var(--line)}td{padding:13px 14px;border-bottom:1px solid #edf0ed;vertical-align:middle}th:first-child,td:first-child{padding-left:0}th:last-child,td:last-child{padding-right:0}td:first-child{font-size:11px;white-space:nowrap}td .normal{font-family:var(--mono);display:block;font-weight:550}td small{font-family:var(--mono);display:block;color:var(--muted);font-size:9px;margin-top:2px}.base-color{color:var(--green)}.object-color{color:var(--orange)}tr.active-row{background:#f5f9f5}tr.total-row td{border-bottom:0;padding-bottom:0;padding-top:16px;font-weight:600}.table-foot{margin:15px 0 0;font-size:10px;color:var(--muted)}.explanation{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:24px;padding:24px 26px;background:#eef3ee;border-radius:var(--radius);border:1px solid #e0e8de}.explanation h2{font-size:14px;margin:0 0 10px}.explanation p{font-size:11px;line-height:1.9;margin:0;color:var(--muted)}.equations{display:grid;align-content:center;gap:13px;font-size:14px;color:var(--ink)}.equation{display:flex;align-items:center;justify-content:flex-start;gap:8px;flex-wrap:wrap}.equation sub{font-size:9px}.fraction{display:inline-flex;vertical-align:middle;flex-direction:column;align-items:center;font-size:11px;line-height:1.25;min-width:34px;text-align:center}.fraction>span:first-child{border-bottom:1px solid currentColor;width:100%;padding:0 4px 2px}.fraction>span:last-child{padding:2px 4px 0}.footer{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-top:23px;font-size:10px;color:var(--muted)}.footer p{margin:0;max-width:830px}.footer span{font-family:var(--mono);white-space:nowrap;font-size:9px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}noscript{display:block;border:1px solid #dfb27b;background:#fff5df;padding:20px;border-radius:10px;margin:20px}
+@media(min-width:1450px){.shell{padding-top:35px}.drawing canvas{height:440px}}
+@media(max-width:1000px){.shell{padding:25px}.workspace{grid-template-columns:minmax(0,1fr) 250px;gap:15px}.parameters,.insight,.display-options{padding-left:17px;padding-right:17px}.scene-head{padding-left:18px;padding-right:18px}.metric{padding:13px 12px}.metric strong{font-size:21px}.principle{padding-right:0}.drawing canvas{height:400px}}
+@media(max-width:760px){.shell{padding:21px 17px 25px}.masthead{margin-bottom:28px}.hero{margin-bottom:23px}.hero h1{font-size:31px}.hero p{font-size:12px;max-width:310px}.principle{display:none}.tabs{margin-bottom:16px;gap:3px;padding:5px;border-radius:13px}.tab{gap:8px;padding:13px 7px;border-radius:9px}.tab .num{display:none}.tab .tab-name{font-size:12px}.tab svg{width:19px;height:19px}.workspace{display:flex;flex-direction:column;gap:18px}.main-column{width:100%}.sidebar{width:100%;grid-template-columns:1fr 1fr;gap:12px}.parameters{grid-row:span 2}.display-options{gap:10px}.scene-head{padding:17px 18px 13px}.scene-head h2{font-size:15px}.drawing{margin:0 9px}.drawing canvas{height:390px}.legend{gap:12px;font-size:9px;padding-top:7px}.readout{margin-top:16px}.comparison{margin-top:19px;padding:20px 18px}.section-heading{display:block;margin-bottom:18px}.section-heading p{margin-top:4px}.table-hint{display:block;font-size:10px;color:var(--green);margin:-7px 0 14px}.explanation{grid-template-columns:1fr;gap:20px;padding:22px 20px;margin-top:19px}.footer{display:block;line-height:1.8}.footer span{display:block;margin-top:10px}.brand{font-size:13px}.brand-mark{width:32px;height:32px}.eyebrow{font-size:9px}.equations{font-size:13px}}
+@media(max-width:390px){.shell{padding-left:11px;padding-right:11px}.hero h1{font-size:29px}.scene-head{padding-left:13px;padding-right:13px}.scene-head p{font-size:10px}.tag{font-size:9px;padding:4px 6px}.metrics{gap:6px}.metric{padding:12px 9px}.metric strong{font-size:19px}.metric label{font-size:9px}.transport{padding-left:13px;padding-right:13px}.playback{gap:5px}.play-btn{min-width:91px;padding:0 10px}.transport-row{flex-wrap:wrap}.speed{gap:2px;margin-left:auto}.speed>span{display:none}.sidebar{grid-template-columns:1fr}.parameters{grid-row:auto}.display-options{display:grid;grid-template-columns:1fr 1fr}.display-options h3{grid-column:1/-1}.drawing canvas{height:380px}.stage-point{font-size:9px}.section-heading h2{font-size:14px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+@media print{body{background:white}.shell{max-width:none;padding:10px}.home,.transport,.sidebar,.footer,.display-options{display:none}.workspace{display:block}.tabs{padding:0;background:none}.tab[aria-selected=false]{display:none}.tab[aria-selected=true]{box-shadow:none}.card{break-inside:avoid}.drawing canvas{height:360px}.hero{margin-bottom:12px}.masthead{margin-bottom:15px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="masthead">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7h17m-4-4 4 4-4 4M21 17H4m4-4-4 4 4 4"/></svg></span><span>XC <span style="color:#95aaa0;font-weight:400">/</span> 运动实验室</span></div>
+    <a class="home" href="./index.html">返回项目集 ↗</a>
+  </header>
+  <section class="hero">
+    <div><div class="eyebrow">PHYSICS · RELATIVE MOTION</div><h1>看见相对运动</h1><p>从船长、半径与摆长，读懂每一段位移。</p></div>
+    <div class="principle"><small>共同的线索：水平质心保持不变</small><strong>M Δx<sub>底座</sub> + m Δx<sub>物体</sub> = 0</strong></div>
+  </section>
+  <nav class="tabs" role="tablist" aria-label="选择实验场景">
+    <button class="tab" id="tab-boat" role="tab" aria-selected="true" aria-controls="experiment-panel" data-scene="boat"><span class="num">01</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 13 3 6h12l3-6H3Zm9-10v10M7 9h10M3 22c2-2 4 2 6 0s4 2 6 0 4 2 6 0"/></svg><span class="tab-name">人与船</span></button>
+    <button class="tab" id="tab-groove" role="tab" aria-selected="false" aria-controls="experiment-panel" tabindex="-1" data-scene="groove"><span class="num">02</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5v16h18V5h-3a6 6 0 0 1-12 0Z"/><circle cx="6" cy="4" r="2"/></svg><span class="tab-name">小球与槽</span></button>
+    <button class="tab" id="tab-pendulum" role="tab" aria-selected="false" aria-controls="experiment-panel" tabindex="-1" data-scene="pendulum"><span class="num">03</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16v3H4zM8 18V3h6m-6 0 10 7"/><circle cx="19" cy="11" r="2"/><path d="M6 23h1m10 0h1"/></svg><span class="tab-name">小车与摆</span></button>
+  </nav>
+  <div id="experiment-panel" role="tabpanel" aria-labelledby="tab-boat">
+    <div class="workspace">
+      <div class="main-column">
+        <section class="card experiment" aria-label="运动动画与阶段控制">
+          <header class="scene-head"><div><h2 id="scene-title">人在船上走，船向后退</h2><p id="scene-subtitle">以岸为参照 · 从船左端走到船右端</p></div><span class="tag" id="size-badge">L = 6.0 m</span></header>
+          <div class="drawing"><canvas id="scene-canvas" role="img" aria-label="人在船上行走与船反向移动的示意图，实时位移见下方读数。">你的浏览器不支持 Canvas，请使用下方阶段表查看位移关系。</canvas></div>
+          <div class="legend" aria-hidden="true"><span><i class="dot orange"></i><span id="object-legend">人 m</span></span><span><i class="dot"></i><span id="base-legend">船 M</span></span><span><i class="ghost-line"></i><span id="ghost-legend">本段起点</span></span><span><i class="dot purple"></i>水平质心</span></div>
+          <div class="stage-track" id="stage-track" role="group" aria-label="跳转到关键状态"></div>
+          <div class="transport">
+            <div class="progress-meta"><label for="timeline" id="segment-title">左端 → 右端</label><output id="time-output" for="timeline">0.00 / 8.00 s</output></div>
+            <input class="timeline" id="timeline" type="range" min="0" max="10000" step="1" value="0" aria-label="拖动查看整个运动过程">
+            <div class="transport-row">
+              <div class="playback">
+                <button class="icon-btn" id="reset-btn" aria-label="重置到初始状态" title="重置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10a8 8 0 1 1 2 8M4 4v6h6"/></svg></button>
+                <button class="icon-btn" id="prev-btn" aria-label="上一关键状态" title="上一关键状态"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14m12-14-9 7 9 7Z"/></svg></button>
+                <button class="play-btn" id="play-btn"><svg id="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 4 12 8-12 8Z"/></svg><span id="play-label">开始播放</span></button>
+                <button class="icon-btn" id="next-btn" aria-label="下一关键状态" title="下一关键状态"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14M6 5l9 7-9 7Z"/></svg></button>
+              </div>
+              <label class="speed"><span>速度</span><select id="speed" aria-label="播放速度"><option value="0.25">0.25×</option><option value="0.5" selected>0.5×</option><option value="1">1×</option><option value="2">2×</option></select></label>
+            </div>
+            <div class="switch-line"><label class="check"><input id="pause-stages" type="checkbox" checked>到关键状态暂停</label><span role="status" aria-live="polite"><i class="status-dot" id="status-dot"></i><span id="play-status">准备就绪</span></span></div>
+          </div>
+        </section>
+        <section class="readout" aria-label="实时水平位移">
+          <div class="readout-head"><h2>距离，就在这一段</h2><div class="segmented" role="group" aria-label="位移参照起点"><button id="mode-segment" aria-pressed="true">本阶段</button><button id="mode-total" aria-pressed="false">从最初累计</button></div></div>
+          <div class="metrics">
+            <div class="metric"><label id="relative-label">人相对船 · Δs</label><strong><span id="relative-value">0.000</span><small>m</small></strong><output id="relative-ratio">0 L</output></div>
+            <div class="metric base"><label id="base-label">船相对岸 · Δx</label><strong><span id="base-value">0.000</span><small>m</small></strong><output id="base-ratio">0 L</output></div>
+            <div class="metric object"><label id="object-label">人相对岸 · Δx</label><strong><span id="object-value">0.000</span><small>m</small></strong><output id="object-ratio">0 L</output></div>
+          </div>
+          <div class="readout-note"><span>右为正 ＋ · 左为负 − · 数值均为水平位移</span><span class="reference-dot">● 水平质心位移：<span id="com-value">0.000</span> m</span></div>
+        </section>
+      </div>
+      <aside class="sidebar" aria-label="实验参数和显示设置">
+        <section class="card parameters">
+          <h2 class="section-label">调整实验参数 <small>试试不同的质量比</small></h2>
+          <div class="param"><div class="param-row"><label for="base-mass"><b id="base-param-name">船</b>的质量 M</label><span class="number-unit"><input type="number" id="base-mass-number" value="210" min="40" max="600" step="10" aria-label="底座质量，单位千克"><span>kg</span></span></div><input id="base-mass" type="range" min="40" max="600" step="10" value="210" aria-label="调整底座质量"></div>
+          <div class="param"><div class="param-row"><label for="object-mass"><b id="object-param-name">人</b>的质量 m</label><span class="number-unit"><input type="number" id="object-mass-number" value="70" min="20" max="160" step="5" aria-label="物体质量，单位千克"><span>kg</span></span></div><input id="object-mass" type="range" min="20" max="160" step="5" value="70" aria-label="调整物体质量"></div>
+          <div class="param"><div class="param-row"><label for="size"><b id="size-param-name">船长 L</b></label><span class="number-unit"><input type="number" id="size-number" value="6" min="2" max="12" step="0.5" aria-label="特征长度，单位米"><span>m</span></span></div><input id="size" type="range" min="2" max="12" step="0.5" value="6" aria-label="调整特征长度"></div>
+          <p class="param-note">改变参数后，实验自动回到初始状态。</p>
+          <div class="mass-ratio"><div class="ratio-label"><span>物体质量占比 m / (M + m)</span><b id="mass-share">25.0%</b></div><div class="ratio-bar" aria-hidden="true"><span id="mass-bar"></span></div><div class="ratio-formula" id="ratio-formula">Δx底座 = −0.250 Δs</div></div>
+        </section>
+        <section class="card insight"><h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6m-5 3h4M8 13a6 6 0 1 1 8 0c-1 1-1 2-1 3H9c0-1 0-2-1-3Z"/></svg>看懂这一段</h3><p id="insight-text"></p></section>
+        <section class="card display-options"><h3>画面标记</h3><label class="check"><input id="show-ghost" type="checkbox" checked>显示参照起点轮廓</label><label class="check"><input id="show-trail" type="checkbox" checked>显示物体对地轨迹</label><label class="check"><input id="show-com" type="checkbox" checked>显示固定水平质心</label></section>
+      </aside>
+    </div>
+    <section class="card comparison" aria-labelledby="comparison-title">
+      <div class="section-heading"><h2 id="comparison-title">把位移，写成尺寸的倍数</h2><p>下表比较各段的起点与终点 · 根据当前参数更新</p></div>
+      <p class="table-hint">左右滑动表格，查看底座与物体的位移 →</p>
+      <div class="table-scroll" tabindex="0" aria-label="阶段位移表，窄屏可左右滑动"><table><thead><tr><th scope="col">阶段</th><th scope="col">相对位移 Δs</th><th scope="col" id="table-base-heading">船相对岸</th><th scope="col" id="table-object-heading">人相对岸</th></tr></thead><tbody id="stage-table"></tbody></table></div>
+      <p class="table-foot" id="table-foot">L 为船长。负号表示向左，正号表示向右。</p>
+    </section>
+    <section class="explanation" aria-label="位移关系的物理解释">
+      <div><div class="eyebrow">THE IDEA BEHIND IT</div><h2>它们反向移动，因为水平质心不变。</h2><p>系统初始静止，水平方向不受外力。物体与底座的水平动量始终相互抵消。再把“物体对地的位移”写成“底座的位移 ＋ 物体相对底座的位移”，就能得到右边的关系。</p></div>
+      <div class="equations"><div class="equation"><span class="base-color">Δx<sub>底座</sub></span><span>= −</span><span class="fraction"><span>m</span><span>M + m</span></span><span>Δs</span></div><div class="equation"><span class="object-color">Δx<sub>物体</sub></span><span>=</span><span class="fraction"><span>M</span><span>M + m</span></span><span>Δs</span></div></div>
+    </section>
+  </div>
+  <footer class="footer"><p id="model-note">理想模型：忽略水的水平阻力；人和船初始静止，人自行平稳行走。人体以质点描述。所有标注都是水平位移，船与人物的装饰尺寸不参与计算。</p><span>XC / MOTION STUDIES · 01—03</span></footer>
+</div>
+<noscript>这个实验需要启用 JavaScript 才能播放动画和计算位移。</noscript>
+<script id="physics-model">
+'use strict';
+const XCPhysics = (() => {
+  const G = 9.81;
+  const HALF_PI = Math.PI / 2;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function makeModel(kind, M, m, size) {
+    if (!['boat', 'groove', 'pendulum'].includes(kind) || ![M, m, size].every(v => Number.isFinite(v) && v > 0)) throw new RangeError('物理参数必须为正数');
+    const mu = m / (M + m);
+    let quarter = 0;
+    const lookup = [];
+    if (kind !== 'boat') {
+      // theta = (pi/2) cos(z) removes the integrable singularity at a horizontal release.
+      // E = (m a² / 2)(1 - mu cos²(theta)) thetaDot² - m g a cos(theta) = 0.
+      const integrand = z => {
+        if (z < 1e-6) return Math.sqrt(Math.PI * size / (2 * G));
+        const theta = HALF_PI * Math.cos(z);
+        const c = Math.max(0, Math.cos(theta));
+        return Math.sqrt(size / (2 * G)) * HALF_PI * Math.sin(z) * Math.sqrt((1 - mu * c * c) / c);
+      };
+      const count = 1536;
+      const slope = theta => {
+        if (Math.abs(theta - HALF_PI) < 1e-12) return 0;
+        const c = Math.max(0, Math.cos(theta));
+        return -Math.sqrt(2 * G * c / (size * (1 - mu * c * c)));
+      };
+      lookup.push({ t: 0, theta: HALF_PI, slope: 0 });
+      for (let i = 1; i <= count; i++) {
+        const a = (i - 1) * HALF_PI / count;
+        const b = i * HALF_PI / count;
+        quarter += (b - a) * (integrand(a) + 4 * integrand((a + b) / 2) + integrand(b)) / 6;
+        const theta = i === count ? 0 : HALF_PI * Math.cos(b);
+        lookup.push({ t: quarter, theta, slope: slope(theta) });
+      }
+    }
+    const times = kind === 'boat' ? [0, 8] : Array.from({ length: kind === 'groove' ? 3 : 5 }, (_, i) => i * quarter);
+    const duration = times[times.length - 1];
+    function quarterAngle(t) {
+      if (t <= 0) return HALF_PI;
+      if (t >= quarter) return 0;
+      let lo = 0, hi = lookup.length - 1;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (lookup[mid].t <= t) lo = mid; else hi = mid;
+      }
+      const a = lookup[lo], b = lookup[hi], dt = b.t - a.t;
+      const u = (t - a.t) / dt, u2 = u * u, u3 = u2 * u;
+      return (2 * u3 - 3 * u2 + 1) * a.theta + (u3 - 2 * u2 + u) * dt * a.slope
+        + (-2 * u3 + 3 * u2) * b.theta + (u3 - u2) * dt * b.slope;
+    }
+    function at(time) {
+      const t = clamp(time, 0, duration);
+      let q, theta = 0, omega = 0, height = 0, qdot = 0, baseVelocity = 0, objectVelocity = 0;
+      const q0 = kind === 'boat' ? -size / 2 : kind === 'groove' ? -size : size;
+      if (kind === 'boat') {
+        const u = t / duration;
+        const s = u * u * u * (10 + u * (-15 + 6 * u));
+        q = size * (s - .5);
+        qdot = size * 30 * u * u * (1 - u) * (1 - u) / duration;
+      } else {
+        const leg = Math.min(times.length - 2, Math.floor(t / quarter));
+        const local = t - leg * quarter;
+        if (kind === 'groove') theta = leg === 0 ? -quarterAngle(local) : quarterAngle(quarter - local);
+        else if (leg === 0) theta = quarterAngle(local);
+        else if (leg === 1) theta = -quarterAngle(quarter - local);
+        else if (leg === 2) theta = -quarterAngle(local);
+        else theta = quarterAngle(quarter - local);
+        q = size * Math.sin(theta);
+        height = -size * Math.cos(theta);
+        const c = Math.max(0, Math.cos(theta));
+        const sign = kind === 'groove' || leg >= 2 ? 1 : -1;
+        omega = sign * Math.sqrt(2 * G * c / (size * (1 - mu * c * c)));
+        if (Math.abs(Math.abs(theta) - HALF_PI) < 1e-12) omega = 0;
+        qdot = size * Math.cos(theta) * omega;
+      }
+      const base = -mu * (q - q0);
+      const object = base + q;
+      baseVelocity = -mu * qdot;
+      objectVelocity = (1 - mu) * qdot;
+      return { t, q, q0, theta, omega, height, base, object, baseVelocity, objectVelocity, com: (M * base + m * object) / (M + m) };
+    }
+    function difference(from, to) {
+      const a = at(from), b = at(to);
+      return { relative: b.q - a.q, base: b.base - a.base, object: b.object - a.object, com: b.com - a.com };
+    }
+    return { kind, M, m, size, mu, quarter, times, duration, at, difference };
+  }
+  return { makeModel, G, clamp };
+})();
+</script>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const config = {
+    boat: { title: '人在船上走，船向后退', subtitle: '以岸为参照 · 从船左端走到船右端', base: '船', object: '人', ground: '岸', symbol: 'L', sizeName: '船长 L', states: ['船左端', '船右端'], defaults: [210, 70, 6], ranges: [[40, 600, 10], [20, 160, 5], [2, 12, .5]], note: '理想模型：忽略水的水平阻力；人和船初始静止，人自行平稳行走。人体以质点描述。所有标注都是水平位移，船与人物的装饰尺寸不参与计算。' },
+    groove: { title: '球沿槽滑下，方块随之移动', subtitle: '光滑水平面 · 小球从左槽口静止释放', base: '方块', object: '小球', ground: '地', symbol: 'R', sizeName: '槽半径 R', states: ['左槽口', '最低点', '右槽口'], defaults: [6, 2, 2], ranges: [[1, 30, .5], [.5, 20, .5], [.5, 4, .1]], note: '理想模型：方块在光滑水平面上运动；小球是质点，在竖直光滑半圆槽内滑动，从左槽口静止释放，无摩擦与自转。R 为质点轨迹半径，g = 9.81 m/s²。圆点大小仅用于辨认。' },
+    pendulum: { title: '摆球来回摆，小车也来回移动', subtitle: '光滑水平面 · 从右侧水平位置静止释放', base: '小车', object: '摆球', ground: '地', symbol: 'l', sizeName: '摆长 l', states: ['右水平', '最低点', '左水平', '最低点', '右水平'], defaults: [6, 2, 2], ranges: [[1, 30, .5], [.5, 20, .5], [.5, 4, .1]], note: '理想模型：小车在光滑水平面上运动；支架与摆绳质量忽略，摆球为质点，从右侧水平位置静止释放，忽略空气阻力。l 为悬点到摆球的距离，g = 9.81 m/s²。' }
+  };
+  const saved = Object.fromEntries(Object.entries(config).map(([k, v]) => [k, [...v.defaults]]));
+  const state = { kind: 'boat', time: 0, playing: false, mode: 'segment', frame: 0, lastFrame: 0 };
+  let model, width = 0, height = 0;
+  const canvas = $('scene-canvas');
+  const ctx = canvas.getContext('2d');
+  const colors = { ink: '#284741', muted: '#7c9087', green: '#247e6d', pale: '#c2d8c8', orange: '#d87936', purple: '#9473b0', grid: '#e9efe8', ghost: '#a8b4aa' };
+  const fmt = (n, digits = 3) => (Math.abs(n) < .5 * 10 ** -digits ? 0 : n).toFixed(digits);
+  const signed = (n, digits = 3) => Math.abs(n) < .5 * 10 ** -digits ? (0).toFixed(digits) : `${n > 0 ? '+' : '−'}${Math.abs(n).toFixed(digits)}`;
+  const coefficient = n => {
+    if (Math.abs(n) < 1e-9) return '0';
+    const v = Math.abs(n);
+    const text = Math.abs(v - Math.round(v)) < 1e-6 ? String(Math.round(v)) : v.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+    return `${n < 0 ? '−' : '+'}${text}`;
+  };
+  const ratio = n => `${coefficient(n / model.size)} ${config[state.kind].symbol}`;
+  function segmentIndex() {
+    for (let i = 1; i < model.times.length; i++) if (state.time <= model.times[i] + 1e-8) return i - 1;
+    return model.times.length - 2;
+  }
+  function referenceTime() { return state.mode === 'total' ? 0 : model.times[segmentIndex()]; }
+  function pause(status = '已暂停') {
+    state.playing = false;
+    cancelAnimationFrame(state.frame);
+    $('play-status').textContent = status;
+    syncPlayback();
+  }
+  function syncPlayback() {
+    if (!model) return;
+    $('play-label').textContent = state.playing ? '暂停' : state.time >= model.duration - 1e-8 ? '重新播放' : state.time > 1e-8 ? '继续播放' : '开始播放';
+    $('play-icon').innerHTML = state.playing ? '<path d="M8 5v14M16 5v14"/>' : '<path d="m8 4 12 8-12 8Z"/>';
+    $('play-btn').setAttribute('aria-label', state.playing ? '暂停播放' : '播放运动动画');
+    $('status-dot').classList.toggle('running', state.playing);
+    $('prev-btn').disabled = state.time <= 1e-8;
+    $('next-btn').disabled = state.time >= model.duration - 1e-8;
+  }
+  function jump(time, status = '已跳转到关键状态') {
+    pause(status);
+    state.time = XCPhysics.clamp(time, 0, model.duration);
+    render();
+  }
+  function play() {
+    if (state.playing) { pause(); return; }
+    if (state.time >= model.duration - 1e-8) state.time = 0;
+    state.playing = true;
+    state.lastFrame = 0;
+    $('play-status').textContent = '正在播放';
+    syncPlayback();
+    state.frame = requestAnimationFrame(tick);
+  }
+  function tick(now) {
+    if (!state.playing) return;
+    const dt = state.lastFrame ? Math.min((now - state.lastFrame) / 1000, .06) * Number($('speed').value) : 0;
+    state.lastFrame = now;
+    let next = Math.min(state.time + dt, model.duration);
+    if ($('pause-stages').checked) {
+      const boundary = model.times.find(t => t > state.time + 1e-8 && t <= next + 1e-8);
+      if (boundary !== undefined) { next = boundary; pause(boundary === model.duration ? '本次演示完成' : '已到关键状态，点击继续'); }
+    }
+    state.time = next;
+    if (state.time >= model.duration - 1e-8 && state.playing) pause('本次演示完成');
+    render();
+    if (state.playing) state.frame = requestAnimationFrame(tick);
+  }
+  function tableCell(value, type = '') { return `<td class="${type}"><span class="normal">${ratio(value)}</span><small>${signed(value)} m</small></td>`; }
+  function buildTable() {
+    const cfg = config[state.kind];
+    let rows = '';
+    for (let i = 0; i < model.times.length - 1; i++) {
+      const d = model.difference(model.times[i], model.times[i + 1]);
+      rows += `<tr data-leg="${i}"><td>${String(i + 1).padStart(2, '0')} &nbsp; ${cfg.states[i]} → ${cfg.states[i + 1]}</td>${tableCell(d.relative)}${tableCell(d.base, 'base-color')}${tableCell(d.object, 'object-color')}</tr>`;
+    }
+    if (model.times.length > 2) {
+      const d = model.difference(0, model.duration);
+      rows += `<tr class="total-row"><td>${state.kind === 'pendulum' ? '完整往返 · 净位移' : '全过程 · 净位移'}</td>${tableCell(d.relative)}${tableCell(d.base, 'base-color')}${tableCell(d.object, 'object-color')}</tr>`;
+    }
+    $('stage-table').innerHTML = rows;
+    $('table-base-heading').textContent = `${cfg.base}相对${cfg.ground}`;
+    $('table-object-heading').textContent = `${cfg.object}相对${cfg.ground}`;
+    $('table-foot').textContent = `${cfg.symbol} 为${cfg.sizeName.split(' ')[0]}。${state.kind === 'pendulum' ? '完整往返的路程不为零，净位移为零。' : ''}负号表示向左，正号表示向右。`;
+  }
+  function updateInsight(i) {
+    const cfg = config[state.kind];
+    const d = model.difference(model.times[i], model.times[i + 1]);
+    const movement = (value, unit) => `${value >= 0 ? '向右' : '向左'} ${coefficient(Math.abs(value / model.size)).replace('+', '')} ${unit}`;
+    let text = `${cfg.states[i]}到${cfg.states[i + 1]}：${cfg.object}相对${cfg.base}${movement(d.relative, cfg.symbol)}，${cfg.base}对${cfg.ground}${movement(d.base, cfg.symbol)}，${cfg.object}对${cfg.ground}${movement(d.object, cfg.symbol)}。`;
+    if (state.kind === 'pendulum' && i >= 2) text += ' 返回时方向反转，累计位移逐渐归零。';
+    $('insight-text').textContent = text;
+  }
+  function rebuild() {
+    pause('准备就绪');
+    state.time = 0;
+    const cfg = config[state.kind];
+    const values = saved[state.kind];
+    model = XCPhysics.makeModel(state.kind, ...values);
+    $('scene-title').textContent = cfg.title;
+    $('scene-subtitle').textContent = cfg.subtitle;
+    $('size-badge').textContent = `${cfg.symbol} = ${fmt(model.size, 1)} m`;
+    $('base-param-name').textContent = cfg.base;
+    $('object-param-name').textContent = cfg.object;
+    $('size-param-name').textContent = cfg.sizeName;
+    $('object-legend').textContent = `${cfg.object} m`;
+    $('base-legend').textContent = `${cfg.base} M`;
+    $('relative-label').textContent = `${cfg.object}相对${cfg.base} · Δs`;
+    $('base-label').textContent = `${cfg.base}相对${cfg.ground} · Δx`;
+    $('object-label').textContent = `${cfg.object}相对${cfg.ground} · Δx`;
+    $('model-note').textContent = cfg.note;
+    $('mass-share').textContent = `${fmt(model.mu * 100, 1)}%`;
+    $('mass-bar').style.width = `${model.mu * 100}%`;
+    $('ratio-formula').textContent = `Δx底座 = −${fmt(model.mu)} Δs`;
+    ['base-mass', 'object-mass', 'size'].forEach((id, i) => {
+      [$(id), $(`${id}-number`)].forEach(el => {
+        [el.min, el.max, el.step] = cfg.ranges[i].map(String);
+        el.value = String(values[i]);
+      });
+    });
+    $('stage-track').innerHTML = cfg.states.map((name, i) => `<button class="stage-point" data-state="${i}" aria-label="状态 ${i + 1}：${name}"><i aria-hidden="true"></i><span>${name}</span></button>`).join('');
+    canvas.setAttribute('aria-label', `${cfg.title}。${cfg.states.join('，然后')}。实时水平位移见下方读数，阶段终点位移见下方表格。`);
+    buildTable();
+    render();
+  }
+  function switchScene(kind) {
+    state.kind = kind;
+    document.querySelectorAll('.tab').forEach(el => {
+      const selected = el.dataset.scene === kind;
+      el.setAttribute('aria-selected', String(selected));
+      el.tabIndex = selected ? 0 : -1;
+    });
+    $('experiment-panel').setAttribute('aria-labelledby', `tab-${kind}`);
+    rebuild();
+  }
+  function render() {
+    const cfg = config[state.kind];
+    const i = segmentIndex();
+    const d = model.difference(referenceTime(), state.time);
+    $('timeline').value = String(Math.round(10000 * state.time / model.duration));
+    $('timeline').setAttribute('aria-valuetext', `${fmt(state.time, 2)} 秒，共 ${fmt(model.duration, 2)} 秒`);
+    $('time-output').textContent = `${fmt(state.time, 2)} / ${fmt(model.duration, 2)} s`;
+    $('segment-title').textContent = `${cfg.states[i]} → ${cfg.states[i + 1]}`;
+    for (const key of ['relative', 'base', 'object']) {
+      $(`${key}-value`).textContent = signed(d[key]);
+      $(`${key}-ratio`).textContent = ratio(d[key]);
+    }
+    $('com-value').textContent = fmt(d.com);
+    $('ghost-legend').textContent = state.mode === 'total' ? '最初位置' : '本段起点';
+    document.querySelectorAll('.stage-point').forEach((el, index) => {
+      const passed = model.times[index] < state.time - 1e-8;
+      el.classList.toggle('passed', passed);
+      if (Math.abs(model.times[index] - state.time) < 1e-8) el.setAttribute('aria-current', 'step');
+      else el.removeAttribute('aria-current');
+    });
+    document.querySelectorAll('#stage-table [data-leg]').forEach(el => el.classList.toggle('active-row', Number(el.dataset.leg) === i));
+    updateInsight(i);
+    syncPlayback();
+    draw();
+  }
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    width = rect.width;
+    height = rect.height;
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+  function line(x1, y1, x2, y2, color, lineWidth = 1, dash = []) {
+    ctx.save();ctx.strokeStyle = color;ctx.lineWidth = lineWidth;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore();
+  }
+  function text(label, x, y, color = colors.ink, size = 11, align = 'center', weight = 400) {
+    ctx.fillStyle = color;ctx.font = `${weight} ${size}px -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif`;ctx.textAlign = align;ctx.textBaseline = 'middle';ctx.fillText(label,x,y);
+  }
+  function circle(x, y, r, fill, stroke = '', lw = 1) {
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.lineWidth=lw;ctx.strokeStyle=stroke;ctx.stroke();}
+  }
+  function dimension(x1,y1,x2,y2,label,color = colors.green) {
+    line(x1,y1,x2,y2,color,1);
+    const angle=Math.atan2(y2-y1,x2-x1), len=5;
+    for(const [x,y,a] of [[x1,y1,angle],[x2,y2,angle+Math.PI]]) {
+      line(x,y,x+len*Math.cos(a-.4),y+len*Math.sin(a-.4),color,1);
+      line(x,y,x+len*Math.cos(a+.4),y+len*Math.sin(a+.4),color,1);
+    }
+    if(label) {
+      ctx.save();ctx.font='11px sans-serif';const tw=ctx.measureText(label).width;
+      ctx.fillStyle='#f8faf8';ctx.fillRect((x1+x2)/2-tw/2-5,(y1+y2)/2-8,tw+10,16);ctx.restore();
+      text(label,(x1+x2)/2,(y1+y2)/2,color,11);
+    }
+  }
+  function displacementArrow(x1,x2,y,label,color) {
+    const dist=x2-x1;
+    if(Math.abs(dist)>1.5) {
+      line(x1,y,x2,y,color,1.6);
+      const sign=Math.sign(dist);
+      line(x2,y,x2-sign*5,y-3,color,1.6);line(x2,y,x2-sign*5,y+3,color,1.6);
+      line(x1,y-4,x1,y+4,color,1);
+    } else circle(x1,y,2,color);
+    const labelWidth = Math.min(width-28, Math.max(70,label.length*6.4));
+    const tx=XCPhysics.clamp((x1+x2)/2,labelWidth/2+10,width-labelWidth/2-10);
+    text(label,tx,y-13,color,width<400?10:11);
+  }
+  function drawPerson(x,y,time,ghost) {
+    ctx.save();ctx.translate(x,y);ctx.globalAlpha=ghost?.36:1;
+    const step=state.playing&&!ghost?Math.sin(time*7)*6:0;
+    const c=ghost?colors.ghost:colors.orange;
+    ctx.strokeStyle=c;ctx.lineWidth=3;ctx.lineCap='round';if(ghost)ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(0,-31);ctx.lineTo(0,-15);ctx.moveTo(0,-15);ctx.lineTo(-8-step/2,0);ctx.moveTo(0,-15);ctx.lineTo(8+step/2,0);ctx.moveTo(0,-28);ctx.lineTo(-10+step,-19);ctx.moveTo(0,-28);ctx.lineTo(10-step,-20);ctx.stroke();
+    circle(0,-40,6.5,ghost?'':c,ghost?c:'',1.5);ctx.restore();
+  }
+  function drawBoat(p,geo,ghost=false) {
+    const cx=geo.x(p.base), half=model.size*geo.scale/2, deck=geo.floor-58;
+    ctx.save();if(ghost){ctx.globalAlpha=.42;ctx.setLineDash([5,4]);}
+    ctx.beginPath();ctx.moveTo(cx-half,deck);ctx.lineTo(cx+half,deck);ctx.quadraticCurveTo(cx+half-7,deck+35,cx+half*.67,deck+40);ctx.lineTo(cx-half*.67,deck+40);ctx.quadraticCurveTo(cx-half+7,deck+35,cx-half,deck);ctx.closePath();
+    if(!ghost){ctx.fillStyle='#bdd5c7';ctx.fill();}ctx.strokeStyle=ghost?colors.ghost:colors.green;ctx.lineWidth=1.5;ctx.stroke();
+    if(!ghost){line(cx-half+2,deck+6,cx+half-2,deck+6,'#4c937c',2);text('船 M',cx,deck+23,colors.green,11);dimension(cx-half,deck-84,cx+half,deck-84,'L');line(cx-half,deck-75,cx-half,deck-7,colors.pale,1,[3,4]);line(cx+half,deck-75,cx+half,deck-7,colors.pale,1,[3,4]);}
+    ctx.restore();drawPerson(geo.x(p.object),deck,p.t,ghost);
+    if(!ghost)text('人 m',geo.x(p.object),deck-59,colors.orange,10);
+  }
+  function drawGroove(p,geo,ghost=false) {
+    const cx=geo.x(p.base),r=model.size*geo.scale,top=geo.floor-1.23*r,half=1.27*r;
+    ctx.save();if(ghost){ctx.globalAlpha=.42;ctx.setLineDash([5,4]);}
+    ctx.beginPath();ctx.moveTo(cx-half,top);ctx.lineTo(cx-r,top);ctx.arc(cx,top,r,Math.PI,0,true);ctx.lineTo(cx+half,top);ctx.lineTo(cx+half,geo.floor-2);ctx.lineTo(cx-half,geo.floor-2);ctx.closePath();
+    if(!ghost){ctx.fillStyle='#c4d8c9';ctx.fill();}ctx.strokeStyle=ghost?colors.ghost:colors.green;ctx.lineWidth=1.5;ctx.stroke();
+    if(!ghost){line(cx,top,cx,top+r,colors.green,1,[4,4]);circle(cx,top,2.5,colors.green);text('R',cx+10,top+r*.48,colors.green,12,'left',600);text('M',cx,geo.floor-12,colors.green,11);}
+    const bx=geo.x(p.object),by=top+r*Math.cos(p.theta);
+    if(ghost)circle(bx,by,8,'',colors.orange,1.5);else{circle(bx,by,9,'#fff');circle(bx,by,6.5,colors.orange);}
+    ctx.restore();
+    if(!ghost)text('m',bx+(p.theta>0?-15:15),by-14,colors.orange,11);
+  }
+  function drawPendulum(p,geo,ghost=false) {
+    const cx=geo.x(p.base),r=model.size*geo.scale,cartTop=geo.floor-34,pivot=cartTop-27-r,half=.61*r;
+    const bx=geo.x(p.object),by=pivot+r*Math.cos(p.theta);
+    ctx.save();if(ghost){ctx.globalAlpha=.38;ctx.setLineDash([4,4]);}
+    const green=ghost?colors.ghost:colors.green;
+    line(cx+r*.22,cartTop,cx+r*.22,pivot,green,3,ghost?[4,4]:[]);
+    line(cx+r*.22,pivot,cx,pivot,green,3,ghost?[4,4]:[]);
+    ctx.beginPath();ctx.rect(cx-half,cartTop,2*half,21);if(!ghost){ctx.fillStyle='#bdd5c7';ctx.fill();}ctx.strokeStyle=green;ctx.lineWidth=1.5;ctx.stroke();
+    for(const wx of [cx-half*.64,cx+half*.64]){circle(wx,geo.floor-7,6.5,ghost?'':'#f8faf8',green,1.5);if(!ghost)circle(wx,geo.floor-7,2,green);}
+    line(cx,pivot,bx,by,ghost?colors.ghost:colors.ink,1.8,ghost?[4,4]:[]);
+    circle(cx,pivot,3,ghost?'':colors.green,green,1);
+    if(ghost)circle(bx,by,8,'',colors.orange,1.5);else{circle(bx,by,10,'white');circle(bx,by,7.5,colors.orange);text('小车 M',cx,cartTop+10,colors.green,10);const nx=Math.cos(p.theta),ny=-Math.sin(p.theta);text('l',(cx+bx)/2+nx*12,(pivot+by)/2+ny*12,colors.ink,13,'center',600);text('m',bx+Math.sign(p.theta||1)*16,by-12,colors.orange,11);}
+    ctx.restore();
+  }
+  function geometry() {
+    const size=model.size, samples=model.times.map(t=>model.at(t));
+    let lo=Infinity,hi=-Infinity;
+    for(const p of samples){const half=state.kind==='boat'?size/2:state.kind==='groove'?size*1.27:size*.61;lo=Math.min(lo,p.base-half,p.object);hi=Math.max(hi,p.base+half,p.object);}
+    const padding=width<450?33:52,floor=height-121;
+    let scale=(width-2*padding)/(hi-lo);
+    if(state.kind!=='boat')scale=Math.min(scale,(state.kind==='groove'?(floor-88)/1.23:floor-139)/size);
+    const middle=(lo+hi)/2;
+    return {scale,floor,x:v=>width/2+(v-middle)*scale,lo:middle-width/(2*scale),hi:middle+width/(2*scale)};
+  }
+  function draw() {
+    if(!model||!width||!height||!ctx)return;
+    ctx.clearRect(0,0,width,height);
+    const cfg=config[state.kind],p=model.at(state.time),ref=model.at(referenceTime()),d=model.difference(referenceTime(),state.time),geo=geometry();
+    // The camera and ground ruler remain fixed throughout a complete run.
+    for(let xx=20;xx<width;xx+=24)for(let yy=14;yy<height;yy+=24)circle(xx,yy,.65,colors.grid);
+    text(`相对${cfg.base}的水平位移  Δs = ${ratio(d.relative)}`,width/2,25,colors.ink,width<420?10:11);
+    const stepRaw=(geo.hi-geo.lo)/7, power=10**Math.floor(Math.log10(stepRaw));
+    const step=[1,2,5,10].map(n=>n*power).find(n=>n>=stepRaw);
+    line(16,geo.floor+14,width-16,geo.floor+14,'#c7d3c9',1);
+    for(let v=Math.ceil(geo.lo/step)*step;v<=geo.hi;v+=step){const px=geo.x(v);if(px<20||px>width-20)continue;line(px,geo.floor+11,px,geo.floor+18,'#a8b9ae',1);text(`${fmt(v,step<1?1:0)}`,px,geo.floor+28,colors.muted,9);}
+    text(cfg.ground==='岸'?'固定岸边标尺 / m':'固定地面标尺 / m',width-17,geo.floor+43,colors.muted,9,'right');
+    if(state.kind==='boat'){
+      for(let wx=8;wx<width;wx+=42){ctx.beginPath();ctx.moveTo(wx,geo.floor-7);ctx.quadraticCurveTo(wx+9,geo.floor-12,wx+18,geo.floor-7);ctx.quadraticCurveTo(wx+26,geo.floor-3,wx+35,geo.floor-7);ctx.strokeStyle='#d0e1d9';ctx.lineWidth=1;ctx.stroke();}
+    }else line(16,geo.floor,width-16,geo.floor,'#bacbbf',1.5);
+    if($('show-trail').checked){
+      ctx.save();ctx.setLineDash([2,5]);ctx.strokeStyle=colors.orange;ctx.globalAlpha=.4;ctx.lineWidth=1.5;ctx.beginPath();
+      const limit=state.kind==='pendulum'?model.times[2]:model.duration;
+      for(let j=0;j<=160;j++){const a=model.at(limit*j/160);let yy;
+        if(state.kind==='boat')yy=geo.floor-58;
+        else if(state.kind==='groove')yy=geo.floor-1.23*model.size*geo.scale+model.size*geo.scale*Math.cos(a.theta);
+        else yy=geo.floor-61-model.size*geo.scale+model.size*geo.scale*Math.cos(a.theta);
+        if(j===0)ctx.moveTo(geo.x(a.object),yy);else ctx.lineTo(geo.x(a.object),yy);
+      }ctx.stroke();ctx.restore();
+    }
+    const painter=state.kind==='boat'?drawBoat:state.kind==='groove'?drawGroove:drawPendulum;
+    if($('show-ghost').checked&&state.time>referenceTime()+1e-7)painter(ref,geo,true);
+    painter(p,geo);
+    if($('show-com').checked){
+      const cx=geo.x(p.com);line(cx,53,cx,geo.floor+3,colors.purple,1,[3,5]);
+      ctx.save();ctx.translate(cx,geo.floor+3);ctx.rotate(Math.PI/4);ctx.fillStyle=colors.purple;ctx.fillRect(-3,-3,6,6);ctx.restore();
+      text('xC 固定',XCPhysics.clamp(cx,38,width-38),44,colors.purple,9);
+    }
+    const baseLabel=`${cfg.base}对${cfg.ground}  ${signed(d.base)} m  (${ratio(d.base)})`;
+    const objectLabel=`${cfg.object}对${cfg.ground}  ${signed(d.object)} m  (${ratio(d.object)})`;
+    displacementArrow(geo.x(ref.base),geo.x(p.base),geo.floor+67,baseLabel,colors.green);
+    displacementArrow(geo.x(ref.object),geo.x(p.object),geo.floor+105,objectLabel,colors.orange);
+  }
+  document.querySelectorAll('.tab').forEach(el=>el.addEventListener('click',()=>switchScene(el.dataset.scene)));
+  document.querySelector('.tabs').addEventListener('keydown',e=>{
+    const tabs=[...document.querySelectorAll('.tab')],index=tabs.indexOf(document.activeElement);
+    if(index<0)return;
+    let next=index;
+    if(e.key==='ArrowRight')next=(index+1)%tabs.length;else if(e.key==='ArrowLeft')next=(index+tabs.length-1)%tabs.length;else if(e.key==='Home')next=0;else if(e.key==='End')next=tabs.length-1;else return;
+    e.preventDefault();tabs[next].focus();switchScene(tabs[next].dataset.scene);
+  });
+  $('stage-track').addEventListener('click',e=>{const button=e.target.closest('[data-state]');if(button)jump(model.times[Number(button.dataset.state)]);});
+  $('play-btn').addEventListener('click',play);
+  $('reset-btn').addEventListener('click',()=>jump(0,'已回到初始状态'));
+  $('prev-btn').addEventListener('click',()=>{const t=[...model.times].reverse().find(t=>t<state.time-1e-8);if(t!==undefined)jump(t);});
+  $('next-btn').addEventListener('click',()=>{const t=model.times.find(t=>t>state.time+1e-8);if(t!==undefined)jump(t);});
+  $('timeline').addEventListener('input',()=>jump(Number($('timeline').value)/10000*model.duration,'正在查看所选时刻'));
+  ['segment','total'].forEach(mode=>$(`mode-${mode}`).addEventListener('click',()=>{state.mode=mode;$('mode-segment').setAttribute('aria-pressed',String(mode==='segment'));$('mode-total').setAttribute('aria-pressed',String(mode==='total'));render();}));
+  ['show-ghost','show-trail','show-com'].forEach(id=>$(id).addEventListener('change',draw));
+  ['base-mass','object-mass','size'].forEach((id,index)=>{
+    const commit=source=>{
+      const value=Number(source.value),range=config[state.kind].ranges[index];
+      if(!source.value.trim()||!Number.isFinite(value)){source.value=String(saved[state.kind][index]);return;}
+      const snapped=range[0]+Math.round((XCPhysics.clamp(value,range[0],range[1])-range[0])/range[2])*range[2];
+      saved[state.kind][index]=Math.round(snapped*1e6)/1e6;
+      rebuild();
+    };
+    $(id).addEventListener('input',()=>commit($(id)));
+    $(`${id}-number`).addEventListener('change',()=>commit($(`${id}-number`)));
+    $(`${id}-number`).addEventListener('keydown',e=>{if(e.key==='Enter')e.currentTarget.blur();});
+  });
+  document.addEventListener('keydown',e=>{if(e.code==='Space'&&e.target===document.body){e.preventDefault();play();}});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden&&state.playing)pause('页面已离开，播放暂停');});
+  rebuild();
+  new ResizeObserver(resize).observe(canvas);
+  window.addEventListener('beforeprint',resize);
+})();
+</script>
+</body>
+</html>
