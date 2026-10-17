@@ -1,554 +1,1996 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>钢尺弯曲与振动 3D 物理仿真 (带阻尼动力学版)</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #1a1a1a;
-            color: #e0e0e0;
-            display: flex;
-            height: 100vh;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a0b0f">
+<title>钢尺悬臂梁 · 弯曲与衰减振动</title>
 
-        #sidebar {
-            width: 340px;
-            background-color: #252525;
-            padding: 20px;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.5);
-            overflow-y: auto;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-        }
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<!-- three.js：主源 cdnjs，失败自动回落 unpkg / jsdelivr -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>window.THREE || document.write('<script src="https://unpkg.com/three@0.128.0/build/three.min.js"><\/script>');</script>
+<script>window.THREE || document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/script>');</script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>window.THREE && THREE.OrbitControls || document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"><\/script>');</script>
+<script>
+  // 3D 引擎缺失时，避免整页脚本中断：给出提示，UI 仍可阅读
+  if (typeof THREE === "undefined") {
+    document.addEventListener("DOMContentLoaded", function () {
+      var n = document.getElementById("glLost");
+      if (n) { n.style.display = "flex"; n.firstChild.textContent = "3D 引擎加载失败"; }
+      var c = document.getElementById("gl");
+      if (c) c.style.display = "none";
+    });
+  }
+</script>
 
-        #canvas-container {
-            flex: 1;
-            position: relative;
-            min-width: 0; 
-        }
+<style>
+  :root{
+    --bg:#0a0b0f;
+    --bg2:#0e1015;
+    --panel:rgba(19,22,29,.82);
+    --panel-solid:#12151c;
+    --line:rgba(255,255,255,.075);
+    --line2:rgba(255,255,255,.14);
+    --txt:#e8ecf3;
+    --dim:#8b93a3;
+    --dim2:#5d6675;
+    --acc:#6fe3ff;
+    --acc-dim:rgba(111,227,255,.14);
+    --warm:#ffb454;
+    --ok:#4fe0a8;
+    --bad:#ff6b6b;
+    --r:15px;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Roboto Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0}
+  body{
+    background:var(--bg);color:var(--txt);font-family:var(--sans);
+    font-size:14px;line-height:1.5;overflow:hidden;
+    display:grid;grid-template-columns:360px 1fr;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit;color:inherit}
 
-        h2 {
-            margin-top: 0;
-            color: #4fc3f7;
-            border-bottom: 2px solid #4fc3f7;
-            padding-bottom: 5px;
-            font-size: 1.2em;
-        }
+  /* ============ 3D 舞台 ============ */
+  #stage{
+    position:relative;overflow:hidden;min-width:0;
+    background:
+      radial-gradient(120% 90% at 62% 8%, rgba(84,140,190,.16), transparent 62%),
+      radial-gradient(90% 70% at 18% 92%, rgba(255,180,84,.07), transparent 60%),
+      linear-gradient(180deg,#0c0f16 0%,#080a0e 55%,#05060a 100%);
+  }
+  #stage::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(115% 80% at 50% 42%,transparent 45%,rgba(0,0,0,.55) 100%);
+  }
+  #gl{display:block;width:100%;height:100%;touch-action:none}
+  #glLost{
+    display:none;position:absolute;inset:0;z-index:4;flex-direction:column;
+    align-items:center;justify-content:center;gap:6px;text-align:center;
+    color:var(--dim);font-size:13px;letter-spacing:.03em;pointer-events:none;
+  }
+  #glLost span{font-size:11px;color:var(--dim2)}
 
-        h3 {
-            color: #81c784;
-            margin-top: 15px;
-            margin-bottom: 5px;            font-size: 1em;
-        }
+  /* ============ HUD ============ */
+  .glass{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    backdrop-filter:blur(18px) saturate(1.25);
+    -webkit-backdrop-filter:blur(18px) saturate(1.25);
+    box-shadow:0 18px 46px -24px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.045);
+  }
 
-        .control-group {
-            margin-bottom: 12px;
-        }
+  #hud{
+    position:absolute;top:18px;right:18px;z-index:6;
+    display:flex;flex-direction:column;gap:8px;align-items:flex-end;
+    pointer-events:none;
+  }
+  .chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .chip{
+    padding:7px 11px;border-radius:11px;font-size:11.5px;letter-spacing:.02em;
+    display:flex;align-items:center;gap:7px;white-space:nowrap;
+    background:rgba(14,17,23,.72);border:1px solid var(--line);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  }
+  .chip .k{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.09em}
+  .chip .v{font-family:var(--mono);font-size:12.5px;color:var(--txt);font-variant-numeric:tabular-nums}
+  .chip .v.accent{color:var(--acc)}
+  .chip .v.warn{color:var(--warm)}
+  .chip .v.bad{color:var(--bad)}
 
-        .control-group label {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.9em;
-            margin-bottom: 4px;
-        }
+  #status{
+    display:flex;align-items:center;gap:8px;padding:8px 13px;border-radius:11px;
+    font-size:12px;background:rgba(14,17,23,.72);border:1px solid var(--line);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:.3s;
+  }
+  #status .dot{width:7px;height:7px;border-radius:50%;background:var(--dim2);transition:.3s}
+  #status.press{border-color:rgba(255,180,84,.4);color:var(--warm)}
+  #status.press .dot{background:var(--warm);box-shadow:0 0 10px var(--warm)}
+  #status.vib{border-color:rgba(111,227,255,.4);color:var(--acc)}
+  #status.vib .dot{background:var(--acc);box-shadow:0 0 10px var(--acc);animation:pulse 1.1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-        .control-group input[type="range"] {
-            width: 100%;
-            cursor: pointer;
-        }
+  /* 示波器 */
+  #scopeCard{
+    position:absolute;left:18px;bottom:18px;z-index:6;width:286px;
+    padding:10px 12px 8px;pointer-events:none;
+  }
+  #scopeCard .cap{
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-size:10.5px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;
+  }
+  #scopeCard .cap b{font-family:var(--mono);font-size:11px;color:var(--acc);font-weight:500;letter-spacing:0;text-transform:none}
+  #scope{display:block;width:100%;height:78px}
 
-        .value-display {
-            color: #ffb74d;
-            font-weight: bold;
-        }
+  /* 按压坞 */
+  #dock{
+    position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:7;
+    display:flex;flex-direction:column;align-items:center;gap:9px;
+  }
+  #pressBtn{
+    position:relative;border:none;cursor:pointer;overflow:hidden;
+    padding:0 34px;height:52px;border-radius:26px;
+    font-size:14.5px;font-weight:600;letter-spacing:.06em;
+    color:#1a1206;
+    background:linear-gradient(180deg,#ffd18a,#ffab3f);
+    box-shadow:0 10px 30px -10px rgba(255,170,60,.7),inset 0 1px 0 rgba(255,255,255,.55),0 0 0 1px rgba(255,190,110,.35);
+    transition:transform .1s ease,box-shadow .2s ease,filter .2s;
+    touch-action:none;user-select:none;
+  }
+  #pressBtn:hover{filter:brightness(1.05)}
+  #pressBtn.on{
+    transform:translateY(2px) scale(.985);
+    box-shadow:0 4px 14px -6px rgba(255,170,60,.7),inset 0 2px 10px rgba(140,70,0,.28),0 0 0 1px rgba(255,190,110,.5);
+  }
+  #pressBtn .fill{
+    position:absolute;left:0;bottom:0;height:100%;width:0%;
+    background:linear-gradient(90deg,rgba(255,255,255,.0),rgba(255,255,255,.35));
+    pointer-events:none;transition:width .06s linear;
+  }
+  #dock .hint{
+    font-size:11px;color:var(--dim2);letter-spacing:.03em;
+    background:rgba(10,12,16,.6);padding:4px 12px;border-radius:8px;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);white-space:nowrap;
+  }
+  #dock .hint kbd{
+    font-family:var(--mono);font-size:10px;background:rgba(255,255,255,.09);
+    border:1px solid var(--line2);border-radius:4px;padding:1px 5px;margin:0 2px;
+  }
 
-        button {
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-            background-color: #4fc3f7;
-            color: #1a1a1a;
-            border: none;
-            border-radius: 4px;
-            font-size: 1em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
+  /* 浮动数据标签 */
+  #tipTag{
+    position:absolute;z-index:5;pointer-events:none;transform:translate(-50%,-50%);
+    font-family:var(--mono);font-size:11px;color:var(--acc);
+    padding:3px 8px;border-radius:7px;white-space:nowrap;
+    background:rgba(9,14,19,.78);border:1px solid rgba(111,227,255,.3);
+    box-shadow:0 4px 16px -6px rgba(0,0,0,.8);
+    transition:opacity .2s;
+  }
 
-        button:hover {
-            background-color: #81d4fa;
-        }
+  /* ============ 控制面板 ============ */
+  #panel{
+    position:relative;z-index:10;display:flex;flex-direction:column;min-height:0;
+    background:linear-gradient(180deg,rgba(17,20,27,.97),rgba(12,14,19,.99));
+    border-right:1px solid var(--line);
+  }
+  #panel .head{padding:20px 20px 14px;border-bottom:1px solid var(--line);flex:none}
+  #panel h1{margin:0;font-size:16.5px;font-weight:650;letter-spacing:.01em;display:flex;align-items:center;gap:9px}
+  #panel h1 .mark{
+    width:22px;height:22px;border-radius:7px;flex:none;
+    background:linear-gradient(145deg,#c9d4e0,#7d8b9c 55%,#b9c6d4);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 2px 6px rgba(0,0,0,.5);
+    position:relative;
+  }
+  #panel h1 .mark::after{
+    content:"";position:absolute;inset:5px 4px;border-left:1px solid rgba(40,48,58,.55);
+    box-shadow:2px 0 0 -0.5px rgba(40,48,58,.35),4px 0 0 -0.5px rgba(40,48,58,.2);
+  }
+  #panel .sub{margin:6px 0 0;font-size:11.5px;color:var(--dim2);letter-spacing:.02em}
+  #panel .head .tools{position:absolute;right:16px;top:20px;display:flex;gap:6px}
+  .iconBtn{
+    width:28px;height:28px;border-radius:9px;border:1px solid var(--line);
+    background:rgba(255,255,255,.03);cursor:pointer;display:grid;place-items:center;
+    color:var(--dim);font-size:13px;transition:.16s;
+  }
+  .iconBtn:hover{background:rgba(255,255,255,.08);color:var(--txt);border-color:var(--line2)}
 
-        button.active {
-            background-color: #ef5350;
-            color: white;
-        }
+  .tabs{display:flex;gap:4px;padding:12px 16px 0;flex:none}
+  .tab{
+    flex:1;padding:8px 0;border-radius:9px 9px 0 0;border:none;background:transparent;
+    color:var(--dim2);font-size:12.5px;cursor:pointer;transition:.16s;letter-spacing:.02em;
+    border-bottom:2px solid transparent;
+  }
+  .tab:hover{color:var(--dim)}
+  .tab.on{color:var(--acc);border-bottom-color:var(--acc);background:linear-gradient(180deg,rgba(111,227,255,.06),transparent)}
 
-        #formula-container {
-            margin-top: 20px;
-            padding: 15px;            background-color: #333;
-            border-radius: 8px;
-            font-size: 0.85em;
-            overflow-x: auto;
-        }
+  .body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:6px 20px 22px;scrollbar-width:thin}
+  .body::-webkit-scrollbar{width:7px}
+  .body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
+  .body::-webkit-scrollbar-track{background:transparent}
+  .pane{display:none}
+  .pane.on{display:block;animation:fade .22s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 
-        .formula-block {
-            margin-bottom: 15px;
-            line-height: 1.5;
-        }
+  .sec{
+    display:flex;align-items:center;gap:8px;margin:20px 0 6px;
+    font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim2);
+  }
+  .sec::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line2),transparent)}
 
-        .katex {
-            font-size: 1.05em !important;
-        }
+  /* 预设 */
+  .presets{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .preset{
+    padding:8px 10px;border-radius:10px;border:1px solid var(--line);
+    background:rgba(255,255,255,.025);cursor:pointer;text-align:left;transition:.16s;
+  }
+  .preset:hover{background:rgba(255,255,255,.06);border-color:var(--line2)}
+  .preset.on{border-color:rgba(111,227,255,.45);background:rgba(111,227,255,.08)}
+  .preset .n{font-size:12px;display:block;color:var(--txt)}
+  .preset .d{font-size:10px;color:var(--dim2);font-family:var(--mono);margin-top:1px;display:block}
 
-        #info-overlay {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.6);
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 0.85em;
-            pointer-events: none;
-        }
-        
-        .status-indicator {
-            text-align: center;
-            padding: 5px;
-            margin-top: 10px;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 0.9em;
-        }
-        .status-press { background: #ef5350; color: white; }
-        .status-vib { background: #ffb74d; color: #1a1a1a; }
-        .status-rest { background: #555; color: #ccc; }
-    </style>
+  /* 滑杆 */
+  .ctl{margin:13px 0 0}
+  .ctl .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;gap:8px}
+  .ctl .lab{font-size:12.5px;color:#c4ccd8}
+  .ctl .lab em{font-style:normal;color:var(--dim2);font-family:var(--mono);font-size:11px;margin-left:5px}
+  .ctl .val{font-family:var(--mono);font-size:12px;color:var(--acc);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ctl .val small{color:var(--dim2);font-size:10px;margin-left:2px}
+
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;
+    cursor:pointer;display:block;margin:0;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:3px;border-radius:2px;
+    background:linear-gradient(90deg,var(--acc) 0%,var(--acc) var(--p,50%),rgba(255,255,255,.11) var(--p,50%),rgba(255,255,255,.11) 100%);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:14px;height:14px;border-radius:50%;margin-top:-5.5px;
+    background:radial-gradient(circle at 35% 30%,#fff,#a8c8d6 70%);
+    border:none;box-shadow:0 0 0 3px rgba(111,227,255,.13),0 2px 5px rgba(0,0,0,.6);
+    transition:box-shadow .15s,transform .1s;
+  }
+  input[type=range]:hover::-webkit-slider-thumb{box-shadow:0 0 0 5px rgba(111,227,255,.18),0 2px 6px rgba(0,0,0,.6)}
+  input[type=range]:active::-webkit-slider-thumb{transform:scale(1.12)}
+  input[type=range]::-moz-range-track{height:3px;border-radius:2px;background:rgba(255,255,255,.11)}
+  input[type=range]::-moz-range-progress{height:3px;border-radius:2px;background:var(--acc)}
+  input[type=range]::-moz-range-thumb{
+    width:14px;height:14px;border-radius:50%;border:none;
+    background:radial-gradient(circle at 35% 30%,#fff,#a8c8d6 70%);
+    box-shadow:0 0 0 3px rgba(111,227,255,.13);
+  }
+
+  /* 分段控件 / 开关 */
+  .seg{display:flex;gap:4px;padding:3px;background:rgba(255,255,255,.035);border-radius:10px;border:1px solid var(--line);margin-top:6px}
+  .seg button{
+    flex:1;padding:6px 4px;border:none;background:transparent;border-radius:7px;
+    font-size:11.5px;color:var(--dim);cursor:pointer;transition:.15s;white-space:nowrap;
+  }
+  .seg button:hover{color:var(--txt)}
+  .seg button.on{background:rgba(111,227,255,.13);color:var(--acc);box-shadow:inset 0 0 0 1px rgba(111,227,255,.22)}
+  .switchRow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding:9px 11px;border-radius:10px;background:rgba(255,255,255,.025);border:1px solid var(--line)}
+  .switchRow .t{font-size:12.5px;color:#c4ccd8}
+  .switchRow .s{font-size:10.5px;color:var(--dim2);margin-top:1px}
+  .sw{width:38px;height:21px;border-radius:11px;background:rgba(255,255,255,.11);border:none;position:relative;cursor:pointer;transition:.2s;flex:none}
+  .sw::after{content:"";position:absolute;top:2.5px;left:2.5px;width:16px;height:16px;border-radius:50%;background:#8b93a3;transition:.2s}
+  .sw.on{background:rgba(111,227,255,.32)}
+  .sw.on::after{left:19.5px;background:var(--acc);box-shadow:0 0 10px rgba(111,227,255,.6)}
+
+  /* 数据表 */
+  .dataGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:6px}
+  .cell{
+    padding:9px 11px;border-radius:10px;background:rgba(255,255,255,.025);
+    border:1px solid var(--line);
+  }
+  .cell .k{font-size:10px;color:var(--dim2);letter-spacing:.04em;display:block}
+  .cell .v{font-family:var(--mono);font-size:13px;margin-top:3px;display:block;font-variant-numeric:tabular-nums;color:#dfe6ef}
+  .cell .v u{text-decoration:none;font-size:10px;color:var(--dim2);margin-left:2px}
+  .cell.wide{grid-column:1/-1}
+  .cell .bar{height:3px;border-radius:2px;background:rgba(255,255,255,.09);margin-top:7px;overflow:hidden}
+  .cell .bar i{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,var(--ok),var(--warm) 70%,var(--bad));transition:width .3s}
+
+  .note{
+    margin-top:10px;padding:10px 12px;border-radius:10px;font-size:11.5px;line-height:1.65;
+    color:var(--dim);background:rgba(111,227,255,.045);border:1px solid rgba(111,227,255,.14);
+  }
+  .note.warn{background:rgba(255,180,84,.06);border-color:rgba(255,180,84,.22);color:#d8c3a2}
+  .note b{color:#cfd8e3;font-weight:600}
+
+  /* 公式 */
+  .eqBlock{margin:12px 0 0;padding:12px 12px 8px;border-radius:11px;background:rgba(0,0,0,.26);border:1px solid var(--line);overflow-x:auto;overflow-y:hidden}
+  .eqBlock .lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim2);margin-bottom:8px}
+  .eqBlock .katex{font-size:.94em}
+  .eqBlock .num{margin-top:6px;font-family:var(--mono);font-size:11.5px;color:var(--acc)}
+  pre.raw{margin:0;font-family:var(--mono);font-size:11px;color:var(--dim);white-space:pre-wrap;word-break:break-word}
+
+  /* 底部 */
+  .foot{flex:none;padding:12px 20px 16px;border-top:1px solid var(--line);background:rgba(10,12,16,.5)}
+  .foot .row{display:flex;align-items:center;gap:10px}
+  .foot .st{flex:1;font-size:11.5px;color:var(--dim2)}
+  .foot .st b{display:block;color:var(--txt);font-size:12.5px;font-weight:500}
+  .bigBtn{
+    width:100%;height:42px;border-radius:11px;border:1px solid rgba(111,227,255,.3);
+    background:linear-gradient(180deg,rgba(111,227,255,.16),rgba(111,227,255,.06));
+    color:#cdf3ff;font-size:13px;font-weight:600;letter-spacing:.06em;cursor:pointer;
+    transition:.15s;touch-action:none;user-select:none;
+  }
+  .bigBtn:hover{background:linear-gradient(180deg,rgba(111,227,255,.24),rgba(111,227,255,.1))}
+  .bigBtn.on{background:linear-gradient(180deg,#ffc978,#ffab3f);color:#241503;border-color:#ffcb80;box-shadow:inset 0 2px 8px rgba(150,80,0,.25)}
+
+  /* 移动端面板 */
+  #panelToggle{display:none}
+  #sheetHandle{display:none}
+
+  @media (max-width:880px){
+    body{grid-template-columns:1fr;grid-template-rows:1fr}
+    #panel{
+      position:fixed;left:0;right:0;bottom:0;height:76vh;z-index:30;
+      border-right:none;border-top:1px solid var(--line2);
+      border-radius:20px 20px 0 0;
+      transform:translateY(calc(100% + 20px));
+      transition:transform .34s cubic-bezier(.22,1,.36,1);
+      box-shadow:0 -20px 60px -20px rgba(0,0,0,.9);
+    }
+    #panel.open{transform:none}
+    #panel .head{padding:12px 18px 10px}
+    #panel .head .tools{top:12px;right:14px}
+    #sheetHandle{
+      display:block;width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);
+      margin:8px auto 2px;
+    }
+    #panelToggle{
+      display:flex;align-items:center;gap:7px;
+      position:absolute;top:16px;left:16px;z-index:8;
+      padding:9px 14px;border-radius:12px;font-size:12.5px;
+      background:rgba(14,17,23,.78);border:1px solid var(--line);color:var(--txt);
+      backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);cursor:pointer;
+    }
+    #hud{top:16px;right:14px;gap:6px}
+    .chip{padding:6px 9px;font-size:11px}
+    .chip .k{font-size:9.5px}
+    .chip .v{font-size:11.5px}
+    #scopeCard{left:12px;right:12px;bottom:104px;width:auto;padding:8px 10px 6px}
+    #scope{height:56px}
+    #dock{bottom:calc(18px + env(safe-area-inset-bottom))}
+    #pressBtn{height:48px;padding:0 30px;font-size:13.5px}
+    #dock .hint{font-size:10px}
+  }
+  @media (max-width:420px){
+    #scopeCard{display:none}
+  }
+</style>
 </head>
 <body>
 
-<div id="sidebar">
-    <h2>物理参数控制</h2>
-    
-    <h3>几何与材料</h3>
-    <div class="control-group">
-        <label>总长度 $l$ <span class="value-display" id="val-l">0.30 m</span></label>
-        <input type="range" id="param-l" min="0.1" max="0.5" step="0.01" value="0.3">
+<aside id="panel">
+  <div id="sheetHandle"></div>
+  <div class="head">
+    <div class="tools">
+      <button class="iconBtn" id="btnView" title="重置视角">⌂</button>
+      <button class="iconBtn" id="btnSound" title="声音">🔊</button>
     </div>
-    <div class="control-group">        <label>悬空长度 $x$ <span class="value-display" id="val-x">0.20 m</span></label>
-        <input type="range" id="param-x" min="0.05" max="0.5" step="0.01" value="0.2">
-    </div>
-    <div class="control-group">
-        <label>宽度 $b$ <span class="value-display" id="val-b">30 mm</span></label>
-        <input type="range" id="param-b" min="10" max="50" step="1" value="30">
-    </div>
-    <div class="control-group">
-        <label>厚度 $h$ <span class="value-display" id="val-h">0.5 mm</span></label>
-        <input type="range" id="param-h" min="0.1" max="2.0" step="0.1" value="0.5">
-    </div>
-    <div class="control-group">
-        <label>总质量 $m$ <span class="value-display" id="val-m">50 g</span></label>
-        <input type="range" id="param-m" min="10" max="200" step="5" value="50">
+    <h1><span class="mark"></span>钢尺悬臂梁</h1>
+    <p class="sub">几何非线性弯曲 · 模态衰减振动 · 3D 实时求解</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="params">参数</button>
+    <button class="tab" data-tab="data">数据</button>
+    <button class="tab" data-tab="theory">公式</button>
+  </div>
+
+  <div class="body">
+    <!-- ============ 参数 ============ -->
+    <div class="pane on" id="pane-params">
+      <div class="sec">尺子预设</div>
+      <div class="presets" id="presets"></div>
+
+      <div class="sec">几何</div>
+      <div id="ctlGeom"></div>
+
+      <div class="sec">材料</div>
+      <div class="seg" id="matSeg"></div>
+
+      <div class="sec">载荷</div>
+      <div id="ctlLoad"></div>
+
+      <div class="sec">动力学与显示</div>
+      <div id="ctlDyn"></div>
+
+      <div class="switchRow">
+        <div>
+          <div class="t">几何非线性（弹性线）</div>
+          <div class="s">大挠度时按真实弧长积分，水平投影会缩短</div>
+        </div>
+        <button class="sw on" id="swNonlin"></button>
+      </div>
     </div>
 
-    <h3>力学参数</h3>
-    <div class="control-group">
-        <label>施力位置 $y$ <span class="value-display" id="val-y">0.15 m</span></label>
-        <input type="range" id="param-y" min="0.01" max="0.5" step="0.01" value="0.15">
-    </div>
-    <div class="control-group">
-        <label>施加力 $n$ <span class="value-display" id="val-n">2.0 N</span></label>
-        <input type="range" id="param-n" min="0" max="10" step="0.1" value="2.0">
-    </div>
-
-    <h3>可视化与动力学控制</h3>
-    <div class="control-group">
-        <label>挠度放大倍数 <span class="value-display" id="val-scale">10x</span></label>
-        <input type="range" id="param-scale" min="1" max="100" step="1" value="10">
-    </div>
-    <div class="control-group">
-        <label>阻尼比 $\zeta$ <span class="value-display" id="val-zeta">2.0%</span></label>
-        <input type="range" id="param-zeta" min="0" max="0.2" step="0.005" value="0.02">
+    <!-- ============ 数据 ============ -->
+    <div class="pane" id="pane-data">
+      <div class="sec">截面与材料</div>
+      <div class="dataGrid" id="dGrid1"></div>
+      <div class="sec">固有频率</div>
+      <div class="dataGrid" id="dGrid2"></div>
+      <div class="sec">当前状态</div>
+      <div class="dataGrid" id="dGrid3"></div>
+      <div id="dNote"></div>
     </div>
 
-    <button id="btn-press">按住 / 松开 (切换状态)</button>
-    <div id="status-box" class="status-indicator status-rest">当前状态：静止</div>
-
-    <div id="formula-container">
-        <h3>实时解析方程</h3>
-        <div class="formula-block" id="static-formula"></div>
-        <div class="formula-block" id="dynamic-formula"></div>
-        <div class="formula-block" id="freq-formula"></div>
-        <div class="formula-block" id="result-formula"></div>
+    <!-- ============ 公式 ============ -->
+    <div class="pane" id="pane-theory">
+      <div class="eqBlock">
+        <div class="lbl">1 · 弹性线方程（大挠度）</div>
+        <div id="eq1"></div>
+        <div class="num" id="eq1n"></div>
+      </div>
+      <div class="eqBlock">
+        <div class="lbl">2 · 小挠度解析解（对照）</div>
+        <div id="eq2"></div>
+        <div class="num" id="eq2n"></div>
+      </div>
+      <div class="eqBlock">
+        <div class="lbl">3 · 悬臂梁固有频率与振型</div>
+        <div id="eq3"></div>
+        <div class="num" id="eq3n"></div>
+      </div>
+      <div class="eqBlock">
+        <div class="lbl">4 · 释放后的阻尼自由振动</div>
+        <div id="eq4"></div>
+        <div class="num" id="eq4n"></div>
+      </div>
+      <div class="eqBlock">
+        <div class="lbl">5 · 根部弯曲应力</div>
+        <div id="eq5"></div>
+        <div class="num" id="eq5n"></div>
+      </div>
+      <div class="note">
+        <b>数值方法</b>：悬空段离散为 128 段，用不动点迭代求解
+        <span style="font-family:var(--mono)">θ(s)=∫M/EI·ds</span> 与几何积分
+        <span style="font-family:var(--mono)">x'=cosθ, y'=sinθ</span> 的耦合，
+        每帧收敛判据 2×10⁻⁶·x。释放瞬间把静态变形投影到前 6 阶振型，
+        因此起振形状连续、不会突跳。
+      </div>
     </div>
-</div>
+  </div>
 
-<div id="canvas-container">
-    <div id="info-overlay">        鼠标左键：旋转 | 右键：平移 | 滚轮：缩放
+  <div class="foot">
+    <div class="row">
+      <div class="st">
+        <b id="footState">静止</b>
+        <span id="footSub">重力下垂 0.00 mm</span>
+      </div>
     </div>
-</div>
+    <button class="bigBtn" id="pressBtn2" style="margin-top:9px">按住下压</button>
+  </div>
+</aside>
+
+<main id="stage">
+  <canvas id="gl"></canvas>
+  <div id="glLost">3D 渲染上下文丢失<br><span>请刷新页面（或切换后台再回来）</span></div>
+
+  <button id="panelToggle">☰ 参数</button>
+
+  <div id="hud">
+    <div id="status"><span class="dot"></span><span id="statusTxt">静止</span></div>
+    <div class="chips">
+      <div class="chip"><span class="k">f₁</span><span class="v accent" id="hudF1">–</span></div>
+      <div class="chip"><span class="k">δ</span><span class="v" id="hudD">–</span></div>
+      <div class="chip"><span class="k">σ</span><span class="v" id="hudS">–</span></div>
+    </div>
+  </div>
+
+  <div id="scopeCard" class="glass">
+    <div class="cap"><span>端点位移 / mm</span><b id="scopeVal">0.00</b></div>
+    <canvas id="scope"></canvas>
+  </div>
+
+  <div id="tipTag" style="opacity:0">0.00 mm</div>
+
+  <div id="dock">
+    <button id="pressBtn"><span class="fill" id="pressFill"></span><span id="pressLbl">按住下压</span></button>
+    <div class="hint">拖动钢尺自由按压 · 或 <kbd>空格</kbd> 按住</div>
+  </div>
+</main>
 
 <script>
-    // ================= 物理与全局变量 =================
-    const params = {
-        l: 0.3, x: 0.2, b: 0.03, h: 0.0005, m: 0.05,
-        y: 0.15, n: 2.0, E: 2e11, scale: 10, zeta: 0.02
+"use strict";
+/* =========================================================================
+   钢尺悬臂梁 —— 弯曲与衰减振动
+   物理：Euler-Bernoulli 梁 + 几何非线性（弹性线）+ 模态叠加阻尼振动
+   ========================================================================= */
+
+const G = 9.80665;
+const BETA = [1.87510407, 4.69409113, 7.85475744, 10.99554073, 14.13716839, 17.27875953];
+const SIGMA = BETA.map(b => (Math.cosh(b) + Math.cos(b)) / (Math.sinh(b) + Math.sin(b)));
+const NMODE = 6;
+const NS = 128;                 // 悬空段单元数
+const NCLAMP = 14;              // 夹持段节点数
+const NTOT = NCLAMP + NS + 1;   // 显示节点总数
+
+/* ---------------------------- 材料库 ---------------------------- */
+const MATERIALS = {
+  steel:     { name: "不锈钢",  E: 200e9, rho: 7900, sy: 505e6, tint: 0xffffff },
+  carbon:    { name: "碳钢",    E: 210e9, rho: 7850, sy: 235e6, tint: 0xffffff },
+  brass:     { name: "黄铜",    E: 100e9, rho: 8500, sy: 200e6, tint: 0xffd9a0 },
+  alu:       { name: "铝合金",  E:  69e9, rho: 2700, sy: 110e6, tint: 0xffffff },
+  spring:    { name: "弹簧钢",  E: 207e9, rho: 7850, sy: 1200e6, tint: 0xf0f4ff }
+};
+
+/* ---------------------------- 状态 ---------------------------- */
+const S = {
+  l: 0.300, x: 0.200, b: 0.025, h: 0.0010,   // m
+  mat: "steel",
+  F: 2.0, y: 0.180,                          // N, m
+  zeta: 0.020, amp: 1, slow: 0.1,
+  nonlinear: true, sound: true
+};
+
+const D = { I:0, EI:0, A:0, rhoA:0, m:0, q:0, w1:0, f1:0, f2:0, f3:0, sy:0, E:0, rho:0 };
+
+/* ---------------------------- 求解器 ---------------------------- */
+const SOL = {
+  X: new Float64Array(NS+1),
+  V: new Float64Array(NS+1),
+  TH: new Float64Array(NS+1),
+  M: new Float64Array(NS+1)
+};
+const GRAV = new Float64Array(NS+1);      // 重力静挠度
+const GRAVX = new Float64Array(NS+1);     // 重力平衡下的水平坐标
+const SHAPE = new Float64Array(NS+1);     // 当前显示挠度
+const PRESSED = new Float64Array(NS+1);   // 按压静挠度
+const MODE = Array.from({length: NMODE}, () => new Float64Array(NS+1));
+const RESID = new Float64Array(NS+1);    // 模态投影残差（快速衰减，保证释放瞬间连续）
+const VIB = {
+  active: false, t: 0, A: new Float64Array(NMODE), amp0: 0, residTau: 0.12
+};
+let gravConv = true;
+
+function derive() {
+  const M = MATERIALS[S.mat];
+  D.E = M.E; D.rho = M.rho; D.sy = M.sy;
+  D.A = S.b * S.h;
+  D.I = S.b * Math.pow(S.h, 3) / 12;
+  D.EI = D.E * D.I;
+  D.rhoA = D.rho * D.A;
+  D.m = D.rhoA * S.l;
+  D.q = D.rhoA * G;
+  const c = Math.sqrt(D.EI / D.rhoA) / (S.x * S.x);
+  D.w1 = c * BETA[0] * BETA[0];
+  D.f1 = D.w1 / (2 * Math.PI);
+  D.f2 = D.f1 * Math.pow(BETA[1] / BETA[0], 2);
+  D.f3 = D.f1 * Math.pow(BETA[2] / BETA[0], 2);
+}
+
+/* 静态求解：返回是否收敛。结果写入 SOL */
+function solveStatic(F, yLoad) {
+  const ds = S.x / NS, q = D.q, EI = D.EI;
+  const X = SOL.X, V = SOL.V, TH = SOL.TH, M = SOL.M;
+  const iy = Math.max(0, Math.min(NS, Math.round(yLoad / ds)));
+  for (let i = 0; i <= NS; i++) X[i] = i * ds;
+
+  if (!S.nonlinear) {
+    // 线性理论（小角度）
+    let aA = 0, aW = 0;
+    for (let i = NS; i >= 0; i--) {
+      let m = aA - X[i] * aW;
+      if (F > 0 && i <= iy) m += F * (X[iy] - X[i]);
+      M[i] = m;
+      aA += q * X[i] * ds; aW += q * ds;
+    }
+    let th = 0;
+    for (let i = 0; i <= NS; i++) {
+      TH[i] = th; V[i] = 0;
+      if (i < NS) th += 0.5 * (M[i] + M[i+1]) / EI * ds;
+    }
+    let v = 0;
+    for (let i = 0; i <= NS; i++) {
+      V[i] = v;
+      if (i < NS) v += 0.5 * (TH[i] + TH[i+1]) * ds;
+    }
+    return true;
+  }
+
+  let conv = false;
+  const tol = 2e-6 * S.x;
+  for (let it = 0; it < 420; it++) {
+    // 弯矩（以变形后水平位置为力臂）
+    let aA = 0, aW = 0;
+    for (let i = NS; i >= 0; i--) {
+      let m = aA - X[i] * aW;
+      if (F > 0 && i <= iy) m += F * (X[iy] - X[i]);
+      M[i] = m;
+      aA += q * X[i] * ds; aW += q * ds;
+    }
+    // 转角 θ(s) = ∫ M/EI ds
+    let th = 0;
+    for (let i = 0; i <= NS; i++) {
+      TH[i] = th;
+      if (i < NS) th += 0.5 * (M[i] + M[i+1]) / EI * ds;
+    }
+    // 几何积分 + 欠松弛
+    const relax = it < 220 ? 0.35 : 0.12;
+    let xx = 0, vv = 0, md = 0;
+    for (let i = 0; i <= NS; i++) {
+      const nx = X[i] + relax * (xx - X[i]);
+      const d = nx - X[i]; if (d > md) md = d; else if (-d > md) md = -d;
+      X[i] = nx; V[i] = vv;
+      if (i < NS) {
+        const tm = 0.5 * (TH[i] + TH[i+1]);
+        xx += Math.cos(tm) * ds;
+        vv += Math.sin(tm) * ds;
+      }
+    }
+    if (md < tol) { conv = true; break; }
+  }
+  return conv;
+}
+
+/* 振型（依赖悬空长度 x） */
+function buildModes() {
+  const ds = S.x / NS;
+  for (let k = 0; k < NMODE; k++) {
+    const b = BETA[k], sg = SIGMA[k], W = MODE[k];
+    for (let i = 0; i <= NS; i++) {
+      const z = b * (i * ds) / S.x;
+      W[i] = (Math.cosh(z) - Math.cos(z)) - sg * (Math.sinh(z) - Math.sin(z));
+    }
+  }
+}
+
+/* 把位移剖面投影到振型上 */
+function projectModes(prof, out) {
+  const ds = S.x / NS;
+  for (let k = 0; k < NMODE; k++) {
+    const W = MODE[k];
+    let num = 0, den = 0;
+    for (let i = 0; i <= NS; i++) {
+      num += prof[i] * W[i] * ds;
+      den += W[i] * W[i] * ds;
+    }
+    out[k] = den > 1e-30 ? num / den : 0;
+  }
+}
+
+/* ---------------------------- 物理刷新 ---------------------------- */
+
+function refreshAll() {
+  derive();
+  buildModes();
+  gravConv = solveStatic(0, 0);
+  GRAV.set(SOL.V);
+  GRAVX.set(SOL.X);
+  if (!VIB.active) SHAPE.set(GRAV);
+}
+
+function stopVibration() {
+  VIB.active = false;
+  VIB.t = 0;
+  VIB.amp0 = 0;
+  VIB.A.fill(0);
+  RESID.fill(0);
+}
+
+/* ---------------------------- 3D 场景 ---------------------------- */
+const stageEl = document.getElementById("stage");
+let canvas = document.getElementById("gl");
+
+/* WebGL 不可用时降级：UI 与物理仍然可用，避免整页脚本中断 */
+function makeNullRenderer() {
+  return {
+    domElement: canvas,
+    capabilities: { getMaxAnisotropy: () => 1 },
+    shadowMap: { enabled: false, type: 0 },
+    info: { render: { calls: 0, triangles: 0 }, memory: { geometries: 0, textures: 0 } },
+    setPixelRatio() {}, setSize() {}, render() {}, dispose() {},
+    getContext: () => null, getClearAlpha: () => 0, getClearColor: (c) => c
+  };
+}
+/* 创建渲染器；部分环境首次创建上下文会失败，换一块新 canvas 重试一次 */
+function createRenderer() {
+  const opts = { canvas, antialias: true, alpha: true, powerPreference: "high-performance" };
+  try {
+    return new THREE.WebGLRenderer(opts);
+  } catch (e1) {
+    const fresh = canvas.cloneNode(false);
+    canvas.parentNode.replaceChild(fresh, canvas);
+    canvas = fresh;
+    try {
+      return new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    } catch (e2) {
+      return null;
+    }
+  }
+}
+let renderer = createRenderer();
+if (!renderer) {
+  renderer = makeNullRenderer();
+  const n = document.getElementById("glLost");
+  if (n) {
+    n.style.display = "flex";
+    n.firstChild.textContent = "当前环境不支持 WebGL 3D 渲染";
+  }
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+/* WebGL 上下文丢失保护：提示而不是白屏 */
+let glLost = false;
+renderer.domElement.addEventListener("webglcontextlost", (e) => {
+  e.preventDefault();
+  glLost = true;
+  const n = document.getElementById("glLost");
+  if (n) n.style.display = "flex";
+}, false);
+renderer.domElement.addEventListener("webglcontextrestored", () => {
+  glLost = false;
+  const n = document.getElementById("glLost");
+  if (n) n.style.display = "none";
+}, false);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 20);
+camera.position.set(0.30, 0.20, 0.36);
+
+/* OrbitControls 若加载失败，退化为内置简易轨道控制器，保证页面可用 */
+function makeFallbackControls(cam, dom) {
+  const ctl = {
+    target: new THREE.Vector3(0, 0, 0),
+    enabled: true, enableDamping: true, dampingFactor: 0.08,
+    minDistance: 0.08, maxDistance: 1.4, maxPolarAngle: Math.PI * 0.495,
+    rotateSpeed: 0.85,
+    _dTheta: 0, _dPhi: 0, _drag: null, _sph: new THREE.Spherical(),
+    update() {
+      const off = cam.position.clone().sub(ctl.target);
+      const sph = ctl._sph.setFromVector3(off);
+      sph.theta += ctl._dTheta;
+      sph.phi = Math.max(0.08, Math.min(ctl.maxPolarAngle, sph.phi + ctl._dPhi));
+      sph.radius = Math.max(ctl.minDistance, Math.min(ctl.maxDistance, sph.radius));
+      ctl._dTheta *= 0.86; ctl._dPhi *= 0.86;
+      if (Math.abs(ctl._dTheta) < 1e-5) ctl._dTheta = 0;
+      if (Math.abs(ctl._dPhi) < 1e-5) ctl._dPhi = 0;
+      cam.position.copy(ctl.target).add(new THREE.Vector3().setFromSpherical(sph));
+      cam.lookAt(ctl.target);
+    }
+  };
+  dom.addEventListener("pointerdown", (e) => {
+    if (!ctl.enabled) return;
+    ctl._drag = { x: e.clientX, y: e.clientY };
+    try { dom.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  dom.addEventListener("pointermove", (e) => {
+    if (!ctl._drag || !ctl.enabled) return;
+    ctl._dTheta -= (e.clientX - ctl._drag.x) * 0.0045 * ctl.rotateSpeed;
+    ctl._dPhi -= (e.clientY - ctl._drag.y) * 0.0045 * ctl.rotateSpeed;
+    ctl._drag = { x: e.clientX, y: e.clientY };
+  });
+  const stop = () => { ctl._drag = null; };
+  dom.addEventListener("pointerup", stop);
+  dom.addEventListener("pointercancel", stop);
+  dom.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const off = cam.position.clone().sub(ctl.target);
+    const len = Math.max(ctl.minDistance, Math.min(ctl.maxDistance, off.length() * (1 + Math.sign(e.deltaY) * 0.1)));
+    cam.position.copy(ctl.target).add(off.setLength(len));
+  }, { passive: false });
+  return ctl;
+}
+
+const controls = (typeof THREE.OrbitControls === "function")
+  ? new THREE.OrbitControls(camera, renderer.domElement)
+  : makeFallbackControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.075;
+controls.rotateSpeed = 0.85;
+controls.minDistance = 0.08;
+controls.maxDistance = 1.4;
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.target.set(0.05, -0.005, 0);
+
+/* --- 环境反射（程序化 equirect → PMREM）--- */
+(function buildEnv() {
+  const c = document.createElement("canvas");
+  c.width = 512; c.height = 256;
+  const g = c.getContext("2d");
+  const grd = g.createLinearGradient(0, 0, 0, 256);
+  grd.addColorStop(0.00, "#dcebff");
+  grd.addColorStop(0.34, "#8ba6c4");
+  grd.addColorStop(0.49, "#39434f");
+  grd.addColorStop(0.52, "#151a21");
+  grd.addColorStop(1.00, "#05070a");
+  g.fillStyle = grd; g.fillRect(0, 0, 512, 256);
+  // 柔光箱
+  const blob = (x, y, rx, ry, a) => {
+    const rg = g.createRadialGradient(x, y, 0, x, y, rx);
+    rg.addColorStop(0, "rgba(255,255,255," + a + ")");
+    rg.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = rg;
+    g.save(); g.translate(x, y); g.scale(1, ry / rx); g.beginPath();
+    g.arc(0, 0, rx, 0, Math.PI * 2); g.fill(); g.restore();
+  };
+  blob(140, 46, 130, 40, 0.95);
+  blob(360, 62, 90, 30, 0.55);
+  blob(470, 120, 60, 24, 0.25);
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.encoding = THREE.sRGBEncoding;
+  try {
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    pmrem.compileEquirectangularShader();
+    scene.environment = pmrem.fromEquirectangular(tex).texture;
+    tex.dispose();
+  } catch (e) { /* 环境贴图失败时仍可渲染 */ }
+})();
+
+/* --- 灯光 --- */
+scene.add(new THREE.HemisphereLight(0xa8c6ea, 0x161a20, 0.55));
+
+const key = new THREE.DirectionalLight(0xfff1de, 2.15);
+key.position.set(0.38, 0.62, 0.34);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+key.shadow.camera.near = 0.02;
+key.shadow.camera.far = 2.2;
+key.shadow.camera.left = -0.55;
+key.shadow.camera.right = 0.55;
+key.shadow.camera.top = 0.55;
+key.shadow.camera.bottom = -0.55;
+key.shadow.bias = -0.00018;
+key.shadow.normalBias = 0.00045;
+key.shadow.radius = 2.5;
+scene.add(key);
+scene.add(key.target);
+
+const rim = new THREE.DirectionalLight(0x9dc4ff, 0.85);
+rim.position.set(-0.45, 0.30, -0.55);
+scene.add(rim);
+
+const fill = new THREE.DirectionalLight(0xffd9a8, 0.28);
+fill.position.set(0.15, -0.3, 0.7);
+scene.add(fill);
+
+/* --- 桌面 --- */
+const deskTex = (function () {
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const g = c.getContext("2d");
+  g.fillStyle = "#2b2119"; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 900; i++) {
+    g.globalAlpha = Math.random() * 0.09;
+    g.fillStyle = Math.random() < 0.55 ? "#4a382a" : "#160f0a";
+    const y = Math.random() * 256, w = 30 + Math.random() * 190, h = 0.6 + Math.random() * 1.8;
+    g.fillRect(Math.random() * 256, y, w, h);
+  }
+  g.globalAlpha = 1;
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(5, 5);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+})();
+
+const desk = new THREE.Mesh(
+  new THREE.BoxGeometry(1.9, 0.06, 1.4),
+  new THREE.MeshStandardMaterial({ map: deskTex, color: 0x6a5341, roughness: 0.86, metalness: 0.04 })
+);
+desk.position.set(-0.95, -0.03, 0);
+desk.receiveShadow = true;
+desk.castShadow = true;
+scene.add(desk);
+
+// 桌沿高光条
+const edge = new THREE.Mesh(
+  new THREE.BoxGeometry(0.004, 0.004, 1.4),
+  new THREE.MeshStandardMaterial({ color: 0x8a6d52, roughness: 0.5, metalness: 0.2 })
+);
+edge.position.set(-0.001, 0.0005, 0);
+scene.add(edge);
+
+/* --- 夹具（C 型夹）--- */
+const clampGroup = new THREE.Group();
+scene.add(clampGroup);
+const clampMat = new THREE.MeshStandardMaterial({ color: 0x2a3038, roughness: 0.36, metalness: 0.92 });
+const padMat = new THREE.MeshStandardMaterial({ color: 0x11151a, roughness: 0.92, metalness: 0.05 });
+const knobMat = new THREE.MeshStandardMaterial({ color: 0x8e99a6, roughness: 0.28, metalness: 1.0 });
+
+function buildClamp(clampLen) {
+  while (clampGroup.children.length) {
+    const ch = clampGroup.children.pop();
+    if (ch.geometry) ch.geometry.dispose();
+  }
+  const k = clampLen / 0.075;      // 长度比例
+  const jawT = 0.009, bodyT = 0.011;
+
+  // 上颚（压住尺子）
+  const jaw = new THREE.Mesh(new THREE.BoxGeometry(clampLen * 0.92, jawT, 0.032), clampMat);
+  jaw.position.set(-clampLen * 0.46, S.h + jawT / 2, 0);
+  jaw.castShadow = true; jaw.receiveShadow = true;
+  clampGroup.add(jaw);
+
+  // 橡胶垫
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(clampLen * 0.9, 0.0018, 0.030), padMat);
+  pad.position.set(-clampLen * 0.46, S.h + 0.0009, 0);
+  clampGroup.add(pad);
+
+  // 立臂
+  const body = new THREE.Mesh(new THREE.BoxGeometry(bodyT, 0.052, 0.030), clampMat);
+  body.position.set(-clampLen * 0.93, S.h + jawT - 0.026, 0);
+  body.castShadow = true;
+  clampGroup.add(body);
+
+  // 螺杆 + 旋柄
+  const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.014, 14), knobMat);
+  screw.position.set(-clampLen * 0.46, S.h + jawT + 0.007, 0);
+  screw.castShadow = true;
+  clampGroup.add(screw);
+
+  const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.0085, 0.005, 22), knobMat);
+  knob.position.set(-clampLen * 0.46, S.h + jawT + 0.0145, 0);
+  knob.castShadow = true;
+  clampGroup.add(knob);
+
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.0035, 0.0035), knobMat);
+  bar.position.set(-clampLen * 0.46, S.h + jawT + 0.0145, 0);
+  bar.castShadow = true;
+  clampGroup.add(bar);
+}
+
+/* --- 钢尺几何 --- */
+function makeStrip(n) {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 2 * 3), 3));
+  geo.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(n * 2 * 2), 2));
+  const idx = [];
+  for (let j = 0; j < n - 1; j++) {
+    const a = j * 2, b = a + 1, c = a + 2, d = a + 3;
+    idx.push(a, b, d, a, d, c);
+  }
+  geo.setIndex(idx);
+  return geo;
+}
+
+const topGeo = makeStrip(NTOT);
+const botGeo = makeStrip(NTOT);
+const leftGeo = makeStrip(NTOT);
+const rightGeo = makeStrip(NTOT);
+
+const capGeo = new THREE.BufferGeometry();
+capGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(4 * 3), 3));
+capGeo.setIndex([0, 1, 2, 0, 2, 3]);
+
+const sideMat = new THREE.MeshStandardMaterial({
+  color: 0x9aa4b0, metalness: 1.0, roughness: 0.34, side: THREE.DoubleSide,
+  envMapIntensity: 1.0, shadowSide: THREE.FrontSide
+});
+const topMat = new THREE.MeshStandardMaterial({
+  color: 0xffffff, metalness: 0.93, roughness: 0.30, side: THREE.DoubleSide,
+  envMapIntensity: 1.15, shadowSide: THREE.FrontSide
+});
+
+const topMesh = new THREE.Mesh(topGeo, topMat);
+const botMesh = new THREE.Mesh(botGeo, sideMat);
+const leftMesh = new THREE.Mesh(leftGeo, sideMat);
+const rightMesh = new THREE.Mesh(rightGeo, sideMat);
+const capMesh = new THREE.Mesh(capGeo, sideMat);
+[topMesh, botMesh, leftMesh, rightMesh, capMesh].forEach(m => {
+  m.castShadow = true; m.receiveShadow = true;
+  m.frustumCulled = false;
+  scene.add(m);
+});
+
+/* --- 刻度贴图 --- */
+let rulerTex = null;
+function buildRulerTexture() {
+  // 按物理长宽比生成贴图，避免刻度被拉伸
+  const pxPerM = 11000;
+  const W = Math.max(512, Math.min(3072, Math.round(S.l * pxPerM)));
+  const H = Math.max(64, Math.min(720, Math.round(W * S.b / S.l)));
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+
+  // 金属底色
+  const bg = g.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0.00, "#aeb7c2");
+  bg.addColorStop(0.18, "#d9e0e8");
+  bg.addColorStop(0.55, "#c3cbd5");
+  bg.addColorStop(0.86, "#b2bbc6");
+  bg.addColorStop(1.00, "#98a2ae");
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+
+  // 拉丝
+  for (let i = 0; i < 900; i++) {
+    g.globalAlpha = Math.random() * 0.07;
+    g.fillStyle = Math.random() < 0.5 ? "#ffffff" : "#5c6672";
+    g.fillRect(0, Math.random() * H, W, 1);
+  }
+  g.globalAlpha = 1;
+
+  // 刻度（从靠近观察者的长边起画：纹理底部 = 尺身正面）
+  const mmPx = W / (S.l * 1000);
+  const totalMM = Math.round(S.l * 1000);
+  const ink = "#2a2f37";
+  g.fillStyle = ink;
+  for (let d = 0; d <= totalMM; d++) {
+    const x = W - d * mmPx;
+    const is10 = d % 10 === 0, is5 = d % 5 === 0;
+    const len = is10 ? H * 0.34 : is5 ? H * 0.22 : H * 0.13;
+    const w = is10 ? Math.max(1.7, mmPx * 0.30) : is5 ? Math.max(1.3, mmPx * 0.23) : Math.max(1, mmPx * 0.16);
+    g.fillRect(x - w / 2, H - len, w, len);
+  }
+
+  // 数字
+  const fs = Math.min(H * 0.26, mmPx * 2.9);
+  if (fs > 6) {
+    g.font = "600 " + fs.toFixed(1) + "px ui-sans-serif,system-ui,-apple-system,sans-serif";
+    g.textAlign = "center";
+    g.textBaseline = "bottom";
+    g.fillStyle = ink;
+    for (let d = 10; d <= totalMM; d += 10) {
+      const x = W - d * mmPx;
+      if (x < fs * 1.5 || x > W - fs * 0.5) continue;
+      g.fillText(String(d), x, H - H * 0.34 - H * 0.04);
+    }
+  }
+
+  // 边线（倒角暗边）
+  const lw = Math.max(1, H * 0.014);
+  g.fillStyle = "rgba(52,60,70,.55)";
+  g.fillRect(0, 0, W, lw);
+  g.fillRect(0, H - lw, W, lw);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  tex.encoding = THREE.sRGBEncoding;
+  tex.flipY = false;
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+
+  if (rulerTex) rulerTex.dispose();
+  rulerTex = tex;
+  topMat.map = tex;
+  const tint = MATERIALS[S.mat].tint;
+  topMat.color.setHex(tint);
+  topMat.needsUpdate = true;
+  sideMat.color.setHex(S.mat === "brass" ? 0xb99a63 : S.mat === "alu" ? 0xb9c0c8 : 0x9aa4b0);
+  sideMat.needsUpdate = true;
+}
+
+/* --- 端点标注 --- */
+const dimGeo = new THREE.BufferGeometry();
+dimGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(4 * 3), 3));
+const dimLine = new THREE.LineSegments(dimGeo, new THREE.LineBasicMaterial({
+  color: 0x6fe3ff, transparent: true, opacity: 0.62
+}));
+dimLine.frustumCulled = false;
+scene.add(dimLine);
+
+const tipTagEl = document.getElementById("tipTag");
+
+/* ---------------------------- 节点与网格更新 ---------------------------- */
+const ND = {
+  x: new Float64Array(NTOT),
+  y: new Float64Array(NTOT),
+  th: new Float64Array(NTOT),
+  u: new Float64Array(NTOT)
+};
+
+function buildNodes() {
+  const lc = S.l - S.x;
+  const amp = S.amp;
+  // 夹持段（直线）
+  for (let j = 0; j < NCLAMP; j++) {
+    const t = j / NCLAMP;
+    ND.x[j] = -lc + t * lc;
+    ND.y[j] = S.h / 2;
+    ND.th[j] = 0;
+    ND.u[j] = (t * lc) / S.l;
+  }
+  // 悬空段（水平坐标取与当前变形状态对应的解）
+  const ds = S.x / NS;
+  const srcX = pressing ? SOL.X : GRAVX;
+  for (let i = 0; i <= NS; i++) {
+    const j = NCLAMP + i;
+    ND.x[j] = srcX[i];
+    ND.y[j] = S.h / 2 - SHAPE[i] * amp;
+    ND.u[j] = (lc + i * ds) / S.l;
+  }
+  // 转角（用显示坐标，保证放大后截面仍然垂直）
+  for (let j = 0; j < NTOT - 1; j++) {
+    const dx = ND.x[j+1] - ND.x[j];
+    const dy = ND.y[j+1] - ND.y[j];
+    ND.th[j] = Math.atan2(dy, dx);
+  }
+  ND.th[NTOT - 1] = ND.th[NTOT - 2];
+  ND.th[NCLAMP] = 0;
+  for (let j = 0; j < NCLAMP; j++) ND.th[j] = 0;
+}
+
+function updateMesh() {
+  const h2 = S.h / 2, b2 = S.b / 2;
+  const tp = topGeo.attributes.position.array;
+  const tu = topGeo.attributes.uv.array;
+  const bp = botGeo.attributes.position.array;
+  const lp = leftGeo.attributes.position.array;
+  const rp = rightGeo.attributes.position.array;
+
+  for (let j = 0; j < NTOT; j++) {
+    const cx = ND.x[j], cy = ND.y[j], th = ND.th[j];
+    const sn = Math.sin(th), cs = Math.cos(th);
+    const tx = cx - h2 * sn, ty = cy + h2 * cs;
+    const bx = cx + h2 * sn, by = cy - h2 * cs;
+    const o = j * 6;
+
+    tp[o]   = tx; tp[o+1] = ty; tp[o+2] = -b2;
+    tp[o+3] = tx; tp[o+4] = ty; tp[o+5] =  b2;
+
+    bp[o]   = bx; bp[o+1] = by; bp[o+2] = -b2;
+    bp[o+3] = bx; bp[o+4] = by; bp[o+5] =  b2;
+
+    lp[o]   = tx; lp[o+1] = ty; lp[o+2] = -b2;
+    lp[o+3] = bx; lp[o+4] = by; lp[o+5] = -b2;
+
+    rp[o]   = tx; rp[o+1] = ty; rp[o+2] =  b2;
+    rp[o+3] = bx; rp[o+4] = by; rp[o+5] =  b2;
+
+    const q = j * 4;
+    tu[q] = ND.u[j]; tu[q+1] = 0;
+    tu[q+2] = ND.u[j]; tu[q+3] = 1;
+  }
+
+  topGeo.attributes.position.needsUpdate = true;
+  topGeo.attributes.uv.needsUpdate = true;
+  botGeo.attributes.position.needsUpdate = true;
+  leftGeo.attributes.position.needsUpdate = true;
+  rightGeo.attributes.position.needsUpdate = true;
+
+  // 端面
+  const j = NTOT - 1;
+  const cx = ND.x[j], cy = ND.y[j], th = ND.th[j];
+  const sn = Math.sin(th), cs = Math.cos(th);
+  const tx = cx - h2 * sn, ty = cy + h2 * cs;
+  const bx = cx + h2 * sn, by = cy - h2 * cs;
+  const cp = capGeo.attributes.position.array;
+  cp[0] = tx; cp[1] = ty; cp[2] = -b2;
+  cp[3] = tx; cp[4] = ty; cp[5] =  b2;
+  cp[6] = bx; cp[7] = by; cp[8] =  b2;
+  cp[9] = bx; cp[10] = by; cp[11] = -b2;
+  capGeo.attributes.position.needsUpdate = true;
+
+  topGeo.computeVertexNormals();
+  botGeo.computeVertexNormals();
+  leftGeo.computeVertexNormals();
+  rightGeo.computeVertexNormals();
+  capGeo.computeVertexNormals();
+}
+
+/* ---------------------------- 按压 / 释放 ---------------------------- */
+let pressing = false;
+let force = 0;
+let targetForce = 0;
+let dragActive = false, dragS = 0.15, dragTarget = 0;
+
+function beginPress(fromDrag) {
+  if (VIB.active) stopVibration();
+  pressing = true;
+  if (!fromDrag) { targetForce = S.F; }
+  updateStatus();
+}
+function endPress() {
+  if (!pressing) return;
+  pressing = false;
+  targetForce = 0;
+  // 用当前按压形状作为起振初值
+  for (let i = 0; i <= NS; i++) PRESSED[i] = SHAPE[i] - GRAV[i];
+  projectModes(PRESSED, VIB.A);
+  let mx = 0;
+  for (let i = 0; i <= NS; i++) mx = Math.max(mx, Math.abs(PRESSED[i]));
+  // 模态投影残差：高阶模态贡献，用一个快速衰减项吸收，避免释放瞬间突跳
+  for (let i = 0; i <= NS; i++) {
+    let rec = 0;
+    for (let k = 0; k < NMODE; k++) rec += VIB.A[k] * MODE[k][i];
+    RESID[i] = PRESSED[i] - rec;
+  }
+  VIB.residTau = Math.max(0.03, Math.min(0.3, 6 / Math.max(1, D.w1)));
+  VIB.amp0 = mx;
+  VIB.t = 0;
+  VIB.active = mx > 2e-6;
+  force = 0;
+  solveStatic(0, S.y);            // 恢复重力平衡解（坐标 / 应力用）
+  GRAVX.set(SOL.X);
+  if (!VIB.active) SHAPE.set(GRAV);
+  if (VIB.active) playTwang(mx);
+  updateStatus();
+}
+
+/* ---------------------------- 声音 ---------------------------- */
+let actx = null;
+function audio() {
+  if (!actx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try { actx = new AC(); } catch (e) { return null; }
+  }
+  if (actx.state === "suspended") actx.resume();
+  return actx;
+}
+function playTwang(amp) {
+  if (!S.sound) return;
+  const ac = audio(); if (!ac) return;
+  const t0 = ac.currentTime + 0.005;
+  const f0 = Math.max(40, Math.min(1200, D.f1));
+  const str = Math.min(1, 0.25 + amp / 0.012);
+  const out = ac.createGain();
+  out.gain.value = 0.55 * str;
+  out.connect(ac.destination);
+
+  const ratios = [1, 6.267, 17.55, 34.1];
+  const amps   = [1, 0.42, 0.20, 0.09];
+  for (let k = 0; k < ratios.length; k++) {
+    const f = f0 * ratios[k];
+    if (f > 9000) continue;
+    const o = ac.createOscillator();
+    o.type = k === 0 ? "triangle" : "sine";
+    o.frequency.setValueAtTime(f * 1.012, t0);
+    o.frequency.exponentialRampToValueAtTime(f, t0 + 0.12);
+    const g = ac.createGain();
+    const dur = 1.5 / (1 + k * 0.8);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(0.10 * amps[k] * str, t0 + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(out);
+    o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+  // 触感噪声
+  const n = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.05), ac.sampleRate);
+  const nd = n.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / nd.length, 5);
+  const src = ac.createBufferSource(); src.buffer = n;
+  const hp = ac.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 1800;
+  const ng = ac.createGain(); ng.gain.value = 0.09 * str;
+  src.connect(hp); hp.connect(ng); ng.connect(out);
+  src.start(t0);
+}
+
+/* ---------------------------- UI 构建 ---------------------------- */
+const el = (tag, cls, html) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+};
+
+const PRESETS = [
+  { key:"s15",  n:"学生钢尺", d:"150 × 18 × 0.6",  l:0.150, b:0.018, h:0.0006, x:0.095, mat:"steel", F:1.2, y:0.085 },
+  { key:"s30",  n:"标准钢尺", d:"300 × 25 × 1.0",  l:0.300, b:0.025, h:0.0010, x:0.200, mat:"steel", F:2.0, y:0.180 },
+  { key:"s50",  n:"长钢尺",   d:"500 × 30 × 1.2",  l:0.500, b:0.030, h:0.0012, x:0.320, mat:"carbon", F:2.6, y:0.290 },
+  { key:"br",   n:"黄铜直尺", d:"300 × 25 × 1.0",  l:0.300, b:0.025, h:0.0010, x:0.200, mat:"brass", F:1.6, y:0.180 },
+  { key:"al",   n:"铝直尺",   d:"300 × 25 × 1.2",  l:0.300, b:0.025, h:0.0012, x:0.200, mat:"alu",   F:1.0, y:0.180 },
+  { key:"sp",   n:"弹簧钢尺", d:"300 × 20 × 0.8",  l:0.300, b:0.020, h:0.0008, x:0.200, mat:"spring",F:2.4, y:0.180 }
+];
+
+const ctlRefs = {};
+
+function addSlider(parent, cfg) {
+  const wrap = el("div", "ctl");
+  wrap.innerHTML =
+    '<div class="top"><span class="lab">' + cfg.label +
+      (cfg.sym ? '<em>' + cfg.sym + '</em>' : '') +
+    '</span><span class="val" id="v_' + cfg.key + '"></span></div>';
+  const inp = document.createElement("input");
+  inp.type = "range";
+  inp.id = "r_" + cfg.key;
+  inp.setAttribute("aria-label", cfg.label);
+  inp.min = cfg.min; inp.max = cfg.max; inp.step = cfg.step; inp.value = S[cfg.key];
+  inp.addEventListener("input", () => {
+    S[cfg.key] = parseFloat(inp.value);
+    onParamChange(cfg.key);
+  });
+  wrap.appendChild(inp);
+  parent.appendChild(wrap);
+  ctlRefs[cfg.key] = { inp, cfg, wrap };
+  return wrap;
+}
+
+const GEOM_CTL = [
+  { key:"l", label:"总长度",   sym:"l", min:0.10,  max:0.50,  step:0.005, fmt:v => (v*1000).toFixed(0) + " <small>mm</small>" },
+  { key:"x", label:"悬空长度", sym:"x", min:0.03,  max:0.47,  step:0.005, fmt:v => (v*1000).toFixed(0) + " <small>mm</small>" },
+  { key:"b", label:"宽度",     sym:"b", min:0.010, max:0.040, step:0.001, fmt:v => (v*1000).toFixed(1) + " <small>mm</small>" },
+  { key:"h", label:"厚度",     sym:"h", min:0.0003,max:0.0020,step:0.00005, fmt:v => (v*1000).toFixed(2) + " <small>mm</small>" }
+];
+const LOAD_CTL = [
+  { key:"y", label:"施力位置", sym:"y", min:0.02, max:0.47, step:0.005, fmt:v => (v*1000).toFixed(0) + " <small>mm</small>" },
+  { key:"F", label:"施加力",   sym:"F", min:0,    max:20,   step:0.1,   fmt:v => v.toFixed(1) + " <small>N</small>" }
+];
+const DYN_CTL = [
+  { key:"zeta", label:"阻尼比", sym:"ζ", min:0, max:0.12, step:0.002, fmt:v => (v*100).toFixed(1) + " <small>%</small>" },
+  { key:"amp",  label:"挠度放大", sym:"", min:1, max:10, step:0.5, fmt:v => (v === 1 ? "真实 1×" : v.toFixed(1) + "×") }
+];
+
+GEOM_CTL.forEach(c => addSlider(document.getElementById("ctlGeom"), c));
+LOAD_CTL.forEach(c => addSlider(document.getElementById("ctlLoad"), c));
+DYN_CTL.forEach(c => addSlider(document.getElementById("ctlDyn"), c));
+
+// 时间倍率
+(function () {
+  const wrap = el("div", "ctl");
+  wrap.innerHTML = '<div class="top"><span class="lab">时间倍率<em>慢放</em></span><span class="val" id="v_slow"></span></div>';
+  const seg = el("div", "seg");
+  [["1", "1×"], ["0.5", "1/2"], ["0.2", "1/5"], ["0.1", "1/10"], ["0.05", "1/20"], ["0.02", "1/50"]].forEach(([v, t]) => {
+    const b = el("button", v === String(S.slow) ? "on" : "", t);
+    b.onclick = () => {
+      S.slow = parseFloat(v);
+      [...seg.children].forEach(c => c.classList.remove("on"));
+      b.classList.add("on");
+      updateLabels();
     };
+    seg.appendChild(b);
+  });
+  wrap.appendChild(seg);
+  document.getElementById("ctlDyn").appendChild(wrap);
+})();
 
-    let I, EI, q, f1, omega1;
-    let currentForce = 0; 
-    let targetForce = 0;  
-    let isPressed = false;
-    
-    let isVibrating = false;
-    let vibrationStartTime = 0;
-    let initialDeflectionProfile = []; 
+// 材料
+(function () {
+  const seg = document.getElementById("matSeg");
+  Object.entries(MATERIALS).forEach(([k, m]) => {
+    const b = el("button", k === S.mat ? "on" : "", m.name);
+    b.onclick = () => {
+      S.mat = k;
+      [...seg.children].forEach(c => c.classList.remove("on"));
+      b.classList.add("on");
+      onParamChange("mat");
+    };
+    seg.appendChild(b);
+  });
+})();
 
-    const modes = [
-        { beta_x: 1.87510407, sigma: 0, omega: 0, Ak: 0 },
-        { beta_x: 4.69409113, sigma: 0, omega: 0, Ak: 0 },
-        { beta_x: 7.85475744, sigma: 0, omega: 0, Ak: 0 }
-    ];
+// 预设
+(function () {
+  const box = document.getElementById("presets");
+  PRESETS.forEach(p => {
+    const b = el("button", "preset", '<span class="n">' + p.n + '</span><span class="d">' + p.d + '</span>');
+    b.dataset.key = p.key;
+    b.onclick = () => applyPreset(p);
+    box.appendChild(b);
+  });
+})();
 
-    // ================= 物理计算核心 =================
-    function updatePhysics() {
-        if (params.y > params.x) params.y = params.x;
-        if (params.x > params.l) params.x = params.l;
+function applyPreset(p) {
+  stopVibration();
+  pressing = false; force = 0; targetForce = 0;
+  S.l = p.l; S.b = p.b; S.h = p.h; S.x = p.x; S.mat = p.mat; S.F = p.F; S.y = p.y;
+  S.amp = 1;
+  document.querySelectorAll(".preset").forEach(b => b.classList.toggle("on", b.dataset.key === p.key));
+  document.querySelectorAll("#matSeg button").forEach((b, i) => {
+    b.classList.toggle("on", Object.keys(MATERIALS)[i] === S.mat);
+  });
+  refreshAll();
+  buildClamp(Math.min(0.075, (S.l - S.x) * 0.9));
+  syncInputs();
+  updateAllUI();
+  fitView(true);
+}
 
-        I = (params.b * Math.pow(params.h, 3)) / 12;
-        EI = params.E * I;
-        q = (params.m * 9.8) / params.l;
+// 非线性开关
+document.getElementById("swNonlin").onclick = function () {
+  S.nonlinear = !S.nonlinear;
+  this.classList.toggle("on", S.nonlinear);
+  onParamChange("nonlin");
+};
 
-        modes.forEach(m => {
-            const cosh_bx = Math.cosh(m.beta_x);
-            const cos_bx = Math.cos(m.beta_x);
-            const sinh_bx = Math.sinh(m.beta_x);
-            const sin_bx = Math.sin(m.beta_x);
-            m.sigma = (cosh_bx + cos_bx) / (sinh_bx + sin_bx);
-            m.omega = (Math.pow(m.beta_x, 2) / Math.pow(params.x, 2)) * Math.sqrt(EI * params.l / params.m);
-        });
-        
-        omega1 = modes[0].omega;
-        f1 = omega1 / (2 * Math.PI);
+/* ---------------------------- 参数变化 ---------------------------- */
+function clampParams(changed) {
+  S.x = Math.min(S.x, S.l - 0.03);
+  S.x = Math.max(0.03, S.x);
+  S.y = Math.min(S.y, S.x - 0.002);
+  S.y = Math.max(0.012, S.y);
+  if (changed === "x" && S.F > 0) { /* 保持力 */ }
+}
+function onParamChange(key) {
+  clampParams(key);
+  if (key === "F" && pressing) targetForce = S.F;
+  if (key === "zeta" && VIB.active) { /* 阻尼比实时生效 */ }
+  stopVibration();
+  pressing = false; force = 0; targetForce = 0;
+  refreshAll();
+  buildClamp(Math.min(0.075, (S.l - S.x) * 0.9));
+  syncInputs();
+  updateAllUI();
+}
+
+function syncInputs() {
+  for (const k in ctlRefs) {
+    const r = ctlRefs[k];
+    if (r.cfg.key === "x") r.inp.max = (S.l - 0.03).toFixed(3);
+    if (r.cfg.key === "y") r.inp.max = (S.x - 0.002).toFixed(3);
+    r.inp.value = S[k];
+    const p = (S[k] - r.inp.min) / (r.inp.max - r.inp.min) * 100;
+    r.inp.style.setProperty("--p", Math.max(0, Math.min(100, p)) + "%");
+  }
+  updateLabels();
+}
+function updateLabels() {
+  for (const k in ctlRefs) {
+    const r = ctlRefs[k];
+    const e = document.getElementById("v_" + k);
+    if (e) e.innerHTML = r.cfg.fmt(S[k]);
+    const p = (S[k] - r.inp.min) / (r.inp.max - r.inp.min) * 100;
+    r.inp.style.setProperty("--p", Math.max(0, Math.min(100, p)) + "%");
+  }
+  const vs = document.getElementById("v_slow");
+  if (vs) vs.textContent = S.slow === 1 ? "实时" : "×" + S.slow;
+}
+
+/* ---------------------------- 数值面板 ---------------------------- */
+function updateDataPane() {
+  const M = MATERIALS[S.mat];
+  const I_mm4 = D.I * 1e12;
+  const EI = D.EI;
+  const m_g = D.m * 1000;
+  const q_mNmm = D.q;
+  const cell = (k, v, u) => '<div class="cell"><span class="k">' + k + '</span><span class="v">' + v +
+    (u ? '<u>' + u + '</u>' : '') + '</span></div>';
+
+  document.getElementById("dGrid1").innerHTML =
+    cell("材料", M.name) +
+    cell("弹性模量 E", (D.E/1e9).toFixed(0), "GPa") +
+    cell("密度 ρ", (D.rho).toFixed(0), "kg/m³") +
+    cell("总质量 m", m_g.toFixed(1), "g") +
+    cell("截面惯性矩 I", I_mm4.toFixed(2), "mm⁴") +
+    cell("抗弯刚度 EI", EI.toFixed(4), "N·m²") +
+    cell("线密度 ρA", (D.rhoA*1000).toFixed(1), "g/m") +
+    cell("单位长度重力 q", D.q.toFixed(3), "mN/mm");
+
+  document.getElementById("dGrid2").innerHTML =
+    cell("一阶 f₁", D.f1.toFixed(2), "Hz") +
+    cell("二阶 f₂", D.f2.toFixed(1), "Hz") +
+    cell("三阶 f₃", D.f3.toFixed(1), "Hz") +
+    cell("一阶 ω₁", D.w1.toFixed(1), "rad/s");
+
+  // 当前状态量
+  const Fnow = pressing ? force : 0;
+  const vTip = SHAPE[NS] * 1000;
+  const vGrav = GRAV[NS] * 1000;
+  const ratio = SHAPE[NS] / S.x * 100;
+  const Mroot = Math.abs(SOL.M[0]);
+  const sigma = Mroot * (S.h / 2) / D.I;
+  const sigmaMPa = sigma / 1e6;
+  const sf = D.sy / Math.max(sigma, 1e-9);
+  const sPct = Math.min(100, sigma / D.sy * 100);
+
+  document.getElementById("dGrid3").innerHTML =
+    cell("端点挠度 δ", vTip.toFixed(2), "mm") +
+    cell("重力下垂 δ₀", vGrav.toFixed(2), "mm") +
+    cell("挠跨比 δ/x", ratio.toFixed(1), "%") +
+    cell("根部弯矩 M", Mroot.toFixed(4), "N·m") +
+    cell("最大应力 σ", sigmaMPa.toFixed(1), "MPa") +
+    cell("安全系数", sf > 99 ? ">99" : sf.toFixed(2), "×") +
+    '<div class="cell wide"><span class="k">应力 / 屈服强度 ' + (D.sy/1e6).toFixed(0) + ' MPa</span>' +
+      '<span class="v">' + sigmaMPa.toFixed(1) + '<u>MPa</u> · ' + sPct.toFixed(0) + '%</span>' +
+      '<div class="bar"><i style="width:' + sPct.toFixed(1) + '%"></i></div></div>';
+
+  // 提示
+  const notes = [];
+  if (!gravConv) notes.push('<div class="note warn"><b>求解未完全收敛</b>：当前载荷已使梁严重卷曲，超出弹性梁理论的适用范围。</div>');
+  if (sigma > D.sy) notes.push('<div class="note warn"><b>超过屈服强度</b>：实际钢尺在此载荷下会发生永久塑性弯曲，本模型仍按弹性计算。</div>');
+  else if (sPct > 70) notes.push('<div class="note warn"><b>接近屈服</b>：应力已达屈服强度的 ' + sPct.toFixed(0) + '%，实际使用应留足余量。</div>');
+  if (S.h < 0.0004) notes.push('<div class="note warn"><b>极薄截面</b>：厚度 ' + (S.h*1000).toFixed(2) + ' mm 已接近箔材，实际尺子在此厚度下易产生初始翘曲。</div>');
+  if (ratio > 12) notes.push('<div class="note"><b>大挠度区</b>：端点挠度已超过悬空长度的 12%，线性梁理论误差显著，弹性线解更接近真实。</div>');
+
+  // 线性 / 非线性对照
+  if (S.nonlinear) {
+    S.nonlinear = false;
+    solveStatic(Fnow, S.y);
+    const vLin = SOL.V[NS] * 1000;
+    S.nonlinear = true;
+    solveStatic(Fnow, S.y);
+    const err = vLin !== 0 ? Math.abs(vLin - vTip) / Math.abs(vLin) * 100 : 0;
+    notes.push('<div class="note"><b>几何非线性修正</b>：当前载荷下线性解为 ' + vLin.toFixed(2) +
+      ' mm，弹性线解为 ' + vTip.toFixed(2) + ' mm，相差 ' + err.toFixed(1) +
+      '%；水平投影缩短 ' + ((1 - SOL.X[NS] / S.x) * 100).toFixed(2) + '%。</div>');
+  }
+  document.getElementById("dNote").innerHTML = notes.join("");
+}
+
+/* ---------------------------- 公式渲染 ---------------------------- */
+function tex(id, s, fallback) {
+  const node = document.getElementById(id);
+  if (window.katex) {
+    try {
+      katex.render(s, node, { displayMode: true, throwOnError: false });
+      return;
+    } catch (e) { /* fall through */ }
+  }
+  node.innerHTML = '<pre class="raw">' + (fallback || s) + '</pre>';
+}
+
+let theoryRendered = false;
+function renderTheoryOnce() {
+  if (theoryRendered) return;
+  theoryRendered = true;
+  const M = MATERIALS[S.mat];
+  tex("eq1",
+    "\\frac{d\\theta}{ds}=\\frac{M(s)}{EI},\\quad M(s)=\\int_s^{x} q\\,(X(u)-X(s))\\,du+F\\,[X(y)-X(s)]_+,\\quad \\frac{dX}{ds}=\\cos\\theta,\\;\\frac{dY}{ds}=\\sin\\theta",
+    "dθ/ds = M/EI, M(s) = ∫q(X(u)-X(s))du + F[X(y)-X(s)]+, dX/ds=cosθ, dY/ds=sinθ");
+  document.getElementById("eq1n").textContent =
+    "EI = " + D.EI.toFixed(4) + " N·m²   ·   q = " + D.q.toFixed(3) + " mN/mm   ·   求解 " + NS + " 段";
+
+  tex("eq2",
+    "v(s)=\\frac{q s^{2}}{24EI}\\left(s^{2}-4xs+6x^{2}\\right)+\\frac{F}{6EI}\\begin{cases}s^{2}(3y-s),&s\\le y\\\\ y^{2}(3s-y),&s>y\\end{cases}",
+    "v(s) = q s²(s²-4xs+6x²)/24EI + F/(6EI)·{s²(3y-s) if s≤y; y²(3s-y) if s>y}");
+  document.getElementById("eq2n").textContent =
+    "悬臂长度 x = " + (S.x*1000).toFixed(0) + " mm，仅在小挠度（δ ≪ x）时严格成立";
+
+  tex("eq3",
+    "\\omega_k=\\frac{\\beta_k^{2}}{x^{2}}\\sqrt{\\frac{EI}{\\rho A}},\\qquad W_k(\\xi)=\\left(\\cosh\\beta_k\\xi-\\cos\\beta_k\\xi\\right)-\\sigma_k\\left(\\sinh\\beta_k\\xi-\\sin\\beta_k\\xi\\right)",
+    "ω_k = β_k²/x²·√(EI/ρA), W_k(ξ) = (cosh βξ - cos βξ) - σ( sinh βξ - sin βξ )");
+  document.getElementById("eq3n").textContent =
+    "β₁=1.8751, β₂=4.6941, β₃=7.8548   →   f₁ = " + D.f1.toFixed(2) + " Hz";
+
+  tex("eq4",
+    "v(s,t)=\\sum_{k=1}^{6}A_kW_k(s)\\,e^{-\\zeta\\omega_k t}\\cos\\!\\left(\\omega_k\\sqrt{1-\\zeta^{2}}\\;t\\right)",
+    "v(s,t) = Σ A_k W_k(s) e^(-ζω_k t) cos(ω_k√(1-ζ²) t)");
+  document.getElementById("eq4n").textContent =
+    "A_k 由释放瞬间的静态形状投影得到；ζ = " + (S.zeta*100).toFixed(1) + "%";
+
+  tex("eq5",
+    "\\sigma_{\\max}=\\frac{M(0)\\,h/2}{I}=\\frac{6M(0)}{b h^{2}}",
+    "σ_max = M(0)(h/2)/I = 6M(0)/(b h²)");
+  const sig = Math.abs(SOL.M[0]) * (S.h/2) / D.I / 1e6;
+  document.getElementById("eq5n").textContent =
+    "σ_max = " + sig.toFixed(1) + " MPa   ·   屈服 " + (D.sy/1e6).toFixed(0) + " MPa";
+}
+
+function updateTheoryNums() {
+  document.getElementById("eq1n").textContent =
+    "EI = " + D.EI.toFixed(4) + " N·m²   ·   q = " + D.q.toFixed(3) + " mN/mm   ·   求解 " + NS + " 段";
+  document.getElementById("eq2n").textContent =
+    "悬臂长度 x = " + (S.x*1000).toFixed(0) + " mm，仅在小挠度（δ ≪ x）时严格成立";
+  document.getElementById("eq3n").textContent =
+    "β₁=1.8751, β₂=4.6941, β₃=7.8548   →   f₁ = " + D.f1.toFixed(2) + " Hz";
+  document.getElementById("eq4n").textContent =
+    "A_k 由释放瞬间的静态形状投影得到；ζ = " + (S.zeta*100).toFixed(1) + "%";
+  const sig = Math.abs(SOL.M[0]) * (S.h/2) / D.I / 1e6;
+  document.getElementById("eq5n").textContent =
+    "σ_max = " + sig.toFixed(1) + " MPa   ·   屈服 " + (D.sy/1e6).toFixed(0) + " MPa";
+}
+
+/* ---------------------------- 状态与 HUD ---------------------------- */
+const statusEl = document.getElementById("status");
+const statusTxt = document.getElementById("statusTxt");
+function updateStatus() {
+  statusEl.classList.remove("press", "vib");
+  if (pressing) {
+    statusEl.classList.add("press");
+    statusTxt.textContent = "按压中 · 准静态";
+  } else if (VIB.active) {
+    statusEl.classList.add("vib");
+    statusTxt.textContent = "衰减振动";
+  } else {
+    statusTxt.textContent = "静止";
+  }
+  const fs = document.getElementById("footState");
+  const fsub = document.getElementById("footSub");
+  if (pressing) { fs.textContent = "按压中"; fsub.textContent = "F = " + force.toFixed(2) + " N"; }
+  else if (VIB.active) { fs.textContent = "自由振动"; fsub.textContent = "f₁ = " + D.f1.toFixed(1) + " Hz · ζ = " + (S.zeta*100).toFixed(1) + "%"; }
+  else { fs.textContent = "静止"; fsub.textContent = "重力下垂 " + (GRAV[NS]*1000).toFixed(2) + " mm"; }
+}
+
+function updateAllUI() {
+  syncInputs();
+  updateStatus();
+  updateDataPane();
+  updateTheoryNums();
+  const f1 = document.getElementById("hudF1");
+  f1.textContent = D.f1.toFixed(1) + " Hz";
+  document.getElementById("hudF1").classList.toggle("accent", true);
+}
+
+/* ---------------------------- 视角 ---------------------------- */
+function fitView(instant) {
+  const cx = S.x - S.l / 2;
+  const span = Math.max(S.l * 1.12, S.x * 1.45, 0.16);
+  // 依据视口宽高比计算取景距离，竖屏 / 窄屏也能完整容纳钢尺
+  const fov = camera.fov * Math.PI / 180;
+  const aspect = Math.max(0.35, stageRect.width / Math.max(1, stageRect.height));
+  const needW = span * 1.06;
+  const needH = Math.max(S.l * 0.42, 0.20);
+  const distW = needW / (2 * Math.tan(fov / 2) * aspect);
+  const distH = needH / (2 * Math.tan(fov / 2));
+  const dist = Math.max(distW, distH, 0.22);
+  const dir = new THREE.Vector3(0.62, 0.44, 0.80).normalize();
+  const tgt = new THREE.Vector3(cx, 0.002, 0);
+  const pos = tgt.clone().add(dir.multiplyScalar(dist));
+
+  // 透视下尺子两端投影不对称，按屏幕水平中心微调取景
+  const savePos = camera.position.clone(), saveTgt = controls.target.clone();
+  camera.position.copy(pos);
+  camera.lookAt(tgt);
+  camera.updateMatrixWorld(true);
+  const pA = new THREE.Vector3(-(S.l - S.x), 0, 0).project(camera);
+  const pB = new THREE.Vector3(S.x, -S.h, 0).project(camera);
+  const midNdc = (pA.x + pB.x) / 2;
+  const halfW = Math.tan(fov / 2) * dist * aspect;
+  const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+  const shift = midNdc * halfW;
+  const delta = right.clone().multiplyScalar(shift);
+  tgt.add(delta);
+  pos.add(delta);
+  camera.position.copy(savePos);
+  controls.target.copy(saveTgt);
+
+  if (instant) {
+    controls.target.copy(tgt);
+    camera.position.copy(pos);
+    camera.updateProjectionMatrix();
+    controls.update();
+  } else {
+    viewAnim = { tgt, pos };
+  }
+}
+let viewAnim = null;
+
+/* ---------------------------- 指针交互 ---------------------------- */
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+const hitPt = new THREE.Vector3();
+
+function setNdc(ev) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+  ndc.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+}
+
+renderer.domElement.addEventListener("pointerdown", (ev) => {
+  if (ev.button !== 0) return;
+  setNdc(ev);
+  if (!raycaster.ray.intersectPlane(dragPlane, hitPt)) return;
+  const cx = Math.max(0.008, Math.min(S.x - 0.004, hitPt.x));
+  const near = beamYAt(cx);
+  const tol = Math.max(0.022, S.b * 0.9);
+  if (hitPt.x > -0.004 && hitPt.x < S.x + 0.02 && Math.abs(hitPt.y - near) < tol) {
+    dragS = cx;
+    dragActive = true;
+    controls.enabled = false;
+    try { renderer.domElement.setPointerCapture(ev.pointerId); } catch (e) {}
+    beginPress(true);
+    const g0 = GRAV[Math.min(NS, Math.max(0, Math.round(dragS / (S.x / NS))))];
+    dragTarget = Math.max(0, (S.h / 2 - hitPt.y) / S.amp);
+    const K = Math.pow(dragS, 3) / (3 * D.EI);
+    targetForce = Math.max(0, Math.min(40, (dragTarget - g0) / Math.max(K, 1e-12)));
+    ev.preventDefault();
+  }
+}, { passive: false });
+
+/* 给定水平位置，返回当前尺身中心线的 y */
+function beamYAt(xWorld) {
+  let best = 1e9, y = S.h / 2;
+  for (let j = NCLAMP; j < NTOT; j++) {
+    const d = Math.abs(ND.x[j] - xWorld);
+    if (d < best) { best = d; y = ND.y[j]; }
+  }
+  return y;
+}
+
+renderer.domElement.addEventListener("pointermove", (ev) => {
+  if (!dragActive) return;
+  setNdc(ev);
+  if (raycaster.ray.intersectPlane(dragPlane, hitPt)) {
+    dragTarget = Math.max(0, (S.h / 2 - hitPt.y) / S.amp);
+    const i = Math.min(NS, Math.max(0, Math.round(dragS / (S.x / NS))));
+    const g0 = GRAV[i];
+    const K = Math.pow(dragS, 3) / (3 * D.EI);
+    targetForce = Math.max(0, Math.min(40, (dragTarget - g0) / Math.max(K, 1e-12)));
+    S.y = Math.min(S.x - 0.002, dragS);
+  }
+});
+
+function endDrag(ev) {
+  if (!dragActive) return;
+  dragActive = false;
+  controls.enabled = true;
+  try { renderer.domElement.releasePointerCapture(ev.pointerId); } catch (e) {}
+  syncInputs();
+  endPress();
+}
+renderer.domElement.addEventListener("pointerup", endDrag);
+window.addEventListener("pointerup", endDrag);
+window.addEventListener("pointerup", () => {
+  document.getElementById("pressBtn").classList.remove("on");
+  document.getElementById("pressBtn2").classList.remove("on");
+}, true);
+renderer.domElement.addEventListener("pointercancel", endDrag);
+
+/* 按压按钮 */
+function bindHold(btn) {
+  const down = (ev) => {
+    ev.preventDefault();
+    beginPress(false);
+    btn.classList.add("on");
+    if (btn.setPointerCapture && ev.pointerId !== undefined) {
+      try { btn.setPointerCapture(ev.pointerId); } catch (e) {}
     }
+  };
+  const up = (ev) => {
+    if (!pressing) return;
+    btn.classList.remove("on");
+    if (!dragActive) endPress();
+  };
+  btn.addEventListener("pointerdown", down);
+  btn.addEventListener("pointerup", up);
+  btn.addEventListener("pointercancel", up);
+  btn.addEventListener("pointerleave", (ev) => { if (ev.buttons === 0) up(ev); });
+}
+bindHold(document.getElementById("pressBtn"));
+bindHold(document.getElementById("pressBtn2"));
 
-    function W(s, mode) {
-        const beta = mode.beta_x / params.x;        const bs = beta * s;
-        return (Math.cosh(bs) - Math.cos(bs)) - mode.sigma * (Math.sinh(bs) - Math.sin(bs));
+/* 键盘 */
+let spaceDown = false;
+window.addEventListener("keydown", (e) => {
+  if (e.code === "Space" && !spaceDown) {
+    spaceDown = true;
+    e.preventDefault();
+    beginPress(false);
+    document.getElementById("pressBtn").classList.add("on");
+    document.getElementById("pressBtn2").classList.add("on");
+  }
+});
+window.addEventListener("keyup", (e) => {
+  if (e.code === "Space") {
+    spaceDown = false;
+    e.preventDefault();
+    document.getElementById("pressBtn").classList.remove("on");
+    document.getElementById("pressBtn2").classList.remove("on");
+    if (!dragActive) endPress();
+  }
+});
+
+/* 面板按钮 */
+document.getElementById("btnView").onclick = () => fitView(false);
+document.getElementById("btnSound").onclick = function () {
+  S.sound = !S.sound;
+  this.textContent = S.sound ? "🔊" : "🔇";
+  this.style.opacity = S.sound ? 1 : 0.45;
+  if (S.sound) audio();
+};
+document.querySelectorAll(".tab").forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("on"));
+    document.querySelectorAll(".pane").forEach(x => x.classList.remove("on"));
+    t.classList.add("on");
+    document.getElementById("pane-" + t.dataset.tab).classList.add("on");
+    if (t.dataset.tab === "data") updateDataPane();
+    if (t.dataset.tab === "theory") { renderTheoryOnce(); updateTheoryNums(); }
+  };
+});
+const panel = document.getElementById("panel");
+document.getElementById("panelToggle").onclick = () => panel.classList.toggle("open");
+document.getElementById("sheetHandle").onclick = () => panel.classList.toggle("open");
+
+/* ---------------------------- 示波器 ---------------------------- */
+const scopeCv = document.getElementById("scope");
+const sctx = scopeCv.getContext("2d");
+const SCOPE_N = 320;
+const scopeBuf = new Float32Array(SCOPE_N);
+let scopeHead = 0, scopeTimer = 0;
+let scopeScale = 1;
+
+function sizeScope() {
+  const r = scopeCv.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  scopeCv.width = Math.max(1, Math.round(r.width * dpr));
+  scopeCv.height = Math.max(1, Math.round(r.height * dpr));
+  sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function drawScope() {
+  const w = scopeCv.clientWidth, h = scopeCv.clientHeight;
+  sctx.clearRect(0, 0, w, h);
+  // 网格
+  sctx.strokeStyle = "rgba(255,255,255,.055)";
+  sctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const y = (h / 4) * i;
+    sctx.beginPath(); sctx.moveTo(0, y + .5); sctx.lineTo(w, y + .5); sctx.stroke();
+  }
+  for (let i = 1; i < 8; i++) {
+    const x = (w / 8) * i;
+    sctx.beginPath(); sctx.moveTo(x + .5, 0); sctx.lineTo(x + .5, h); sctx.stroke();
+  }
+  // 零线
+  sctx.strokeStyle = "rgba(255,255,255,.16)";
+  sctx.beginPath(); sctx.moveTo(0, h / 2 + .5); sctx.lineTo(w, h / 2 + .5); sctx.stroke();
+
+  // 曲线
+  sctx.beginPath();
+  for (let i = 0; i < SCOPE_N; i++) {
+    const idx = (scopeHead + i) % SCOPE_N;
+    const x = (i / (SCOPE_N - 1)) * w;
+    const y = h / 2 - (scopeBuf[idx] / scopeScale) * (h / 2 - 4);
+    if (i === 0) sctx.moveTo(x, y); else sctx.lineTo(x, y);
+  }
+  sctx.strokeStyle = "rgba(111,227,255,.92)";
+  sctx.lineWidth = 1.6;
+  sctx.lineJoin = "round";
+  sctx.shadowColor = "rgba(111,227,255,.55)";
+  sctx.shadowBlur = 7;
+  sctx.stroke();
+  sctx.shadowBlur = 0;
+}
+
+/* ---------------------------- 主循环 ---------------------------- */
+let lastT = performance.now();
+let uiTimer = 0;
+
+let stageRect = { width: 1, height: 1 };
+let lastAspect = 0;
+function resize() {
+  const r = stageEl.getBoundingClientRect();
+  stageRect = { width: r.width, height: r.height };
+  const asp = stageRect.width / Math.max(1, stageRect.height);
+  if (lastAspect && Math.abs(asp - lastAspect) / lastAspect > 0.25) {
+    // 横竖屏切换时重新取景
+    setTimeout(() => fitView(true), 60);
+  }
+  lastAspect = asp;
+  const w = Math.max(1, Math.round(r.width));
+  const h = Math.max(1, Math.round(r.height));
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  sizeScope();
+}
+window.addEventListener("resize", resize);
+if (window.ResizeObserver) new ResizeObserver(resize).observe(stageEl);
+
+function tick(now) {
+  requestAnimationFrame(tick);
+  const dtRaw = (now - lastT) / 1000;
+  lastT = now;
+  const dt = Math.min(0.05, Math.max(0.0005, dtRaw));
+
+  // ---- 力 ----
+  if (pressing) {
+    const k = 1 - Math.exp(-dt / 0.055);
+    force += (targetForce - force) * k;
+    if (Math.abs(targetForce - force) < 0.002) force = targetForce;
+    solveStatic(force, S.y);
+    SHAPE.set(SOL.V);
+  } else if (VIB.active) {
+    VIB.t += dt * S.slow;
+    let alive = false;
+    SHAPE.set(GRAV);
+    const t = VIB.t;
+    const rDecay = Math.exp(-t / VIB.residTau);
+    for (let i = 0; i <= NS; i++) SHAPE[i] += RESID[i] * rDecay;
+    if (VIB.amp0 * rDecay > VIB.amp0 * 0.002) alive = true;
+    for (let k = 0; k < NMODE; k++) {
+      const A = VIB.A[k];
+      if (A === 0) continue;
+      const wk = D.w1 * Math.pow(BETA[k] / BETA[0], 2);
+      const z = S.zeta, wd = wk * Math.sqrt(Math.max(0, 1 - z * z));
+      const env = Math.exp(-z * wk * t);
+      const c = env * Math.cos(wd * t);
+      if (Math.abs(A * env) > VIB.amp0 * 0.0015) alive = true;
+      const W = MODE[k];
+      for (let i = 0; i <= NS; i++) SHAPE[i] += A * W[i] * c;
     }
+    if (!alive || VIB.t > 30) { stopVibration(); SHAPE.set(GRAV); updateStatus(); }
+  } else {
+    SHAPE.set(GRAV);
+  }
 
-    function calcStaticDeflection(s, force) {
-        if (s <= 0) return 0;
-        if (s > params.x) s = params.x;
+  // ---- 网格 ----
+  buildNodes();
+  updateMesh();
 
-        let v_g = (q / (24 * EI)) * (Math.pow(s, 4) - 4 * params.x * Math.pow(s, 3) + 6 * Math.pow(params.x, 2) * Math.pow(s, 2));
-        let v_n = 0;
-        if (force > 0) {
-            if (s <= params.y) {
-                v_n = (force / (6 * EI)) * (3 * params.y * Math.pow(s, 2) - Math.pow(s, 3));
-            } else {
-                v_n = (force * Math.pow(params.y, 2) / (6 * EI)) * (3 * s - params.y);
-            }
-        }
-        return v_g + v_n;
+  // ---- 端点标注 ----
+  const tipX = ND.x[NTOT - 1], tipY = ND.y[NTOT - 1];
+  const tipBotY = tipY - S.h / 2;
+  const dp = dimGeo.attributes.position.array;
+  const lx = tipX + 0.016;
+  dp[0] = lx; dp[1] = 0; dp[2] = 0;
+  dp[3] = lx; dp[4] = tipBotY; dp[5] = 0;
+  dp[6] = lx - 0.007; dp[7] = tipBotY; dp[8] = 0;
+  dp[9] = lx + 0.007; dp[10] = tipBotY; dp[11] = 0;
+  dimGeo.attributes.position.needsUpdate = true;
+  dimLine.visible = SHAPE[NS] > 1e-5;
+
+  const v3 = new THREE.Vector3(lx, tipBotY * 0.5, 0).project(camera);
+  const sx = Math.max(46, Math.min(stageRect.width - 46, (v3.x * 0.5 + 0.5) * stageRect.width));
+  const sy = Math.max(30, Math.min(stageRect.height - 30, (-v3.y * 0.5 + 0.5) * stageRect.height));
+  tipTagEl.style.left = Math.max(58, Math.min(stageRect.width - 58, sx)) + "px";
+  tipTagEl.style.top = Math.max(34, Math.min(stageRect.height - 34, sy)) + "px";
+  tipTagEl.style.opacity = SHAPE[NS] > 1e-5 && v3.z < 1 ? 1 : 0;
+  tipTagEl.textContent = (SHAPE[NS] * 1000).toFixed(2) + " mm";
+
+  // ---- 示波器 ----
+  scopeTimer += dt;
+  if (scopeTimer > 1 / 75) {
+    scopeTimer = 0;
+    let mx = 0;
+    for (let i = 0; i < SCOPE_N; i++) mx = Math.max(mx, Math.abs(scopeBuf[i]));
+    const target = Math.max(0.25, mx * 1.12);
+    scopeScale += (target - scopeScale) * 0.08;
+    scopeBuf[scopeHead] = (SHAPE[NS] - GRAV[NS]) * 1000;
+    scopeHead = (scopeHead + 1) % SCOPE_N;
+  }
+  drawScope();
+  document.getElementById("scopeVal").textContent = ((SHAPE[NS] - GRAV[NS]) * 1000).toFixed(2);
+
+  // ---- 相机动画 ----
+  if (viewAnim) {
+    controls.target.lerp(viewAnim.tgt, 0.16);
+    camera.position.lerp(viewAnim.pos, 0.16);
+    if (camera.position.distanceTo(viewAnim.pos) < 1e-4) {
+      controls.target.copy(viewAnim.tgt);
+      camera.position.copy(viewAnim.pos);
+      viewAnim = null;
     }
+  }
+  controls.update();
+  renderer.render(scene, camera);
 
-    function calculateModalCoefficients() {
-        const N = 100; 
-        const ds = params.x / (N - 1);
-        
-        modes.forEach(mode => {
-            let num = 0, den = 0;
-            for (let i = 0; i < N; i++) {
-                const s = i * ds;
-                const w0 = initialDeflectionProfile[i] || 0;
-                const W_val = W(s, mode);
-                num += w0 * W_val;
-                den += W_val * W_val;
-            }
-            mode.Ak = num / den;
-        });
-    }
+  // ---- HUD ----
+  uiTimer += dt;
+  if (uiTimer > 0.1) {
+    uiTimer = 0;
+    const dmm = SHAPE[NS] * 1000;
+    const sig = Math.abs(SOL.M[0]) * (S.h / 2) / D.I / 1e6;
+    const hd = document.getElementById("hudD");
+    hd.textContent = dmm.toFixed(2) + " mm";
+    hd.className = "v" + (dmm > 20 ? " warn" : "");
+    const hs = document.getElementById("hudS");
+    hs.textContent = sig.toFixed(0) + " MPa";
+    hs.className = "v" + (sig > D.sy / 1e6 ? " bad" : sig > D.sy / 1e6 * 0.7 ? " warn" : "");
+    document.getElementById("hudF1").textContent = D.f1.toFixed(1) + " Hz";
+    document.getElementById("footSub").textContent = pressing
+      ? "F = " + force.toFixed(2) + " N"
+      : VIB.active ? "f₁ = " + D.f1.toFixed(1) + " Hz · ζ = " + (S.zeta * 100).toFixed(1) + "%"
+      : "重力下垂 " + (GRAV[NS] * 1000).toFixed(2) + " mm";
+    // 按压按钮进度
+    document.getElementById("pressFill").style.width = (pressing ? Math.min(100, force / 20 * 100) : 0) + "%";
+    if (pressing && dragActive) { /* 拖拽时按钮保持高亮 */ }
+    if (document.getElementById("pane-data").classList.contains("on")) updateDataPane();
+  }
+}
 
-    // ================= 3D 场景初始化 =================
-    const container = document.getElementById('canvas-container');
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x2a2a2a);
+/* ---------------------------- 启动 ---------------------------- */
+function init() {
+  refreshAll();
+  buildRulerTexture();
+  buildClamp(Math.min(0.075, (S.l - S.x) * 0.9));
+  document.querySelector('.preset[data-key="s30"]').classList.add("on");
+  resize();
+  fitView(true);
+  updateAllUI();
+  updateStatus();
+  // 延迟重建贴图（等字体就绪）
+  requestAnimationFrame(tick);
+}
 
-    let cWidth = container.clientWidth || 800;
-    let cHeight = container.clientHeight || 600;
+// 贴图懒重建
+let texTimer = null;
+const origRefresh = refreshAll;
+refreshAll = function () {
+  origRefresh();
+  clearTimeout(texTimer);
+  texTimer = setTimeout(buildRulerTexture, 90);
+};
 
-    const camera = new THREE.PerspectiveCamera(45, cWidth / cHeight, 0.01, 10);
-    camera.position.set(0.3, 0.2, 0.4);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(cWidth, cHeight);    renderer.shadowMap.enabled = true;
-    container.appendChild(renderer.domElement);
-
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.target.set(0.1, 0, 0);
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(1, 2, 1);
-    dirLight.castShadow = true;
-    scene.add(dirLight);
-
-    const deskGeo = new THREE.BoxGeometry(0.2, 0.05, 0.4);
-    const deskMat = new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.8 });
-    const desk = new THREE.Mesh(deskGeo, deskMat);
-    desk.position.set(-0.1, -0.025, 0);
-    desk.receiveShadow = true;
-    scene.add(desk);
-
-    const gridHelper = new THREE.GridHelper(2, 20, 0x444444, 0x333333);
-    gridHelper.position.y = -0.05;
-    scene.add(gridHelper);
-
-    const axesHelper = new THREE.AxesHelper(0.1);
-    scene.add(axesHelper);
-
-    // ================= 钢尺 3D 模型构建 =================
-    const segments = 100;
-    const rulerGeometry = new THREE.BufferGeometry();
-    const vertices = new Float32Array((segments + 1) * 4 * 3);
-    const indices = [];
-
-    for (let i = 0; i < segments; i++) {
-        const base = i * 4;
-        indices.push(base, base + 4, base + 1, base + 1, base + 4, base + 5);
-        indices.push(base + 2, base + 3, base + 6, base + 3, base + 7, base + 6);
-        indices.push(base, base + 3, base + 4, base + 3, base + 7, base + 4);
-        indices.push(base + 1, base + 5, base + 2, base + 2, base + 5, base + 6);
-        indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
-    }
-
-    rulerGeometry.setIndex(indices);
-    rulerGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-
-    const rulerMat = new THREE.MeshStandardMaterial({ 
-        color: 0xbdbdbd, metalness: 0.9, roughness: 0.2, side: THREE.DoubleSide
-    });
-    const rulerMesh = new THREE.Mesh(rulerGeometry, rulerMat);    rulerMesh.castShadow = true;
-    rulerMesh.receiveShadow = true;
-    scene.add(rulerMesh);
-
-    const arrowDir = new THREE.Vector3(0, -1, 0);
-    const arrowOrigin = new THREE.Vector3(0, 0, 0);
-    const arrowHelper = new THREE.ArrowHelper(arrowDir, arrowOrigin, 0.05, 0xff5252, 0.01, 0.005);
-    scene.add(arrowHelper);
-
-    // ================= 更新钢尺几何体 =================
-    function updateRulerGeometry(time) {
-        const lerpSpeed = isPressed ? 0.05 : 0.15; 
-        currentForce += (targetForce - currentForce) * lerpSpeed;
-        if (Math.abs(currentForce - targetForce) < 0.001) currentForce = targetForce;
-
-        if (!isPressed && currentForce > 0.01 && !isVibrating) {
-            const v_gravity_profile = [];
-            for(let i=0; i<=segments; i++) {
-                let s = (i / segments) * params.x;
-                v_gravity_profile.push(calcStaticDeflection(s, 0));
-            }
-            
-            initialDeflectionProfile = [];
-            for(let i=0; i<=segments; i++) {
-                let s = (i / segments) * params.x;
-                let v_total = calcStaticDeflection(s, currentForce);
-                initialDeflectionProfile.push(v_total - v_gravity_profile[i]); 
-            }
-            calculateModalCoefficients();
-            isVibrating = true;
-            vibrationStartTime = time;
-            updateStatusUI('vib');
-        }
-
-        const positions = rulerGeometry.attributes.position.array;
-        const dx = params.x / segments;
-        const halfB = params.b / 2;
-        const halfH = params.h / 2;
-
-        for (let i = 0; i <= segments; i++) {
-            let s = i * dx;
-            if (s > params.x) s = params.x;
-
-            let v_final = calcStaticDeflection(s, currentForce);
-            
-            if (isVibrating && !isPressed) {
-                let t = time - vibrationStartTime;
-                let v_vib = 0;
-                let maxDecay = 0; 
-                                modes.forEach((mode, index) => {
-                    // 引入阻尼：衰减因子 e^(-zeta * omega * t)
-                    let decay = Math.exp(-params.zeta * mode.omega * t);
-                    if (index === 0) maxDecay = decay; // 基频衰减最慢，用基频判断整体是否停止
-                    
-                    // 阻尼固有频率 omega_d = omega * sqrt(1 - zeta^2)
-                    let omega_d = mode.omega * Math.sqrt(1 - params.zeta * params.zeta);
-                    
-                    v_vib += mode.Ak * W(s, mode) * decay * Math.cos(omega_d * t);
-                });
-                
-                // 如果基频振幅衰减到不足 0.1%，且阻尼大于0，则认为振动停止
-                if (maxDecay < 0.001 && params.zeta > 0) {
-                    isVibrating = false;
-                    updateStatusUI('rest');
-                    v_final = calcStaticDeflection(s, 0); 
-                } else {
-                    let v_gravity = calcStaticDeflection(s, 0);
-                    v_final = v_gravity + v_vib;
-                }
-            }
-
-            let y_center = -v_final * params.scale;
-            const baseIdx = i * 4 * 3;
-            
-            positions[baseIdx + 0] = s; positions[baseIdx + 1] = y_center - halfH; positions[baseIdx + 2] = -halfB;
-            positions[baseIdx + 3] = s; positions[baseIdx + 4] = y_center - halfH; positions[baseIdx + 5] = halfB;
-            positions[baseIdx + 6] = s; positions[baseIdx + 7] = y_center + halfH; positions[baseIdx + 8] = halfB;
-            positions[baseIdx + 9] = s; positions[baseIdx + 10] = y_center + halfH; positions[baseIdx + 11] = -halfB;
-        }
-
-        rulerGeometry.attributes.position.needsUpdate = true;
-        rulerGeometry.computeVertexNormals();
-
-        if (currentForce > 0.01) {
-            let v_y = calcStaticDeflection(params.y, currentForce);
-            arrowHelper.position.set(params.y, -v_y * params.scale + 0.05, 0);
-            arrowHelper.visible = true;
-        } else {
-            arrowHelper.visible = false;
-        }
-    }
-
-    // ================= UI 与 公式渲染 =================
-    function updateUI() {
-        document.getElementById('val-l').innerText = params.l.toFixed(2) + ' m';
-        document.getElementById('val-x').innerText = params.x.toFixed(2) + ' m';
-        document.getElementById('val-b').innerText = (params.b * 1000).toFixed(0) + ' mm';
-        document.getElementById('val-h').innerText = (params.h * 1000).toFixed(1) + ' mm';
-        document.getElementById('val-m').innerText = (params.m * 1000).toFixed(0) + ' g';        document.getElementById('val-y').innerText = params.y.toFixed(2) + ' m';
-        document.getElementById('val-n').innerText = params.n.toFixed(1) + ' N';
-        document.getElementById('val-scale').innerText = params.scale + 'x';
-        document.getElementById('val-zeta').innerText = (params.zeta * 100).toFixed(1) + '%';
-
-        document.getElementById('param-x').max = params.l;
-        document.getElementById('param-y').max = params.x;
-    }
-
-    function updateStatusUI(state) {
-        const box = document.getElementById('status-box');
-        box.className = 'status-indicator';
-        if (state === 'press') {
-            box.classList.add('status-press');
-            box.innerText = '当前状态：按压中 (准静态)';
-        } else if (state === 'vib') {
-            box.classList.add('status-vib');
-            box.innerText = '当前状态：衰减振动 (动力学)';
-        } else {
-            box.classList.add('status-rest');
-            box.innerText = '当前状态：静止';
-        }
-    }
-
-    function renderFormulas() {
-        const staticEq = `
-            \\text{静力学: } v(s) = \\begin{cases} 
-            \\frac{mg}{24lEI} (s^4 - 4xs^3 + 6x^2s^2) + \\frac{n}{6EI} (3ys^2 - s^3), & s \\le y \\\\ 
-            \\frac{mg}{24lEI} (s^4 - 4xs^3 + 6x^2s^2) + \\frac{ny^2}{6EI} (3s - y), & s > y 
-            \\end{cases}
-        `;
-        katex.render(staticEq, document.getElementById('static-formula'), { displayMode: true, throwOnError: false });
-
-        const dynamicEq = `
-            \\text{动力学: } w(s,t) = \\sum_{k=1}^{3} A_k W_k(s) e^{-\\zeta \\omega_k t} \\cos(\\omega_{dk} t)
-        `;
-        katex.render(dynamicEq, document.getElementById('dynamic-formula'), { displayMode: true, throwOnError: false });
-
-        const freqEq = `
-            f_1 = \\frac{1.8751^2}{2\\pi x^2} \\sqrt{\\frac{EI l}{m}} \\approx ${f1.toFixed(2)} \\text{ Hz}
-        `;
-        katex.render(freqEq, document.getElementById('freq-formula'), { displayMode: true, throwOnError: false });
-
-        const maxDeflection = calcStaticDeflection(params.x, params.n) * 1000;
-        const resultEq = `
-            \\text{理论最大静挠度: } ${maxDeflection.toFixed(2)} \\text{ mm}
-        `;
-        katex.render(resultEq, document.getElementById('result-formula'), { displayMode: true, throwOnError: false });
-    }
-    // ================= 事件绑定 =================
-    const sliders = ['l', 'x', 'b', 'h', 'm', 'y', 'n', 'scale', 'zeta'];
-    sliders.forEach(key => {
-        const el = document.getElementById(`param-${key}`);
-        el.addEventListener('input', (e) => {
-            let val = parseFloat(e.target.value);
-            if (key === 'b' || key === 'h') val /= 1000;
-            if (key === 'm') val /= 1000;
-            params[key] = val;
-            
-            updatePhysics();
-            updateUI();
-            renderFormulas();
-            
-            if (isVibrating) {
-                isVibrating = false;
-                currentForce = 0;
-                targetForce = 0;
-                isPressed = false;
-                document.getElementById('btn-press').classList.remove('active');
-                document.getElementById('btn-press').innerText = '按住 (施加力)';
-                updateStatusUI('rest');
-            }
-        });
-    });
-
-    document.getElementById('btn-press').addEventListener('click', (e) => {
-        isPressed = !isPressed;
-        targetForce = isPressed ? params.n : 0;
-        
-        e.target.classList.toggle('active', isPressed);
-        e.target.innerText = isPressed ? '松开 (释放)' : '按住 (施加力)';
-        
-        if (isPressed) {
-            isVibrating = false; 
-            updateStatusUI('press');
-        } 
-    });
-
-    // ================= 动画循环 =================
-    function animate() {
-        requestAnimationFrame(animate);
-        const time = performance.now() / 1000;
-        updateRulerGeometry(time);
-        controls.update();
-        renderer.render(scene, camera);
-    }
-
-    window.addEventListener('resize', () => {
-        cWidth = container.clientWidth;        cHeight = container.clientHeight;
-        camera.aspect = cWidth / cHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(cWidth, cHeight);
-    });
-
-    // ================= 启动 =================
-    updatePhysics();
-    updateUI();
-    renderFormulas();
-    animate();
-
+init();
 </script>
 </body>
 </html>
