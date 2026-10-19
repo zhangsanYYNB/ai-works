@@ -111,14 +111,16 @@
     state.mode=mode; $('operation').value=mode;
     const parent=['expand','factor'].includes(mode) ? 'simplify' : ['integral','limit'].includes(mode) ? 'derivative' : mode;
     all('#mode-nav [data-mode]').forEach(button=>button.classList.toggle('active',button.dataset.mode===parent));
-    const calculus=['derivative','integral','limit'].includes(mode), algebra=['solve','simplify','expand','factor'].includes(mode);
-    $('advanced-options').hidden=!(calculus || algebra);
+    const calculus=['derivative','integral','limit'].includes(mode), algebra=['solve','simplify','expand','factor'].includes(mode), solving=['auto','solve'].includes(mode);
+    $('advanced-options').hidden=!(calculus || algebra || solving);
     $('order-label').hidden=mode!=='derivative';
-    $('root-lower-label').hidden=$('root-upper-label').hidden=mode!=='solve';
+    $('system-variables-label').hidden=$('root-lower-label').hidden=$('root-upper-label').hidden=!solving;
     $('lower-label').hidden=$('upper-label').hidden=mode!=='integral';
     $('point-label').hidden=$('direction-label').hidden=mode!=='limit';
+    const solveHint='方程组用分号或换行分隔，最多8个未知量、16个等式；未知量留空自动识别。优先精确求解；数值范围用于每个未知量，精确解不受范围限制。数值仅搜索有限范围内的实根，不保证找全，未找到不代表无解。';
     const hints={
-      solve:'多项式与有理方程优先精确求解，其他单变量方程在设置的区间内搜索实根。线性方程组用分号分隔，例如 2x+y=7; x-y=2。',
+      auto:'自动识别题型。'+solveHint,
+      solve:solveHint,
       derivative:'输入要微分的函数，再选择变量和阶数。三角函数的导数会遵循当前 RAD / DEG 设置。',
       integral:'上下限同时留空为不定积分，同时填写为定积分，例如下限 0，上限 pi。',
       limit:'输入函数，设置趋近点与方向；无穷远可输入 Infinity 或 -Infinity。',
@@ -165,11 +167,14 @@
   function readOptions() {
     const options={mode:state.mode,variable:$('variable').value.trim() || 'x',angle:state.angle,precision:state.precision,order:Number($('order').value),
       lower:$('lower').value.trim(),upper:$('upper').value.trim(),point:$('limit-point').value.trim() || '0',direction:$('limit-direction').value,rootLower:$('root-lower').value.trim() || '-10',rootUpper:$('root-upper').value.trim() || '10'};
+    const variables=$('system-variables').value.trim();
+    if(['auto','solve'].includes(state.mode) && variables) options.variables=variables.split(/[,，]/).map(name=>name.trim());
     return options;
   }
   function applyOptions(options) {
     const opts=options || {}; setMode(opts.mode || 'auto');
     $('variable').value=opts.variable || 'x'; $('order').value=String(opts.order || 1);
+    $('system-variables').value=Array.isArray(opts.variables) ? opts.variables.join(',') : '';
     $('lower').value=opts.lower || ''; $('upper').value=opts.upper || ''; $('limit-point').value=opts.point || '0'; $('limit-direction').value=opts.direction || 'both';
     $('root-lower').value=opts.rootLower || '-10'; $('root-upper').value=opts.rootUpper || '10';
     if(opts.angle) setAngle(opts.angle);
@@ -179,7 +184,7 @@
   function engineVersion() {
     const script = document.querySelector('script[src*="engine.js"]');
     const query = script ? new URL(script.src, document.baseURI).search : '';
-    return query || '?v=1';
+    return query || '?v=11';
   }
   function ensureWorker() {
     if(worker || workerDisabled) return;

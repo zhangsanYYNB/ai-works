@@ -516,7 +516,7 @@ test('invalid inputs and unsupported grammar have useful Chinese errors', () => 
     ChineseError(input, { mode: 'evaluate' });
   }
   ChineseError('sin(x)=y', { mode: 'solve' }, /参数|未知量/);
-  ChineseError('x*y=1;x+y=2', {}, /线性/);
+  ChineseError('x*y=1;x+y<2', {}, /等号|不等式/);
   ChineseError('1+2', { mode: 'not-a-mode' }, /模式/);
   ChineseError('x', { mode: 'derivative', order: 20 }, /阶数/);
   ChineseError('x', { variable: 'constructor' }, /变量/);
@@ -558,9 +558,11 @@ test('every engine example conforms to the UI contract', () => {
 test('browser/Worker UMD path exports globalThis.MathSolverEngine without Node dependencies', () => {
   const context = vm.createContext({ math, console });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../vendor/nerdamer.min.js'), 'utf8'), context, { timeout: 5000 });
+  for (const name of ['system-numeric', 'system-polynomial']) vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/' + name + '.js'), 'utf8'), context, { timeout: 5000 });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/engine.js'), 'utf8'), context, { timeout: 5000 });
   assert.equal(typeof context.MathSolverEngine.solve, 'function');
   assert.equal(context.MathSolverEngine.solve('1/3+1/6').exact, '1/2');
+  assert.equal(context.MathSolverEngine.solve('x^2+y^2=5;xy=2').solutionSets.length, 4);
   const r = context.MathSolverEngine.solve('abs(x)/x', { mode: 'limit' });
   assert.match(r.answerText, /不存在/);
 });
@@ -582,6 +584,8 @@ test('solver worker imports the matching engine version and returns cloneable ex
   };
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/solver-worker.js'),'utf8'),context,{timeout:5000});
   assert.ok(imports.includes('engine.js?v=10'));
+  assert.ok(imports.includes('system-numeric.js?v=10'));
+  assert.ok(imports.includes('system-polynomial.js?v=10'));
   receive({data:{id:1,input:'1/3+sqrt(2)',options:{}}});
   receive({data:{id:2,input:'inv([2,1;1,2])',options:{}}});
   receive({data:{id:3,input:'1/0',options:{}}});
@@ -589,6 +593,12 @@ test('solver worker imports the matching engine version and returns cloneable ex
   assert.equal(posted[1].result.exact,'[[2/3, -1/3], [-1/3, 2/3]]');
   assert.match(posted[1].result.table.latexRows[0][0],/frac/);
   assert.equal(posted[2].id,3);assert.match(posted[2].error,/[\u3400-\u9fff]/);
+  receive({data:{id:4,input:'x^2+y^2=5;xy=2',options:{}}});
+  assert.equal(posted[3].result.solutionSets.length,4);
+  assert.equal(posted[3].result.complete,true);
+  receive({data:{id:5,input:'sin(x)+y=1;x^2+y^2=1',options:{}}});
+  assert.equal(posted[4].result.solutionSets.length,2);
+  assert.equal(posted[4].result.numerical,true);
 });
 
 test('symbolic-first evaluation preserves fractions, radicals, trig and irrational function constants', () => {

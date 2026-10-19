@@ -2,6 +2,8 @@
  * Browser: window.MathSolverEngine. Node: require('./engine.js').
  * solve(input, options) returns the result contract used by the Chinese UI.
  * solutions, when present, contains { variable, exact, approximate, real, multiplicity }.
+ * Systems additionally return solutionSets: an array of complete variable tuples.
+ * Nonlinear systems use exact elimination first, then bounded real numerical search.
  * evaluateAt returns a mathjs scalar/matrix; a non-real scalar is a mathjs Complex.
  * examples is a readonly ARRAY of {label,input,mode,options?}, not a function.
  * graphs use x as their horizontal variable, including when options.variable is t.
@@ -32,17 +34,19 @@
         throw error;
       }
     }
-    module.exports = factory(load('../vendor/math.min.js'), load('../vendor/nerdamer.min.js'), root);
+    module.exports = factory(load('../vendor/math.min.js'), load('../vendor/nerdamer.min.js'), root,
+      load('./system-numeric.js'), load('./system-polynomial.js'));
   } else {
-    root.MathSolverEngine = factory(root.math, root.nerdamer, root);
+    root.MathSolverEngine = factory(root.math, root.nerdamer, root, root.MathSolverSystemNumeric, root.MathSolverSystemPolynomial);
   }
-}(typeof globalThis !== 'undefined' ? globalThis : this, function (initialMath, initialCAS, root) {
+}(typeof globalThis !== 'undefined' ? globalThis : this, function (initialMath, initialCAS, root, systemNumeric, systemPolynomial) {
   'use strict';
 
   const LIMITS = Object.freeze({ input: 1200, nodes: 360, depth: 36, degree: 12,
     factorial: 170, series: 200, evaluations: 16000, data: 256, matrix: 10,
     inverse: 8, expansion: 1600, output: 18000, quadrature: 4097,
-    rootSegments: 1024, rootEvaluations: 6000, rootSolutions: 64, rootOperations: 300000 });
+    rootSegments: 1024, rootEvaluations: 6000, rootSolutions: 64, rootOperations: 300000,
+    systemVariables: 8, systemEquations: 16, systemBranches: 128, systemEvaluations: 20000, systemOperations: 1500000 });
   const MODES = new Set(['auto', 'evaluate', 'simplify', 'expand', 'factor', 'solve',
     'derivative', 'integral', 'limit', 'statistics', 'matrix', 'units']);
   const FUNCTIONS = new Set(('sqrt nthRoot cbrt abs sign exp log log10 log2 sin cos tan sec csc cot '
@@ -205,6 +209,12 @@
   function fromLatex(latex, options) {
     if (typeof latex !== 'string' || !latex.trim() || latex.length > LIMITS.input * 4) return null;
     const selected = options && typeof options.variable === 'string' && /^[a-zA-Z][a-zA-Z0-9_]{0,15}$/.test(options.variable) ? options.variable : 'x';
+    const system = /^\s*(?:\\left\s*\\\{\s*)?\\begin\{(cases|aligned|align\*?|array)\}(?:\s*\{[lcr| ]+\})?([\s\S]*?)\\end\{\1\}\s*(?:\\right\s*[.\\}]+)?\s*$/.exec(latex);
+    if (system) {
+      const rows = cleanLatexSpacing(system[2]).replace(/\\\\(?:\s*\[[^\]]*\])?/g, ';').replace(/&/g, '').trim().replace(/;\s*$/, '');
+      if (!rows || splitTop(rows, ';').some(row => !/=/.test(row))) fail('方程组每行都需要一个等号。');
+      return normalize(rows);
+    }
     const hits = [];
     let found;
     LATEX_CALCULUS.lastIndex = 0;
@@ -408,6 +418,7 @@
     if (!input.trim()) fail('请输入一个数学表达式。');
     if (input.length > LIMITS.input) fail('输入最多 1200 个字符，请拆成较小的表达式。');
     let text = input.trim();
+    if (/^[{\[]/.test(text) && /[}\]]$/.test(text) && /[=]/.test(text) && /[;,\n]/.test(text)) text = text.slice(1, -1).trim();
     text = text.replace(/³√/g, '∛').replace(/⁴√/g, '∜');
     const supers = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁺': '+', '⁻': '-', '⁽': '(', '⁾': ')' };
     text = text.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾]+/g, run => '^(' + Array.from(run, c => supers[c]).join('') + ')');
@@ -429,9 +440,16 @@
     if (/[^\x20-\x7e\n\t]/.test(text)) fail('含有暂不支持的字符，请使用数字、英文字母和数学运算符。');
     if (/["'`:@?\\]/.test(text)) fail('只支持数学表达式，不支持字符串、对象访问或程序代码。');
     if (/\bto\b/.test(text)) return text.replace(/\s+/g, ' ').trim();
+    const commaRows = splitTop(text, ',');
+    if (commaRows.length > 1 && commaRows.every(row => /=(?!=)/.test(row))) text = commaRows.join(';');
     const lines = splitTop(text, ';\n');
     if (lines.some(line => !line)) fail('分隔符前后缺少表达式。');
     text = lines.map(explicitMultiplication).join(';');
+    if (lines.length > 1) {
+      const tokens = text.match(/[a-zA-Z][a-zA-Z0-9_]*/g) || [], letters = new Set(tokens.filter(t => /^[a-zA-Z]$/.test(t) && !CONSTANTS.has(t)));
+      text = text.replace(/\b[a-zA-Z]{2,}\b/g, name => !FUNCTIONS.has(name) && !CONSTANTS.has(name) && !COMMANDS.has(name)
+        && (/^[xyz]{2,}$/.test(name) || Array.from(name).every(c => letters.has(c))) ? Array.from(name).join('*') : name);
+    }
     boundedText(text, LIMITS.input * 2);
     return text;
   }
@@ -563,6 +581,7 @@
     const n = unwrap(node);
     if (--budget.left < 0) fail('计算量超过限制，请缩小求和范围或简化表达式。');
     if (n.isConstantNode) {
+      if (opts._systemFloat) return n.value;
       const literal = n._engineLiteral || String(n.value);
       const significant = literal.split(/[eE]/)[0].replace('.', '').replace(/^0+/, '').replace(/0+$/, '').length;
       return !Number.isSafeInteger(n.value) && Number.isInteger(n.value) || significant > 15 ? math.bignumber(literal) : n.value;
@@ -765,7 +784,10 @@
   function cpow(a, b) { return safeArithmetic('(' + a + ')^(' + b + ')'); }
   function zero(a) {
     if (a === '0') return true;
-    if (cas(a, 'simplify') !== '0') return false;
+    let simplified;
+    try { simplified = cas(a, 'simplify'); }
+    catch (_) { try { simplified = cas(a); } catch (_) { return false; } }
+    if (simplified !== '0') return false;
     try { const node = parse(a); if (!symbols(node).length) { const magnitude = math.abs(evaluateNode(node, Object.create(null), optionsFor())); return magnitude && magnitude.isBigNumber ? magnitude.isZero() : magnitude === 0; } } catch (_) { /* Symbolic identity. */ }
     return true;
   }
@@ -1398,14 +1420,14 @@
     const n = unwrap(node), width = variables.length;
     if (!variables.some(v => hasVariable(n, v))) return [cas(plain(n, opts))].concat(Array(width).fill('0'));
     if (n.isSymbolNode && variables.includes(n.name)) return ['0'].concat(variables.map(v => v === n.name ? '1' : '0'));
-    if (!n.isOperatorNode) fail('方程组只支持线性方程；未知量不能出现在函数内部。');
+    if (!n.isOperatorNode) fail('此函数项需要非线性求解。');
     if (n.fn === 'unaryPlus' || n.fn === 'unaryMinus') { const a = linearForm(n.args[0], variables, opts); return n.fn === 'unaryMinus' ? a.map(cneg) : a; }
-    if (n.fn === 'pow') { const k = integerExponent(n.args[1], opts); if (k === 1) return linearForm(n.args[0], variables, opts); if (k === 0) return ['1'].concat(Array(width).fill('0')); fail('方程组包含未知量的幂，暂只支持线性系统。'); }
+    if (n.fn === 'pow') { const k = integerExponent(n.args[1], opts); if (k === 1) return linearForm(n.args[0], variables, opts); if (k === 0) return ['1'].concat(Array(width).fill('0')); fail('此项需要非线性求解。'); }
     const a = linearForm(n.args[0], variables, opts), b = linearForm(n.args[1], variables, opts);
     if (n.fn === 'add' || n.fn === 'subtract') return a.map((c, i) => n.fn === 'add' ? cadd(c, b[i]) : csub(c, b[i]));
     if (n.fn === 'multiply') {
       const av = a.slice(1).some(c => !zero(c)), bv = b.slice(1).some(c => !zero(c));
-      if (av && bv) fail('未知量的乘积不是线性项，暂不支持非线性方程组。');
+      if (av && bv) fail('未知量的乘积需要非线性求解。');
       return av ? a.map(c => cmul(c, b[0])) : b.map(c => cmul(c, a[0]));
     }
     if (n.fn === 'divide') {
@@ -1415,26 +1437,31 @@
     fail('方程组包含不支持的运算。');
   }
   function matrixTex(rows) { return '\\begin{bmatrix}' + rows.map(row => row.map(toLatex).join('&')).join('\\\\') + '\\end{bmatrix}'; }
-  function linearSystem(input, normalized, opts) {
+  function systemSpec(normalized, opts) {
     const texts = splitTop(normalized, ';');
-    if (texts.length < 2 || texts.length > 3) fail('线性方程组支持 2 或 3 个方程，以分号或换行分隔。');
+    if (texts.length > LIMITS.systemEquations) fail('方程组最多支持 16 个方程，请用分号或换行分隔。');
     const nodes = texts.map(t => {
       const r = comparisons(t);
-      if (r.operators.length !== 1 || !['=', '=='].includes(r.operators[0])) fail('方程组中的每一行都需要一个等号。');
-      return r.sides.map(parse);
+      if (r.operators.length !== 1 || !['=', '=='].includes(r.operators[0])) fail('方程组中的每一行都需要一个等号；联立不等式请单独求交集。');
+      const pair = r.sides.map(parse);
+      if (pair.some(containsMatrix)) fail('方程组中的每个等式必须是标量；矩阵请使用矩阵模式。');
+      pair.forEach(n => guardConstantComputations(n, opts));
+      return pair;
     });
     const all = Array.from(new Set(nodes.flatMap(pair => pair.flatMap(symbols)))).sort();
-    let variables = all.filter(v => ['x', 'y', 'z'].includes(v));
-    if (variables.length < 2) variables = all;
-    if (Array.isArray(opts.variables)) variables = opts.variables;
-    if (variables.length < 2 || variables.length > 3 || new Set(variables).size !== variables.length || variables.some(v => !/^[a-zA-Z][a-zA-Z0-9_]{0,15}$/.test(v) || FORBIDDEN.test(v) || CONSTANTS.has(v) || FUNCTIONS.has(v))) fail('方程组支持 2 或 3 个未知量，例如 x、y、z。');
-    const parameters = all.filter(v => !variables.includes(v));
+    const variables = opts.variables === undefined ? all : opts.variables;
+    if (!Array.isArray(variables) || !variables.length && all.length || variables.length > LIMITS.systemVariables
+      || new Set(variables).size !== variables.length || variables.some(v => typeof v !== 'string' || !/^[a-zA-Z][a-zA-Z0-9_]{0,15}$/.test(v) || FORBIDDEN.test(v) || CONSTANTS.has(v) || FUNCTIONS.has(v))) {
+      fail('方程组最多支持 8 个不同的未知量；名称应为英文字母开头，例如 x、y、z、t。');
+    }
+    return { nodes, variables: variables.slice(), parameters: all.filter(v => !variables.includes(v)), all };
+  }
+  function linearSystem(input, normalized, opts, spec, rows) {
+    const { nodes, variables, parameters, all } = spec;
     const output = result('system', '线性方程组', input, normalized);
+    output.variables = variables.slice();
     output.parameters = parameters.slice();
-    const rows = nodes.map(pair => {
-      const a = linearForm(pair[0], variables, opts), b = linearForm(pair[1], variables, opts);
-      return a.slice(1).map((c, i) => csub(c, b[i + 1])).concat(csub(b[0], a[0]));
-    });
+    output.complete = parameters.length === 0;
     const original = rows.map(r => r.slice());
     step(output, '建立增广矩阵', '列的顺序为 ' + variables.join('、') + '，最后一列为等号右侧常数。', matrixTex(rows));
     const pivots = [], conditions = [];
@@ -1463,7 +1490,7 @@
     if (conditions.length) output.notes.push('此消元分支要求：' + conditions.join('，') + '；使主元为零的参数需代入原方程组另算。');
     const contradiction = rows.find(r => r.slice(0, -1).every(zero) && !zero(r[r.length - 1]));
     if (contradiction) {
-      output.answerLatex = '\\varnothing'; output.answerText = '方程组无解'; output.solutions = [];
+      output.answerLatex = '\\varnothing'; output.answerText = '方程组无解'; output.solutions = []; output.solutionSets = [];
       if (symbols(parse(contradiction[contradiction.length - 1])).length) output.notes.push('无解以矛盾行常数 ' + contradiction[contradiction.length - 1] + ' ≠ 0 为条件；当它为零时需重新判定秩和自由变量。');
       step(output, '发现矛盾行', '左侧系数全为零，但右侧常数非零，原方程组不能同时成立。', '0=' + toLatex(contradiction[contradiction.length - 1]));
       return output;
@@ -1480,10 +1507,15 @@
       free.forEach(c => { value = csub(value, cmul(rows[p.row][c], values[c])); });
       values[p.column] = value;
     });
+    if (!variables.length) {
+      output.answerText = '所有等式同时成立'; output.answerLatex = '\\text{所有等式同时成立}';
+      output.solutions = []; output.solutionSets = [[]]; return output;
+    }
     output.answerText = variables.map((v, i) => v + ' = ' + values[i]).join('；');
     output.answerLatex = '\\begin{cases}' + variables.map((v, i) => v + '=' + toLatex(values[i])).join('\\\\') + '\\end{cases}';
     output.exact = variables.map((v, i) => v + '=' + values[i]).join(';');
     output.solutions = variables.map((v, i) => publicRoots([rootRecord(values[i], v, opts)])[0]);
+    output.solutionSets = [output.solutions.map(s => Object.assign({}, s))];
     if (free.length) output.notes.push('存在无穷多组解；' + freeNames.join('、') + ' 为任意实数（也可在复数域取值）。');
     else {
       const checked = original.every(r => zero(r.slice(0, -1).reduce((s, c, i) => cadd(s, cmul(c, values[i])), cneg(r[r.length - 1]))));
@@ -1495,6 +1527,471 @@
         if (!zero(r[yi])) addGraph(output, cdiv(csub(r[2], cmul(r[xi], 'x')), r[yi]), '方程 ' + (i + 1), Object.assign({}, opts, { variable: 'x' }), true);
       });
     }
+    return output;
+  }
+  // Keep function values opaque during exact arithmetic. In particular, a tiny
+  // radical added to 1 must never disappear merely because both doubles round to 1.
+  function systemExactContext(opts) {
+    const atoms = new Map(), definitions = new Map(), cache = new Map(), occupied = new Set(opts._systemNames || []);
+    let work = 0, index = 0;
+    const charge = () => { if (++work > 24000) fail('方程组精确代回超过预算。'); };
+    function integerRoot(value) {
+      if (value < 2n) return value;
+      let x = 1n << BigInt(Math.ceil(value.toString(2).length / 2));
+      for (let i = 0; i < 32; i++) { charge(); const next = (x + value / x) / 2n; if (next >= x) return x; x = next; }
+      fail('根式的精确整数运算超过预算。');
+    }
+    function opaque(text, name, argument) {
+      if (!atoms.has(text)) {
+        let key; do { key = 'zzsatom' + index++; } while (occupied.has(key));
+        atoms.set(text, key); definitions.set(key, { text, name, argument });
+      }
+      return atoms.get(text);
+    }
+    function algebra(expression) {
+      charge();
+      let answer = cas(expression), changed = false;
+      function powers(node) {
+        const n = unwrap(node);
+        if (n.isOperatorNode && n.fn === 'pow') {
+          const base = unwrap(n.args[0]), exponent = rationalText(plain(n.args[1]));
+          const definition = base.isSymbolNode && definitions.get(base.name);
+          if (definition && definition.name === 'sqrt' && exponent && exponent.d === 1n) {
+            const k = Number(exponent.s * exponent.n);
+            if (k && Math.abs(k) <= 1024) {
+              changed = true;
+              const half = Math.floor(k / 2), odd = k - 2 * half;
+              return '(' + definition.argument + ')^(' + half + ')' + (odd ? '*' + base.name : '');
+            }
+          }
+        }
+        if (n.isOperatorNode) return operatorExpression(n, n.args.map(powers));
+        if (n.isFunctionNode) return n.fn.name + '(' + n.args.map(powers).join(',') + ')';
+        return plain(n);
+      }
+      const rewritten = powers(parse(answer));
+      if (changed) answer = cas(rewritten);
+      return boundedText(answer, LIMITS.output);
+    }
+    function render(node) {
+      charge(); const n = unwrap(node);
+      if (n.isConstantNode) return exactLiteral(n);
+      if (n.isSymbolNode) return n.name;
+      const args = n.args.map(render), fractions = args.map(rationalText);
+      if (n.isOperatorNode) {
+        if (fractions.every(Boolean) && ['add', 'subtract', 'multiply', 'divide', 'unaryPlus', 'unaryMinus', 'pow'].includes(n.fn)
+          && (n.fn !== 'pow' || fractions[1].d === 1n && fractions[1].n <= 1024n)) {
+          const value = math[n.fn](...fractions);
+          if (value && value.isFraction) return boundedText(fractionText(value), LIMITS.output);
+        }
+        if (n.fn === 'multiply' && args.includes('0')) return '0';
+        if (n.fn === 'subtract' && args[0] === args[1]) return '0';
+        if (n.fn === 'pow' && !fractions[1]) return opaque(operatorExpression(n, args), 'power', '');
+        return algebra(operatorExpression(n, args));
+      }
+      if (n.isFunctionNode) {
+        const name = n.fn.name;
+        if (name === 'sqrt' && fractions[0] && fractions[0].s >= 0n) {
+          const a = integerRoot(fractions[0].n), b = integerRoot(fractions[0].d);
+          if (a * a === fractions[0].n && b * b === fractions[0].d) return fractionText(math.fraction(a, b));
+        }
+        if (name === 'abs' && fractions[0]) return fractionText(math.abs(fractions[0]));
+        if (args[0] === '0' && ['sqrt', 'sin', 'tan', 'sinh', 'tanh', 'asin', 'atan'].includes(name)) return '0';
+        if (args[0] === '0' && ['exp', 'cos', 'cosh'].includes(name)) return '1';
+        if (args[0] === '1' && ['log', 'log2', 'log10'].includes(name)) return '0';
+        return opaque(name + '(' + args.join(',') + ')', name, args[0]);
+      }
+      fail('方程组需要标量表达式。');
+    }
+    return function simplify(text) {
+      if (cache.has(text)) return cache.get(text);
+      const node = parse(text); symbols(node).forEach(v => occupied.add(v));
+      const protectedText = render(node);
+      function restore(node) {
+        const n = unwrap(node);
+        if (n.isSymbolNode && definitions.has(n.name)) return '(' + restore(parse(definitions.get(n.name).text)) + ')';
+        if (n.isOperatorNode) return operatorExpression(n, n.args.map(restore));
+        if (n.isFunctionNode) return n.fn.name + '(' + n.args.map(restore).join(',') + ')';
+        return plain(n);
+      }
+      // Returning CAS text directly when there are no atoms keeps ordinary rational
+      // and polynomial substitutions compact; restored functions keep their exact AST.
+      const answer = /\bzzsatom\d+\b/.test(protectedText) ? restore(parse(protectedText)) : protectedText;
+      boundedText(answer, LIMITS.output); cache.set(text, answer);
+      return answer;
+    };
+  }
+  // Rational multivariate polynomials are kept exact before lexicographic elimination.
+  // Denominators are cleared only here; every resulting tuple is checked in the ORIGINAL equations.
+  function systemPolynomialRows(nodes, variables, opts) {
+    const width = variables.length, unit = Array(width).fill(0), context = exactContext(opts);
+    let work = 0;
+    function charge() { if (++work > 12000) fail('方程组多项式展开超过预算。'); }
+    function term(powers, coefficient) {
+      return coefficient.n === 0n ? new Map() : new Map([[powers.join(','), coefficient]]);
+    }
+    const one = () => term(unit, math.fraction(1));
+    function add(a, b, sign) {
+      const out = new Map(a);
+      for (const [key, value] of b) {
+        charge();
+        const next = math.add(out.get(key) || math.fraction(0), sign < 0 ? math.unaryMinus(value) : value);
+        if (next.n === 0n) out.delete(key); else out.set(key, next);
+      }
+      if (out.size > 256) fail('方程组多项式项数超过预算。');
+      return out;
+    }
+    function multiply(a, b) {
+      const out = new Map();
+      for (const [ka, va] of a) for (const [kb, vb] of b) {
+        charge();
+        const pa = ka.split(',').map(Number), pb = kb.split(',').map(Number), powers = pa.map((p, i) => p + pb[i]);
+        if (powers.reduce((s, p) => s + p, 0) > 24) fail('方程组消元次数超过预算。');
+        const key = powers.join(','), value = math.add(out.get(key) || math.fraction(0), math.multiply(va, vb));
+        if (value.n.toString().length + value.d.toString().length > 600) fail('方程组精确系数超过预算。');
+        if (value.n === 0n) out.delete(key); else out.set(key, value);
+        if (out.size > 256) fail('方程组多项式项数超过预算。');
+      }
+      return out;
+    }
+    function power(a, k) { let out = one(); for (let i = 0; i < k; i++) out = multiply(out, a); return out; }
+    function convert(node) {
+      charge(); const n = unwrap(node);
+      if (!symbols(n).length) {
+        const value = rationalText(context.serialized(context.node(n)));
+        if (!value) fail('此系数需要符号代入求解。');
+        return { num: term(unit, value), den: one() };
+      }
+      if (n.isSymbolNode && variables.includes(n.name)) {
+        const powers = unit.slice(); powers[variables.indexOf(n.name)] = 1;
+        return { num: term(powers, math.fraction(1)), den: one() };
+      }
+      if (!n.isOperatorNode) fail('此方程需要函数或参数求解。');
+      if (n.fn === 'unaryPlus' || n.fn === 'unaryMinus') {
+        const a = convert(n.args[0]);
+        if (n.fn === 'unaryMinus') a.num = new Map(Array.from(a.num, ([k, v]) => [k, math.unaryMinus(v)]));
+        return a;
+      }
+      if (n.fn === 'pow') {
+        const a = convert(n.args[0]), k = integerExponent(n.args[1], opts);
+        return k < 0 ? { num: power(a.den, -k), den: power(a.num, -k) } : { num: power(a.num, k), den: power(a.den, k) };
+      }
+      if (!['add', 'subtract', 'multiply', 'divide'].includes(n.fn)) fail('此方程需要数值求解。');
+      const a = convert(n.args[0]), b = convert(n.args[1]);
+      if (n.fn === 'multiply') return { num: multiply(a.num, b.num), den: multiply(a.den, b.den) };
+      if (n.fn === 'divide') return { num: multiply(a.num, b.den), den: multiply(a.den, b.num) };
+      return { num: add(multiply(a.num, b.den), multiply(b.num, a.den), n.fn === 'subtract' ? -1 : 1), den: multiply(a.den, b.den) };
+    }
+    return nodes.map(pair => {
+      const a = convert(pair[0]), b = convert(pair[1]);
+      if (!a.den.size || !b.den.size) fail('原方程组的分母恒为零。');
+      return Array.from(add(multiply(a.num, b.den), multiply(b.num, a.den), -1), ([key, value]) => ({ powers: key.split(',').map(Number), coefficient: fractionText(value) }));
+    });
+  }
+  function systemPolynomialText(terms, variables) {
+    return terms.map(t => '(' + t.coefficient + ')' + t.powers.map((p, i) => p ? '*' + variables[i] + (p === 1 ? '' : '^' + p) : '').join('')).join('+') || '0';
+  }
+  function systemMagnitude(node, scope, opts) {
+    const n = unwrap(node);
+    if (n.isOperatorNode && ['add', 'subtract', 'unaryMinus', 'unaryPlus'].includes(n.fn)) return n.args.reduce((s, a) => s + systemMagnitude(a, scope, opts), 0);
+    if (n.isOperatorNode && n.fn === 'multiply') return n.args.reduce((s, a) => s * systemMagnitude(a, scope, opts), 1);
+    if (n.isOperatorNode && n.fn === 'divide') return systemMagnitude(n.args[0], scope, opts) / math.abs(evaluateNode(n.args[1], scope, opts));
+    return Number(math.abs(evaluateNode(n, scope, opts)));
+  }
+  function systemPairMatches(pair, scope, opts, tolerance) {
+    opts = Object.assign({}, opts, { _systemFloat: true });
+    try {
+      const a = evaluateNode(pair[0], scope, opts), b = evaluateNode(pair[1], scope, opts);
+      if (!finiteValue(a) || !finiteValue(b) || isMatrix(a) || isMatrix(b)) return false;
+      const residual = Number(math.abs(math.subtract(a, b)));
+      const scale = Math.max(systemMagnitude(pair[0], scope, opts), systemMagnitude(pair[1], scope, opts), Number.MIN_VALUE);
+      return Number.isFinite(scale) && residual <= tolerance * scale;
+    } catch (_) { return false; }
+  }
+  function systemSubstitute(text, values) { return plain(parse(text), null, values, false, true); }
+  function systemUnivariatePair(pair, variable, opts) {
+    const nodes = pair.map(parse), targets = [];
+    function visit(node) {
+      const n = unwrap(node);
+      if (!hasVariable(n, variable)) return;
+      if (n.isFunctionNode || n.isOperatorNode && n.fn === 'pow' && symbols(n.args[1]).length) { targets.push(n); return; }
+      if (n.args) n.args.forEach(visit);
+    }
+    nodes.forEach(visit);
+    if (targets.length !== 1) return pair;
+    let temporary = 'zzsystemfn';
+    const occupied = nodes.flatMap(symbols);
+    while (occupied.includes(temporary)) temporary += 'a';
+    try {
+      const replaced = nodes.map(n => parse(replaceAbs(n, targets[0], temporary)));
+      if (replaced.some(n => hasVariable(n, variable))) return pair;
+      const a = linearForm(replaced[0], [temporary], opts), b = linearForm(replaced[1], [temporary], opts), coefficient = csub(a[1], b[1]);
+      if (zero(coefficient) || symbols(parse(coefficient)).length) return pair;
+      return [plain(targets[0], null, null, false, true), cdiv(csub(b[0], a[0]), coefficient)];
+    } catch (_) { return pair; }
+  }
+  function symbolicSystem(nodes, variables, parameters, opts) {
+    const candidates = [], trace = [], conditions = new Set(), occupied = new Set(nodes.flatMap(p => p.flatMap(symbols)).concat(variables));
+    const rad = Object.assign({}, opts, { angle: 'rad', _rootAngle: opts.angle });
+    let branches = 0, complete = true, usedBasis = false, numeric = false;
+    function note(title, explanation, latex) { if (trace.length < 12) trace.push({ title, explanation, latex: latex || '' }); }
+    const simplify = systemExactContext(Object.assign({}, rad, { _systemNames: Array.from(occupied) }));
+    function bind(pairs, remaining, bindings, variable, value, numerical, allowBasis) {
+      const replacement = Object.create(null); replacement[variable] = value;
+      const next = Object.assign(Object.create(null), bindings);
+      for (const v of Object.keys(next)) next[v] = simplify(systemSubstitute(next[v], replacement));
+      next[variable] = value;
+      visit(pairs.map(p => p.map(t => systemSubstitute(t, replacement))), remaining.filter(v => v !== variable), next, numerical, allowBasis);
+    }
+    function leaf(remaining, bindings, numerical) {
+      const replacements = Object.create(null), free = [];
+      let index = 1;
+      remaining.forEach(v => { while (occupied.has('t' + index)) index++; replacements[v] = 't' + index++; free.push(replacements[v]); });
+      const values = Object.create(null);
+      variables.forEach(v => { values[v] = own(replacements, v) ? replacements[v] : simplify(systemSubstitute(bindings[v], replacements)); });
+      candidates.push({ values, numerical, parameters: parameters.concat(free) });
+    }
+    function visit(inputPairs, remaining, bindings, numerical, allowBasis) {
+      if (++branches > LIMITS.systemBranches || candidates.length >= LIMITS.rootSolutions) { complete = false; return; }
+      const pairs = [], parsed = [], active = [];
+      for (const original of inputPairs) {
+        let pair;
+        try { pair = original.map(simplify); } catch (_) { complete = false; return; }
+        let difference;
+        try { difference = csub(pair[0], pair[1]); } catch (_) { complete = false; return; }
+        if (zero(difference)) continue;
+        const ns = pair.map(parse), names = Array.from(new Set(ns.flatMap(symbols))).filter(v => remaining.includes(v));
+        if (!names.length) {
+          if (symbols(parse(difference)).length) { conditions.add(difference + ' = 0'); complete = false; continue; }
+          if (numerical && systemPairMatches(original.map(parse), Object.create(null), rad, 2e-8)) continue;
+          return;
+        }
+        pairs.push(pair); parsed.push(ns); active.push(names);
+      }
+      if (!pairs.length) { leaf(remaining, bindings, numerical); return; }
+      const single = active.findIndex(names => names.length === 1);
+      if (single >= 0) {
+        const variable = active[single][0];
+        try {
+          const isolated = systemUnivariatePair(pairs[single], variable, rad);
+          const answer = equation('', isolated.join('='), Object.assign({}, rad, { variable, variableExplicit: true }));
+          const bounded = answer.title === '区间数值求根' || answer.notes.some(n => /仅搜索区间|有界搜索/.test(n));
+          if (bounded) { complete = false; numeric = true; }
+          if (/所有/.test(answer.answerText)) { visit(pairs.filter((_, i) => i !== single), remaining, bindings, numerical, allowBasis); return; }
+          note('求解消元后的一元方程', '先求 ' + variable + ' 的各个分支，再分别回代其余等式。', toLatex(pairs[single].join('=')));
+          answer.notes.filter(n => /要求|参数|条件/.test(n)).forEach(n => conditions.add(n));
+          for (const root of answer.solutions || []) bind(pairs.filter((_, i) => i !== single), remaining, bindings, variable, root.exact, numerical || !!root.numerical, true);
+          return;
+        } catch (_) { /* Try exact elimination or the bounded multivariable solver below. */ }
+      }
+      if (allowBasis && !parameters.length && (systemPolynomial || root.MathSolverSystemPolynomial)) {
+        try {
+          const solver = systemPolynomial || root.MathSolverSystemPolynomial;
+          const basis = solver.basis({ dimensions: remaining.length, polynomials: systemPolynomialRows(parsed, remaining, rad) });
+          usedBasis = true;
+          const eliminated = basis.polynomials.map(p => [systemPolynomialText(p, remaining), '0']);
+          note('多项式精确消元', '用有理数系数建立字典序 Gröbner 基，保留原方程组的全部代数约束，再按分支回代。', eliminated.length ? toLatex(eliminated.map(p => p.join('=')).join(';')) : '0=0');
+          visit(eliminated, remaining, bindings, numerical, false);
+          return;
+        } catch (_) { /* A bounded exact attempt may fall back to substitution/numerics. */ }
+      }
+      // A constant, nonzero leading coefficient permits substitution without losing its zero branch.
+      for (let i = 0; i < pairs.length; i++) for (const variable of active[i]) {
+        try {
+          const a = rational(parsed[i][0], variable, rad), b = rational(parsed[i][1], variable, rad);
+          const p = psub(pmul(a.num, b.den), pmul(b.num, a.den));
+          if (p.length !== 2 || symbols(parse(p[1])).some(v => remaining.includes(v)) || zero(p[1])) continue;
+          if (symbols(parse(p[1])).length) { conditions.add(p[1] + ' ≠ 0'); complete = false; }
+          const value = cdiv(cneg(p[0]), p[1]);
+          note('隔离变量并代入', '由第 ' + (i + 1) + ' 个等式表示 ' + variable + '，代入其他等式；最终保留原定义域。', variable + '=' + toLatex(value));
+          bind(pairs.filter((_, j) => j !== i), remaining, bindings, variable, value, numerical, true);
+          return;
+        } catch (_) { /* This variable is not affine. */ }
+      }
+      // Products equal to zero need separate branches, including vanishing coefficients.
+      for (let i = 0; i < pairs.length; i++) {
+        try {
+          const difference = csub(pairs[i][0], pairs[i][1]), factors = [];
+          function collect(node) {
+            const n = unwrap(node);
+            if (n.isOperatorNode && n.fn === 'multiply') { n.args.forEach(collect); return; }
+            if (n.isOperatorNode && n.fn === 'pow' && integerExponent(n.args[1], rad) > 0) { collect(n.args[0]); return; }
+            if (symbols(n).some(v => remaining.includes(v))) factors.push(plain(n));
+          }
+          const factored = cas(difference, 'factor'); collect(parse(factored));
+          const unique = Array.from(new Set(factors));
+          if (unique.length < 2 || !zero(csub(cas(difference, 'expand'), cas(factored, 'expand')))) continue;
+          note('按零乘积分支', '每个因子分别为零，逐个求解并合并；不直接除去可能为零的未知量。', toLatex(factored) + '=0');
+          unique.forEach(f => visit(pairs.map((p, j) => j === i ? [f, '0'] : p), remaining, bindings, numerical, true));
+          return;
+        } catch (_) { /* Factoring is optional. */ }
+      }
+      // Triangular nonlinear families (e.g. a circle) and rational graphs can be parameterized.
+      for (let i = 0; i < pairs.length; i++) for (const variable of active[i]) {
+        try {
+          const a = rational(parsed[i][0], variable, rad), b = rational(parsed[i][1], variable, rad);
+          const p = psub(pmul(a.num, b.den), pmul(b.num, a.den));
+          if (p.length < 2 || p.length > 3) continue;
+          const leadVariables = symbols(parse(p[p.length - 1])).filter(v => remaining.includes(v));
+          const nonzeroConstant = p.length === 2 && !symbols(parse(p[0])).length && !zero(p[0]);
+          if (leadVariables.length && !nonzeroConstant) continue;
+          if (leadVariables.length) conditions.add('分母 ' + p[p.length - 1] + ' ≠ 0');
+          const roots = polynomialRoots(p, variable, rad);
+          if (!roots.length) continue;
+          note('保留自由变量的分支', '将其余变量保留为参数；各分支仍须同时满足原等式和原函数定义域。', toLatex(pairs[i].join('=')));
+          roots.forEach(r => bind(pairs.filter((_, j) => j !== i), remaining, bindings, variable, r.exact, numerical || !!r.numerical, true));
+          return;
+        } catch (_) { /* An implicit family can remain unresolved. */ }
+      }
+      complete = false;
+    }
+    try { visit(nodes.map(p => p.map(n => plain(n, opts, null, false, true))), variables, Object.create(null), false, true); }
+    catch (_) { complete = false; }
+    return { candidates, complete, trace, conditions: Array.from(conditions), usedBasis, numeric };
+  }
+  function equationSystem(input, normalized, opts) {
+    const spec = systemSpec(normalized, opts), { nodes, variables, parameters } = spec;
+    let rows;
+    try {
+      rows = nodes.map(pair => {
+        const a = linearForm(pair[0], variables, opts), b = linearForm(pair[1], variables, opts);
+        return a.slice(1).map((c, i) => csub(c, b[i + 1])).concat(csub(b[0], a[0]));
+      });
+    } catch (_) { /* Nonlinear systems proceed through exact branches and numerical search. */ }
+    if (rows) return linearSystem(input, normalized, opts, spec, rows);
+    const output = result('system', '非线性方程组', input, normalized), rad = Object.assign({}, opts, { angle: 'rad' });
+    output.variables = variables.slice(); output.parameters = parameters.slice();
+    step(output, '识别联立方程', '同时求解 ' + nodes.length + ' 个标量等式，未知量为 ' + variables.join('、') + '；允许幂、乘积、分式及常用函数。', toLatex(normalized));
+    const symbolic = symbolicSystem(nodes, variables, parameters, opts);
+    output.steps.push(...symbolic.trace); output.notes.push(...symbolic.conditions);
+    let complete = symbolic.complete && parameters.length === 0, search = null, lower, upper;
+    const sets = [], families = [], exactCheck = systemExactContext(Object.assign({}, rad, { _systemNames: spec.all }));
+    function readBounds() {
+      lower = constantValue(opts.rootLower, opts); upper = constantValue(opts.rootUpper, opts);
+      if (!(lower < upper) || Math.max(Math.abs(lower), Math.abs(upper), upper - lower) > 1e6) fail('根搜索下限必须小于上限，端点绝对值及区间长度最多 10^6。');
+    }
+    function exactDefined(values) {
+      let defined = true;
+      function visit(node) {
+        const n = unwrap(node);
+        let denominator = null;
+        if (n.isOperatorNode && n.fn === 'divide') denominator = n.args[1];
+        if (n.isOperatorNode && n.fn === 'pow' && !symbols(n.args[1]).length) {
+          try { if (constantValue(plain(n.args[1]), rad) < 0) denominator = n.args[0]; } catch (_) { /* Evaluation will check it. */ }
+        }
+        if (n.isFunctionNode && ['log', 'log2', 'log10'].includes(n.fn.name)) denominator = n.args[0];
+        if (denominator && exactCheck(plain(denominator, opts, values, false, true)) === '0') defined = false;
+        if (n.args) n.args.forEach(visit);
+      }
+      nodes.flat().forEach(visit); return defined;
+    }
+    function exactMatches(values) {
+      if (!exactDefined(values)) return false;
+      for (const pair of nodes) {
+        const substituted = pair.map(n => exactCheck(plain(n, opts, values, false, true)));
+        const difference = exactCheck('(' + substituted[0] + ')-(' + substituted[1] + ')');
+        if (difference === '0') continue;
+        if (symbols(parse(difference)).length) {
+          complete = false;
+          output.notes.push('参数分支还需满足：' + difference + ' = 0。');
+          continue;
+        }
+        if (!systemPairMatches(substituted.map(parse), Object.create(null), rad, 2e-8)) return false;
+      }
+      return true;
+    }
+    function add(candidate) {
+      const floatOptions = Object.assign({}, opts, { _systemFloat: true });
+      const records = variables.map(v => {
+        const record = publicRoots([rootRecord(candidate.values[v], v, floatOptions)])[0];
+        if (candidate.numerical && record.approximate !== null && !symbols(parse(record.exact)).length) {
+          try { record.exact = formatValue(evaluateNode(parse(record.exact), Object.create(null), Object.assign({}, floatOptions, { angle: 'rad' })), Object.assign({}, opts, { precision: 15 })); }
+          catch (_) { /* Keep the candidate for the original-equation validation below. */ }
+        }
+        return record;
+      });
+      const unresolved = Array.from(new Set(records.flatMap(r => symbols(parse(r.exact)))));
+      const values = Object.create(null); records.forEach(r => { values[r.variable] = r.exact; });
+      if (!candidate.numerical || unresolved.length) {
+        try { if (!exactMatches(values)) return; }
+        catch (_) { complete = false; return; }
+      }
+      if (unresolved.length) {
+        if (candidate.numerical) complete = false;
+        families.push(unresolved); output.parameters.push(...unresolved);
+      } else {
+        const scope = Object.create(null);
+        try { records.forEach(r => { const value = evaluateNode(parse(r.exact), Object.create(null), Object.assign({}, rad, { _systemFloat: true })); scope[r.variable] = value && (value.isBigNumber || value.isFraction) ? scalarNumber(value) : value; }); } catch (_) { complete = false; return; }
+        if (candidate.numerical && !nodes.every(pair => systemPairMatches(pair, scope, opts, 2e-8))) return;
+        if (candidate.realOnly && records.some(r => r.real !== true)) return;
+        if (candidate.numerical && lower !== undefined && records.some(r => { const value = scalarNumber(scope[r.variable]); return Number.isFinite(value) && (value < lower || value > upper); })) return;
+      }
+      records.forEach(r => { if (candidate.numerical && !symbols(parse(r.exact)).length) r.numerical = true; });
+      const same = (a, b) => a.every((r, i) => {
+        const other = b[i];
+        if (r.exact === other.exact) return true;
+        if (!(r.numerical || other.numerical) || r.real !== true || other.real !== true) return false;
+        return Math.abs(Number(r.approximate) - Number(other.approximate)) <= 2e-9 * Math.max(1, Math.abs(Number(r.approximate)), Math.abs(Number(other.approximate)));
+      });
+      if (sets.some(s => same(s, records))) return;
+      sets.push(records);
+    }
+    if (!complete || symbolic.numeric) readBounds();
+    symbolic.candidates.forEach(add);
+    if (!complete && !families.length && !parameters.length) {
+      if (lower === undefined) readBounds();
+      const solver = systemNumeric || root.MathSolverSystemNumeric;
+      if (!solver) fail('方程组数值求解资源未加载，请刷新页面并确认 system-numeric.js 文件完整。');
+      const scope = Object.create(null), budget = { left: LIMITS.systemOperations }, numericOptions = Object.assign({}, opts, { _systemFloat: true });
+      search = solver.search({ dimensions: variables.length, equations: nodes.length, lower, upper, maxEvaluations: LIMITS.systemEvaluations,
+        maxSolutions: LIMITS.rootSolutions, evaluate: point => {
+          if (budget.left <= 0) return null;
+          variables.forEach((v, i) => { scope[v] = point[i]; });
+          try {
+            return nodes.map(pair => {
+              const a = scalarNumber(evaluateNode(pair[0], scope, numericOptions, budget)), b = scalarNumber(evaluateNode(pair[1], scope, numericOptions, budget));
+              return Number.isFinite(a) && Number.isFinite(b) ? a - b : NaN;
+            });
+          } catch (_) { return null; }
+        } });
+      search.roots.forEach(r => {
+        const values = Object.create(null); variables.forEach((v, i) => { values[v] = formatNumber(r.values[i], 15); }); add({ values, numerical: true, realOnly: true, parameters: [] });
+      });
+      step(output, '多初值数值搜索', '每个未知量均搜索 [' + formatNumber(lower, opts.precision) + ', ' + formatNumber(upper, opts.precision) + ']；从 ' + search.starts + ' 个初值迭代，进行了 ' + search.evaluations + ' 次原方程组采样。', variables.map(v => v + '\\in[' + toLatex(formatNumber(lower, 15)) + ',' + toLatex(formatNumber(upper, 15)) + ']').join(',\\quad '));
+      if (search.limited || budget.left <= 0) output.notes.push('已达到本次采样或运算预算；可缩小范围后继续搜索。');
+      if (search.rankDeficient) output.notes.push('发现雅可比矩阵降秩的候选，可能存在连续解族或奇异孤立解；数值迭代不能给出其完整参数表达式。');
+    }
+    sets.sort((a, b) => {
+      const realA = a.every(r => r.real !== false), realB = b.every(r => r.real !== false);
+      if (realA !== realB) return realA ? -1 : 1;
+      for (let i = 0; i < a.length; i++) { const d = Number(a[i].approximate) - Number(b[i].approximate); if (Number.isFinite(d) && d) return d; }
+      return 0;
+    });
+    output.solutionSets = sets;
+    output.solutions = sets.flatMap((s, index) => s.map(r => Object.assign({ solutionSet: index + 1 }, r)));
+    output.parameters = Array.from(new Set(output.parameters)); output.complete = complete;
+    const numerical = sets.some(s => s.some(r => r.numerical));
+    if (numerical) output.numerical = true;
+    if (sets.length) {
+      const text = s => s.map(r => r.variable + (r.numerical ? ' ≈ ' : ' = ') + (r.numerical ? r.approximate : r.exact)).join('，');
+      output.answerText = sets.map((s, i) => (sets.length > 1 ? '第 ' + (i + 1) + ' 组：' : '') + text(s)).join('；');
+      output.answerLatex = '\\begin{gathered}' + sets.slice(0, 24).map(s => '\\begin{cases}' + s.map(r => r.variable + (r.numerical ? '\\approx ' : '=') + toLatex(r.numerical ? r.approximate : r.exact)).join('\\\\') + '\\end{cases}').join('\\\\[8pt]') + '\\end{gathered}';
+      if (sets.length > 24) output.notes.push('共找到 ' + sets.length + ' 组解，答案区显示前 24 组；下表列出全部结果。');
+      if (!numerical) output.exact = sets.map(s => s.map(r => r.variable + '=' + r.exact).join(';')).join(' | ');
+      output.approximate = sets.every(s => s.every(r => r.approximate !== null)) ? sets.map(s => s.map(r => r.variable + ' ≈ ' + r.approximate).join('，')).join('；') : null;
+      output.table = { headers: ['解组', ...variables], rows: sets.map((s, i) => [String(i + 1), ...s.map(r => (r.numerical ? '≈ ' : '') + (r.numerical ? r.approximate : r.exact))]),
+        latexRows: sets.map((s, i) => [String(i + 1), ...s.map(r => (r.numerical ? '\\approx ' : '') + toLatex(r.numerical ? r.approximate : r.exact))]) };
+      step(output, '逐组代回原方程', families.length ? '参数分支保留原等式、分母非零和函数定义域条件；确定数值的解已代回全部原等式。' : '每组变量必须同时满足全部原等式；逐行检查有限值、原分母及相对残差，剔除清分母、平方或消元引入的增根。', '');
+    } else {
+      output.answerText = complete ? '方程组无解' : '在所设范围的有界搜索中未找到通过验证的孤立实数解';
+      output.answerLatex = complete ? '\\varnothing' : '\\text{本次搜索未找到已验证的孤立实数解}';
+    }
+    if (families.length) output.notes.push('存在参数化解族；' + Array.from(new Set(families.flat())).join('、') + ' 为自由参数，必须满足原等式及原定义域。含实根、对数或绝对值的分支按实数域取值。');
+    if (sets.some(s => s.some(r => r.real === false))) output.notes.push('多项式消元同时列出实数解与复数解；数值搜索仅寻找实数解。');
+    if (search || symbolic.numeric) output.notes.push('数值部分仅搜索每个未知量的 [' + formatNumber(lower, opts.precision) + ', ' + formatNumber(upper, opts.precision) + '] 范围；多初值搜索不能保证找全所有解，未找到解不代表无解。≈ 表示近似值。');
+    else if (!complete) output.notes.push('已列出可验证的条件分支；参数的特殊取值或含近似常数的解族尚不能保证穷尽，不能据此断言完整解集或无解。≈ 表示近似值。');
+    if (!complete && parameters.length) output.notes.push('非线性方程组含未赋值参数：' + parameters.join('、') + '。已列出可求的条件分支；给参数赋值后可继续数值搜索。');
+    nodes.flat().forEach(n => domainNotes(n, output, variables[0] || 'x'));
     return output;
   }
   function replaceAbs(node, target, replacement) {
@@ -2930,7 +3427,7 @@
     else if (mode === 'statistics') output = statistics(input, normalized, opts);
     else if (mode === 'solve') {
       libraries(true);
-      if (lines.length > 1) output = linearSystem(input, normalized, opts);
+      if (lines.length > 1) output = equationSystem(input, normalized, opts);
       else if (relation.operators.some(op => !['=', '=='].includes(op))) output = inequality(input, normalized, opts);
       else if (relation.operators.length) output = equation(input, normalized, opts);
       else output = equation(input, normalized + '=0', opts);
@@ -2953,6 +3450,8 @@
     { label: '二次方程', input: 'x^2-5x+6=0', mode: 'solve' },
     { label: '复数根', input: 'x^2+1=0', mode: 'solve' },
     { label: '线性方程组', input: '2x+y=7;x-y=2', mode: 'solve' },
+    { label: '非线性方程组的多组精确解', input: 'x^2+y^2=5;x*y=2', mode: 'solve' },
+    { label: '三角方程组的实数搜索', input: 'sin(x)+y=1;x^2+y^2=1', mode: 'solve', options: { angle: 'rad' } },
     { label: '有理不等式', input: '(x+1)/(x-2)>0', mode: 'solve' },
     { label: '绝对值不等式', input: 'abs(x-1)<=2', mode: 'solve' },
     { label: '代数展开', input: '(x+2)^4', mode: 'expand' },
