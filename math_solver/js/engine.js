@@ -1769,6 +1769,22 @@
         pairs.push(pair); parsed.push(ns); active.push(names);
       }
       if (!pairs.length) { leaf(remaining, bindings, numerical); return; }
+      // For real expressions |A| = |B| has two exact branches, A = B and A = -B.
+      // Split before numerical search so rational roots outside its bounds survive.
+      for (let i = 0; i < parsed.length; i++) {
+        const [left, right] = parsed[i].map(unwrap);
+        if (![left, right].every(n => n.isFunctionNode && n.fn.name === 'abs')) continue;
+        const a = plain(left.args[0], null, null, false, true), b = plain(right.args[0], null, null, false, true);
+        // Complex moduli are not equivalent to these two real branches.
+        if (/\bi\b/.test(a + ' ' + b)) continue;
+        note('按绝对值等式分支', '在实数域将 |A|=|B| 拆成 A=B 或 A=-B，分别精确求解后合并。', toLatex(pairs[i].join('=')));
+        for (const target of [b, '-(' + b + ')']) {
+          const first = candidates.length;
+          visit(pairs.map((p, j) => j === i ? [a, target] : p), remaining, bindings, numerical, true);
+          candidates.slice(first).forEach(candidate => { candidate.realOnly = true; });
+        }
+        return;
+      }
       const single = active.findIndex(names => names.length === 1);
       if (single >= 0) {
         const variable = active[single][0];

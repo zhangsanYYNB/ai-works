@@ -599,6 +599,11 @@ test('solver worker imports the matching engine version and returns cloneable ex
   receive({data:{id:5,input:'sin(x)+y=1;x^2+y^2=1',options:{}}});
   assert.equal(posted[4].result.solutionSets.length,2);
   assert.equal(posted[4].result.numerical,true);
+  receive({data:{id:6,input:'|3x+y+12|=|2x-y-6|;|2x+5y+3|=|3x-9y-5|',options:{}}});
+  assert.equal(posted[5].result.solutionSets.length,4);
+  assert.equal(posted[5].result.complete,true);
+  assert.ok(posted[5].result.exact && !posted[5].result.numerical);
+  assert.equal(posted[5].result.solutionSets[0][0].exact,'-59/4');
 });
 
 test('symbolic-first evaluation preserves fractions, radicals, trig and irrational function constants', () => {

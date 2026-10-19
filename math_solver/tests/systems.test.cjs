@@ -85,6 +85,40 @@ test('root, absolute, exponential and logarithmic systems keep exact inverses', 
   assert.equal(engine.solve('sqrt(x)=y;y=-1').solutionSets.length, 0);
 });
 
+test('coupled absolute equalities return every exact fraction regardless of search bounds', () => {
+  const expected = [
+    { x: '-59/4', y: '-13/8' },
+    { x: '-34/7', y: '-46/7' },
+    { x: '-6/5', y: '-2' },
+    { x: '-6/5', y: '-23/35' }
+  ];
+  for (const options of [{}, { rootLower: '-1', rootUpper: '1', precision: 2 }]) {
+    const r = engine.solve('|3x+y+12|=|2x-y-6|;|2x+5y+3|=|3x-9y-5|', options);
+    assert.equal(r.complete, true);
+    assert.ok(r.exact && !r.numerical);
+    assert.deepEqual(r.solutionSets.map(set => Object.fromEntries(set.map(v => [v.variable, v.exact]))), expected);
+    assert.ok(r.solutions.every(v => !v.numerical));
+    assert.doesNotMatch(r.answerText + r.answerLatex, /≈|approx|\d\.\d/);
+    assert.match(r.answerLatex, /frac/);
+    assert.deepEqual(r.table.rows, expected.map((s, i) => [String(i + 1), s.x, s.y]));
+    verified(r, [['abs(3*x+y+12)', 'abs(2*x-y-6)'], ['abs(2*x+5*y+3)', 'abs(3*x-9*y-5)']]);
+  }
+});
+
+test('absolute equality branches merge duplicate zeros and reject holes and complex roots', () => {
+  const zero = engine.solve('abs(x+y)=abs(x-y);x=0;y=0');
+  assert.equal(zero.complete, true);
+  assert.deepEqual(tuples(zero), [{ x: 0, y: 0 }]);
+  const hole = engine.solve('abs((x^2-1)/(x-1))=abs(y);y=2');
+  assert.equal(hole.complete, true);
+  assert.deepEqual(tuples(hole), [{ x: -3, y: 2 }]);
+  const complex = engine.solve('abs(x+y)=abs(x-y);x^2+y^2=-1');
+  assert.equal(complex.complete, true);
+  assert.deepEqual(complex.solutionSets, []);
+  const moduli = engine.solve('abs(x+i*y)=abs(x-i*y);x+y=1');
+  assert.equal(moduli.complete, false);
+});
+
 test('exact root boundaries survive substitution while exact denominator zeros are rejected', () => {
   const boundary = engine.solve('sqrt(x^2-2)=0;y=0');
   assert.equal(boundary.complete, true);

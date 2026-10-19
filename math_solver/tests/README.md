@@ -24,8 +24,8 @@ node --check math_solver/js/solver-worker.js
 
 Check the following without navigating a browser that is being used by another task:
 
-- In `index.html`, the deferred `system-numeric.js?v=11` and `system-polynomial.js?v=11` scripts must both precede `engine.js?v=11`. Catalog and app scripts also use `v=11`; dependencies must retain their execution order.
-- The app gives the worker the engine script's query. The worker must preserve all of `self.location.search` on both helpers and the engine, import the helpers before the engine, and use `?v=11` when no query is present. A Node `vm` context can execute these local scripts in page order and capture worker `importScripts` calls without browser navigation.
+- In `index.html`, the deferred `system-numeric.js?v=12` and `system-polynomial.js?v=12` scripts must both precede `engine.js?v=12`. Catalog and app scripts also use `v=12`; dependencies must retain their execution order.
+- The app gives the worker the engine script's query. The worker must preserve all of `self.location.search` on both helpers and the engine, import the helpers before the engine, and use `?v=12` when no query is present. A Node `vm` context can execute these local scripts in page order and capture worker `importScripts` calls without browser navigation.
 - Auto and solve modes expose system unknowns and root bounds; other modes hide these system/search controls. A blank unknowns field must omit `options.variables`, while comma-separated names must survive history replay and a shared-link round trip. The existing scalar variable setting must remain independent.
 - Run the catalog's four-solution polynomial, three-variable nonlinear, trigonometric, exponential, logarithmic, and rational system examples. Check that the equation category's first four examples include nonlinear systems, and that grouped answers and tables render using the existing result components. At mobile widths, the added field should wrap within the existing options grid.
 
