@@ -78,6 +78,30 @@
             color: #555;
             line-height: 1.5;
         }
+        /* AI 归属标注：描述下方一行小字 */
+        .file-ai {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px dashed #e2e5ea;
+            font-size: 0.82em;
+            color: #8a90a0;
+            line-height: 1.4;
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .file-ai .ai-tag {
+            display: inline-block;
+            padding: 1px 8px;
+            border-radius: 10px;
+            background: #eef1f8;
+            border: 1px solid #dde3f0;
+            font-size: 0.95em;
+            font-weight: 600;
+            color: #4c5876;
+            white-space: nowrap;
+        }
         .no-files {
             text-align: center;
             padding: 40px;
@@ -104,7 +128,7 @@
 <body>
     <div class="container">
         <h1>🎉 欢迎来到zhangsanYYNB的ai代码</h1>
-        <p class="subtitle">探索由AI生成的精彩代码项目</p>
+        <p class="subtitle">探索由AI生成的精彩代码项目 · 每张卡片下方标注了所用的 AI</p>
         
         <button class="refresh-btn" onclick="location.reload()">🔄 刷新文件列表</button>
         
@@ -116,104 +140,131 @@
     <script>
         // 已知的HTML文件列表（由于浏览器安全限制，无法自动扫描文件系统）
         // 这里列出了仓库中已发现的HTML文件
+        // ai: 生成该项目的 AI 名称；多轮迭代用 " → " 连接，按时间顺序书写
         const knownFiles = [
             {
                 path: './Xc.html',
                 title: 'XC · 看见相对运动',
                 icon: '↔',
+                ai: 'GPT-6.1 Sol',
                 description: '人船、半圆槽小球与车摆的交互物理实验：分阶段观察反向运动，比较水平位移与船长、槽半径、摆长的关系。支持调整质量与尺寸、拖动时间轴、关键状态暂停和本段／累计位移对照，离线可用。'
             },
             {
                 path: './math_solver/index.html',
                 title: 'Math Solver · 数学求解器',
                 icon: '∑',
+                ai: 'GPT-6.1 Sol',
                 description: '纯前端离线数学工具：科学计算、精确分数与复数、代数化简/展开/因式分解、方程与不等式、线性方程组、微积分、矩阵与向量、统计、单位与进制换算。提供分步解题、多曲线交互绘图、参数滑块、数值表、历史与收藏，手机虚拟键盘支持长按滑动选择数学符号。'
             },
             {
                 path: './ember_duo/index.html',
                 title: '星火双行 - 2D 横版合作闯关',
                 icon: '✦',
+                ai: 'GPT-6 Astra',
                 description: '六个主题世界、48 个关卡与六场首领战的 HTML5 横版冒险。二段跳、冲刺、星火弹与踩踏战斗，探索钥匙门、升降平台、碎裂桥、冰面、锯刃和激光路线；每关三枚星核、三星挑战、检查点复活与本地存档。支持单人或双人同屏，键盘和多点触屏可同时使用，全部资源本地加载。'
             },
             {
                 path: './jump_game.html',
                 title: '云端一跃 · SKY HOP / 3D',
                 icon: '☁️',
+                ai: 'GPT-6 Astra',
                 description: '真正的 WebGL 3D 天空花园跳跃游戏：操控机器人宇航员穿行漂浮岛屿，按住蓄力、松开起跳，体验蓄力形变、空中翻转、粒子与光环特效；连续落在岛屿中心可获得连击加分。支持触屏、鼠标与键盘操作，保留原有历史最高分。'
             },
             {
                 path: './starbound_blocks/index.html',
                 title: '星际方块：远星回响 - 方块建造与星际探索',
                 icon: '🌌',
+                ai: 'GPT-6 Astra',
                 description: '独立 3D 体素探索游戏：四颗风格迥异的星球，采矿建造、喷气背包、生态扫描、哨兵战斗、制造升级、修复飞船与星际跃迁；集齐遗迹碎片开启星门。支持自动存档、存档导入导出、键鼠和多点触屏（含 Windows 触屏电脑），全部资源本地加载。'
             },
             {
                 path: './fruit_ninja.html',
                 title: '水果忍者 - 经典网页重制版',
                 icon: '🍉',
+                ai: 'Gemini 3.7 Flash',
                 description: '经典水果忍者纯原生单文件重制版：经典/街机/禅宗三大模式，菜单切水果交互，程序化物理切割与果肉截面渲染，连击 Combo 爆击，特殊香蕉道具与巨型狂暴大西瓜，多款刀刃轨迹与道场装扮，Web Audio API 真实打击音效。'
             },
             {
                 path: './backrooms_game/index.html',
                 title: '后室：逃离 - 3D 立体多层逃生游戏 v2.2',
                 icon: '🚪',
+                ai: 'GLM-5.3 Flash',
                 description: '后室题材第一人称 3D 逃生游戏：24 大层级无缝互联，5 种地形布局（迷宫/房间群/大厅环廊/街区网格/洞穴）+地标建筑；投掷瓶声东击西、藏身柜、蹲行潜行玩法；立体多层+天梯，实体 AI 追杀，手机电脑双端。'
             },
             {
                 path: './random_answer.html',
                 title: '随机答案生成器 - ABCD / 七选五',
                 icon: '🎲',
+                ai: 'GLM-5.3',
                 description: '随机生成 ABCD 单选题答案或七选五答案，支持自定义题目数量、题组数量、是否允许重复，一键复制结果，空格键快速重新生成。'
             },
             {
                 path: './SteelRuler.html',
                 title: '钢尺弯曲与振动 3D 物理仿真',
                 icon: '📏',
+                ai: 'DeepSeek V4.1 Flash 1017',
                 description: '物理仿真：带阻尼动力学的钢尺弯曲与振动 3D 可视化，支持调节几何参数、力学参数，展示静态挠度和动态振动过程。'
             },
             {
                 path: './shopdata.html',
                 title: 'ShopData 商店配置编辑器',
                 icon: '🛒',
+                ai: 'Kimi K3 → GPT-5.6 Sol',
                 description: '可视化工具：树形结构编辑 shopdata 商店配置，支持上传/下载 JSON、节点增删复制排序、全量数据校验与错误定位、物品图片选择器。'
             },
             {
                 path: './electric_field_3d.html',
                 title: '三维电场线仿真 - 多点电荷系统',
                 icon: '⚡',
+                ai: 'Qwen Chat Coder → DeepSeek V4.1 Flash',
                 description: '物理仿真：支持编辑点电荷位置和电荷大小的三维电场线可视化，包含电场线、向量场和等势面切片显示功能。'
             },
             {
                 path: './collision_simulation.html',
                 title: '方块碰撞仿真 - 多次碰撞与能量耗散',
                 icon: '🎱',
+                ai: 'Qwen Chat Coder',
                 description: '物理仿真：小方块与大方块的多次弹性碰撞模型，包含运动动画和 t-x 位置时间图，展示能量耗散过程。'
             },
             {
                 path: './multi_collision_lab.html',
                 title: '多物体碰撞实验室',
                 icon: '💥',
+                ai: 'GPT-6 Astra',
                 description: '物理仿真：支持多个小球或方块的碰撞实验，实时展示运动过程、碰撞响应与能量变化，便于观察多物体系统中的动量与能量传递。'
             },
             {
                 path: './reaction_kinetics.html',
                 title: 'SO₂催化氧化反应动力学仿真',
                 icon: '🧪',
+                ai: 'Qwen Chat Coder → Space Bunny Alpha → DeepSeek V4.1 Flash',
                 description: '化学反应动力学：基于 ODE 数值积分的 SO₂+O₂⇌SO₃可逆反应模拟，展示净反应速率和各组分浓度随时间变化的动态图表。'
             },
             {
                 path: './simulation.html',
                 title: '双环运动仿真',
                 icon: '⚙️',
+                ai: 'Qwen Chat Coder',
                 description: '物理仿真：两个垂直杆上的双环系统，展示角度、加速度、速度随时间变化的动态图表和运动动画。'
             },
             {
                 path: './slz.html',
                 title: '等面四面体与长方体切割法可视化',
                 icon: '📐',
+                ai: 'Qwen Chat Coder',
                 description: '3D 几何可视化：基于 Three.js 展示等面四面体与长方体的切割法关系，支持交互式视角控制、彩色标注不同棱长，展示四面体体积计算原理。'
             }
         ];
+
+        // 生成 AI 归属文案：模型名做成小标签，多轮迭代用箭头连接
+        function aiTags(ai) {
+            if (!ai) return '<span class="ai-tag">未标注</span>';
+            return ai.split('→')
+                .map(name => name.trim())
+                .filter(Boolean)
+                .map(name => `<span class="ai-tag">${name}</span>`)
+                .join(' → ');
+        }
 
         function renderFileList() {
             const fileListContainer = document.getElementById('fileList');
@@ -234,6 +285,10 @@
                     <div class="file-title">${file.title}</div>
                     <div class="file-path">${file.path}</div>
                     <div class="file-desc">${file.description}</div>
+                    <div class="file-ai">
+                        <span>🤖</span>
+                        <span>由 ${aiTags(file.ai)} 生成</span>
+                    </div>
                 </a>
             `).join('');
         }

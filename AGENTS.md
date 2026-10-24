@@ -36,6 +36,11 @@
 - **秘籍**：仅主菜单标题连点5次；IDDQD/IDCLIP/IDKFA/IDLEVEL/unlockall
 - **测试要点**：agent_browser auto 会话（fresh socket 超长失败）；WebGL 上下文易耗尽→pkill chromium 重开；服务器日志 $HOME/httpd.log；改 JS 必须 bump ?v=N；eval 用条件轮询 until()；跨行字符串写 \n 会被工具转成真换行→用 python 状态机修复单引号字符串
 
+## 首页 AI 归属标注 (index.html)
+- `knownFiles` 每项带 `ai` 字段，卡片描述下方渲染「🤖 由 <ai> 生成」；多轮迭代用 ` → ` 连接（如 `Qwen Chat Coder → Space Bunny Alpha → DeepSeek V4.1 Flash`），按时间顺序
+- 归属表（作者确认）：Xc/math_solver = GPT-6.1 Sol；ember_duo/jump_game/starbound_blocks/multi_collision_lab = GPT-6 Astra；fruit_ninja = Gemini 3.7 Flash；backrooms_game = GLM-5.3 Flash；random_answer = GLM-5.3；SteelRuler = DeepSeek V4.1 Flash 1017；shopdata = Kimi K3 → GPT-5.6 Sol；electric_field_3d = Qwen Chat Coder → DeepSeek V4.1 Flash；collision_simulation/simulation/slz = Qwen Chat Coder；reaction_kinetics = Qwen Chat Coder → Space Bunny Alpha → DeepSeek V4.1 Flash
+- 写具体型号而不是只有厂商名；新增项目时必须补 `ai` 字段
+
 ## 常用命令
 ```bash
 git pull                # 拉取远端更新
