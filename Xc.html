@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#f6f8f7">
-<meta name="description" content="人船、半圆槽小球与车摆的交互实验：分阶段观察水平位移与船长、半径、摆长的关系。">
+<meta name="description" content="七个相对运动实验：人船、圆弧与滑块、双杆弹簧和小球碰撞。支持独立调参、持续播放与时间回看，离线可用。">
 <title>XC · 看见相对运动</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230d756b'/%3E%3Cpath d='M13 24h36m-8-8 8 8-8 8M51 42H15m8-8-8 8 8 8' fill='none' stroke='white' stroke-width='5'/%3E%3C/svg%3E">
 <style>
@@ -16,6 +16,15 @@
 @media(max-width:390px){.shell{padding-left:11px;padding-right:11px}.hero h1{font-size:29px}.scene-head{padding-left:13px;padding-right:13px}.scene-head p{font-size:10px}.tag{font-size:9px;padding:4px 6px}.metrics{gap:6px}.metric{padding:12px 9px}.metric strong{font-size:19px}.metric label{font-size:9px}.transport{padding-left:13px;padding-right:13px}.playback{gap:5px}.play-btn{min-width:91px;padding:0 10px}.transport-row{flex-wrap:wrap}.speed{gap:2px;margin-left:auto}.speed>span{display:none}.sidebar{grid-template-columns:1fr}.parameters{grid-row:auto}.display-options{display:grid;grid-template-columns:1fr 1fr}.display-options h3{grid-column:1/-1}.drawing canvas{height:380px}.stage-point{font-size:9px}.section-heading h2{font-size:14px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 @media print{body{background:white}.shell{max-width:none;padding:10px}.home,.transport,.sidebar,.footer,.display-options{display:none}.workspace{display:block}.tabs{padding:0;background:none}.tab[aria-selected=false]{display:none}.tab[aria-selected=true]{box-shadow:none}.card{break-inside:avoid}.drawing canvas{height:360px}.hero{margin-bottom:12px}.masthead{margin-bottom:15px}}
+[hidden]{display:none!important}
+.tabs{display:flex;overflow-x:auto;scrollbar-width:thin;scroll-snap-type:x proximity}.tab{flex:1 0 130px;scroll-snap-align:nearest;white-space:nowrap;padding:14px 10px;gap:8px}.tab .tab-name{font-size:12px}.tab svg{width:19px;height:19px;flex-shrink:0}
+.dynamic-params .section-label{margin-bottom:12px}.parameter-group{margin:0 0 16px;padding:0;border:0;min-width:0}.parameter-group legend,.advanced-params summary{font-size:11px;font-weight:650;color:var(--green);padding:0;margin-bottom:12px}.dynamic-params .param{margin-bottom:13px}.dynamic-params .param-row label{font-size:10px}.dynamic-params .number-unit input{width:70px}.advanced-params{border-top:1px solid var(--line);padding-top:12px;margin-bottom:14px}.advanced-params summary{cursor:pointer;margin-bottom:0}.advanced-params[open] summary{margin-bottom:15px}.launch-select{display:grid;gap:7px;margin:3px 0 18px;font-size:11px;color:var(--muted)}.launch-select select{max-width:100%;border:1px solid var(--line);border-radius:8px;background:#f6f8f6;padding:8px;color:var(--ink)}.param-error{font-size:11px;color:#a3492d;margin:9px 0 0}.continuous-heading{font-size:11px;color:var(--muted)}.body-metrics{grid-template-columns:repeat(auto-fit,minmax(135px,1fr))}.body-metrics .metric strong{font-size:20px}.body-metrics .metric output{display:block;line-height:1.8}.invariants{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:10px}.invariant{border:1px solid var(--line);background:white;border-radius:11px;padding:11px 12px;font-size:10px;color:var(--muted)}.invariant strong{display:block;color:var(--ink);font:12px var(--mono);margin-top:5px;overflow-wrap:anywhere}.conservation-note{font-size:10px;color:var(--muted);line-height:1.8;margin:9px 1px 0}.live-comparison{margin-top:24px;padding:23px 25px}.live-comparison .section-heading{margin-bottom:15px}.spring-readings{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:17px}.spring-reading{border:1px solid var(--line);border-radius:12px;background:#f8faf8;padding:13px 15px;font-size:11px;color:var(--muted)}.spring-reading b{color:var(--green)}.spring-reading output{font-family:var(--mono);color:var(--ink)}.run-note{font-size:10px;color:var(--muted);margin:12px 0 0}.new-legend{gap:13px}.new-legend i{flex-shrink:0}.continuous-scene .transport{padding-top:15px}.continuous-scene .switch-line{justify-content:flex-end}.continuous-scene .drawing canvas{height:420px}
+@media(max-width:760px){.tabs .tab{flex-basis:118px;flex-grow:0;padding:12px 9px}.tabs .tab .num{display:inline;font-size:9px}.sidebar:has(.dynamic-params:not([hidden])){grid-template-columns:1fr 1fr}.dynamic-params{grid-row:span 2}.live-comparison{padding:20px 18px;margin-top:19px}.continuous-scene .drawing canvas{height:390px}.body-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.invariant{padding:9px 8px;font-size:9px}.invariant strong{font-size:11px}}
+@media(max-width:390px){.sidebar:has(.dynamic-params:not([hidden])){grid-template-columns:1fr}.dynamic-params{grid-row:auto}.body-metrics .metric strong{font-size:19px}.invariants{gap:5px}.spring-readings{grid-template-columns:1fr}.continuous-heading{font-size:10px}}
+.critical-speed-btn{width:100%;border:1px solid #c6dfd0;background:var(--green-soft);color:var(--green);border-radius:8px;padding:8px;font-size:10px;margin:0 0 15px}.critical-speed-btn:hover{background:#dceee4}
+@media(max-width:760px){.sidebar .dynamic-params{grid-column:1/-1;grid-row:auto}.dynamic-params #new-param-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px}.dynamic-params .launch-select,.dynamic-params .advanced-params,.critical-speed-btn{grid-column:1/-1}.dynamic-params .advanced-params .param{max-width:360px}}
+@media(max-width:390px){.dynamic-params #new-param-fields{grid-template-columns:1fr}}
+@media print{.tabs{overflow:visible}.live-comparison{break-inside:avoid}}
 </style>
 </head>
 <body>
@@ -25,21 +34,26 @@
     <a class="home" href="./index.html">返回项目集 ↗</a>
   </header>
   <section class="hero">
-    <div><div class="eyebrow">PHYSICS · RELATIVE MOTION</div><h1>看见相对运动</h1><p>从船长、半径与摆长，读懂每一段位移。</p></div>
-    <div class="principle"><small>共同的线索：水平质心保持不变</small><strong>M Δx<sub>底座</sub> + m Δx<sub>物体</sub> = 0</strong></div>
+    <div><div class="eyebrow">PHYSICS · RELATIVE MOTION</div><h1>看见相对运动</h1><p>从相对位移到弹簧碰撞，观察运动如何传递。</p></div>
+    <div class="principle"><small>水平冲量决定水平动量的变化</small><strong>ΔP<sub>x</sub> = I<sub>x</sub></strong></div>
   </section>
   <nav class="tabs" role="tablist" aria-label="选择实验场景">
     <button class="tab" id="tab-boat" role="tab" aria-selected="true" aria-controls="experiment-panel" data-scene="boat"><span class="num">01</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 13 3 6h12l3-6H3Zm9-10v10M7 9h10M3 22c2-2 4 2 6 0s4 2 6 0 4 2 6 0"/></svg><span class="tab-name">人与船</span></button>
     <button class="tab" id="tab-groove" role="tab" aria-selected="false" aria-controls="experiment-panel" tabindex="-1" data-scene="groove"><span class="num">02</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5v16h18V5h-3a6 6 0 0 1-12 0Z"/><circle cx="6" cy="4" r="2"/></svg><span class="tab-name">小球与槽</span></button>
     <button class="tab" id="tab-pendulum" role="tab" aria-selected="false" aria-controls="experiment-panel" tabindex="-1" data-scene="pendulum"><span class="num">03</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16v3H4zM8 18V3h6m-6 0 10 7"/><circle cx="19" cy="11" r="2"/><path d="M6 23h1m10 0h1"/></svg><span class="tab-name">小车与摆</span></button>
+    <button class="tab" id="tab-quarter" role="tab" aria-selected="false" aria-controls="experiment-panel" tabindex="-1" data-scene="quarter"><span class="num">04</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18V4M5 17a13 13 0 0 0 13-13"/><path d="M2 13h6m-2-2 2 2-2 2"/></svg><span class="tab-name">冲入圆弧</span></button>
+    <button class="tab" id="tab-dropgroove" role="tab" aria-selected="false" aria-controls="experiment-panel" tabindex="-1" data-scene="dropgroove"><span class="num">05</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8a9 9 0 0 0 18 0M3 1v5m-2-2 2 2 2-2"/><path d="M2 21h20"/></svg><span class="tab-name">落入半圆槽</span></button>
+    <button class="tab" id="tab-spring2" role="tab" aria-selected="false" aria-controls="experiment-panel" tabindex="-1" data-scene="spring2"><span class="num">06</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 4h20M2 20h20m-8-14-4 3 4 3-4 3 2 3"/><circle cx="14" cy="4" r="2"/><circle cx="12" cy="20" r="2"/></svg><span class="tab-name">双球与弹簧</span></button>
+    <button class="tab" id="tab-spring3" role="tab" aria-selected="false" aria-controls="experiment-panel" tabindex="-1" data-scene="spring3"><span class="num">07</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h20M2 21h20m-9-16-3 2 3 2m-1 6-3 2 3 2M2 12h5"/><circle cx="13" cy="3" r="2"/><circle cx="13" cy="12" r="2"/><circle cx="12" cy="21" r="2"/></svg><span class="tab-name">三球与碰撞</span></button>
   </nav>
   <div id="experiment-panel" role="tabpanel" aria-labelledby="tab-boat">
     <div class="workspace">
       <div class="main-column">
-        <section class="card experiment" aria-label="运动动画与阶段控制">
+        <section class="card experiment" id="experiment-card" aria-label="运动动画与播放控制">
           <header class="scene-head"><div><h2 id="scene-title">人在船上走，船向后退</h2><p id="scene-subtitle">以岸为参照 · 从船左端走到船右端</p></div><span class="tag" id="size-badge">L = 6.0 m</span></header>
           <div class="drawing"><canvas id="scene-canvas" role="img" aria-label="人在船上行走与船反向移动的示意图，实时位移见下方读数。">你的浏览器不支持 Canvas，请使用下方阶段表查看位移关系。</canvas></div>
-          <div class="legend" aria-hidden="true"><span><i class="dot orange"></i><span id="object-legend">人 m</span></span><span><i class="dot"></i><span id="base-legend">船 M</span></span><span><i class="ghost-line"></i><span id="ghost-legend">本段起点</span></span><span><i class="dot purple"></i>水平质心</span></div>
+          <div class="legend" id="legacy-legend" aria-hidden="true"><span><i class="dot orange"></i><span id="object-legend">人 m</span></span><span><i class="dot"></i><span id="base-legend">船 M</span></span><span><i class="ghost-line"></i><span id="ghost-legend">本段起点</span></span><span><i class="dot purple"></i>水平质心</span></div>
+          <div class="legend new-legend" id="new-legend" aria-hidden="true" hidden></div>
           <div class="stage-track" id="stage-track" role="group" aria-label="跳转到关键状态"></div>
           <div class="transport">
             <div class="progress-meta"><label for="timeline" id="segment-title">左端 → 右端</label><output id="time-output" for="timeline">0.00 / 8.00 s</output></div>
@@ -53,10 +67,10 @@
               </div>
               <label class="speed"><span>速度</span><select id="speed" aria-label="播放速度"><option value="0.25">0.25×</option><option value="0.5" selected>0.5×</option><option value="1">1×</option><option value="2">2×</option></select></label>
             </div>
-            <div class="switch-line"><label class="check"><input id="pause-stages" type="checkbox" checked>到关键状态暂停</label><span role="status" aria-live="polite"><i class="status-dot" id="status-dot"></i><span id="play-status">准备就绪</span></span></div>
+            <div class="switch-line"><label class="check" id="pause-stages-option"><input id="pause-stages" type="checkbox" checked>到关键状态暂停</label><span role="status" aria-live="polite"><i class="status-dot" id="status-dot"></i><span id="play-status">准备就绪</span></span></div>
           </div>
         </section>
-        <section class="readout" aria-label="实时水平位移">
+        <section class="readout" id="legacy-readout" aria-label="实时水平位移">
           <div class="readout-head"><h2>距离，就在这一段</h2><div class="segmented" role="group" aria-label="位移参照起点"><button id="mode-segment" aria-pressed="true">本阶段</button><button id="mode-total" aria-pressed="false">从最初累计</button></div></div>
           <div class="metrics">
             <div class="metric"><label id="relative-label">人相对船 · Δs</label><strong><span id="relative-value">0.000</span><small>m</small></strong><output id="relative-ratio">0 L</output></div>
@@ -65,9 +79,15 @@
           </div>
           <div class="readout-note"><span>右为正 ＋ · 左为负 − · 数值均为水平位移</span><span class="reference-dot">● 水平质心位移：<span id="com-value">0.000</span> m</span></div>
         </section>
+        <section class="readout" id="continuous-readout" aria-label="连续实验实时读数" hidden>
+          <div class="readout-head"><h2>此刻的运动</h2><span class="continuous-heading">位移自初始累计 · 对地坐标</span></div>
+          <div class="metrics body-metrics" id="body-metrics"></div>
+          <div class="invariants"><div class="invariant">水平动量 / kg·m/s<strong id="live-momentum">0.000</strong></div><div class="invariant">机械能 / J<strong id="live-energy">0.000</strong></div><div class="invariant">水平质心位移 / m<strong id="live-com">0.000</strong></div></div>
+          <p class="conservation-note" id="conservation-note"></p>
+        </section>
       </div>
       <aside class="sidebar" aria-label="实验参数和显示设置">
-        <section class="card parameters">
+        <section class="card parameters" id="legacy-parameters">
           <h2 class="section-label">调整实验参数 <small>试试不同的质量比</small></h2>
           <div class="param"><div class="param-row"><label for="base-mass"><b id="base-param-name">船</b>的质量 M</label><span class="number-unit"><input type="number" id="base-mass-number" value="210" min="40" max="600" step="10" aria-label="底座质量，单位千克"><span>kg</span></span></div><input id="base-mass" type="range" min="40" max="600" step="10" value="210" aria-label="调整底座质量"></div>
           <div class="param"><div class="param-row"><label for="object-mass"><b id="object-param-name">人</b>的质量 m</label><span class="number-unit"><input type="number" id="object-mass-number" value="70" min="20" max="160" step="5" aria-label="物体质量，单位千克"><span>kg</span></span></div><input id="object-mass" type="range" min="20" max="160" step="5" value="70" aria-label="调整物体质量"></div>
@@ -75,22 +95,34 @@
           <p class="param-note">改变参数后，实验自动回到初始状态。</p>
           <div class="mass-ratio"><div class="ratio-label"><span>物体质量占比 m / (M + m)</span><b id="mass-share">25.0%</b></div><div class="ratio-bar" aria-hidden="true"><span id="mass-bar"></span></div><div class="ratio-formula" id="ratio-formula">Δx底座 = −0.250 Δs</div></div>
         </section>
+        <section class="card parameters dynamic-params" id="new-parameters" hidden>
+          <h2 class="section-label">调整实验参数 <small>每个物体独立设置</small></h2>
+          <div id="new-param-fields"></div>
+          <p class="param-note">改变参数后回到新初态。速度右为正；俯视图中纵向速度向上为正。</p>
+          <p class="param-error" id="param-error" role="alert" hidden></p>
+        </section>
         <section class="card insight"><h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6m-5 3h4M8 13a6 6 0 1 1 8 0c-1 1-1 2-1 3H9c0-1 0-2-1-3Z"/></svg>看懂这一段</h3><p id="insight-text"></p></section>
-        <section class="card display-options"><h3>画面标记</h3><label class="check"><input id="show-ghost" type="checkbox" checked>显示参照起点轮廓</label><label class="check"><input id="show-trail" type="checkbox" checked>显示物体对地轨迹</label><label class="check"><input id="show-com" type="checkbox" checked>显示固定水平质心</label></section>
+        <section class="card display-options"><h3>画面标记</h3><label class="check"><input id="show-ghost" type="checkbox" checked>显示参照起点轮廓</label><label class="check"><input id="show-trail" type="checkbox" checked>显示物体对地轨迹</label><label class="check"><input id="show-com" type="checkbox" checked><span id="com-option-text">显示固定水平质心</span></label><label class="check" id="vector-option" hidden><input id="show-vectors" type="checkbox" checked>显示速度方向</label></section>
       </aside>
     </div>
-    <section class="card comparison" aria-labelledby="comparison-title">
+    <section class="card comparison" id="legacy-comparison" aria-labelledby="comparison-title">
       <div class="section-heading"><h2 id="comparison-title">把位移，写成尺寸的倍数</h2><p>下表比较各段的起点与终点 · 根据当前参数更新</p></div>
       <p class="table-hint">左右滑动表格，查看底座与物体的位移 →</p>
       <div class="table-scroll" tabindex="0" aria-label="阶段位移表，窄屏可左右滑动"><table><thead><tr><th scope="col">阶段</th><th scope="col">相对位移 Δs</th><th scope="col" id="table-base-heading">船相对岸</th><th scope="col" id="table-object-heading">人相对岸</th></tr></thead><tbody id="stage-table"></tbody></table></div>
       <p class="table-foot" id="table-foot">L 为船长。负号表示向左，正号表示向右。</p>
     </section>
+    <section class="card live-comparison" id="live-comparison" hidden>
+      <div class="section-heading"><h2>每个物体，都有自己的运动</h2><p>水平面俯视图中，y 为垂直于杆的方向；圆弧图中，y 为离最低点的高度。</p></div>
+      <div class="table-scroll" tabindex="0" aria-label="物体位置与速度，窄屏可左右滑动"><table><thead><tr><th scope="col">物体</th><th scope="col">x / m</th><th scope="col">y / m</th><th scope="col">vₓ / m/s</th><th scope="col">vᵧ / m/s</th><th scope="col">Δx / m</th></tr></thead><tbody id="body-table"></tbody></table></div>
+      <div class="spring-readings" id="spring-readings"></div>
+      <p class="run-note" id="run-note"></p>
+    </section>
     <section class="explanation" aria-label="位移关系的物理解释">
-      <div><div class="eyebrow">THE IDEA BEHIND IT</div><h2>它们反向移动，因为水平质心不变。</h2><p>系统初始静止，水平方向不受外力。物体与底座的水平动量始终相互抵消。再把“物体对地的位移”写成“底座的位移 ＋ 物体相对底座的位移”，就能得到右边的关系。</p></div>
-      <div class="equations"><div class="equation"><span class="base-color">Δx<sub>底座</sub></span><span>= −</span><span class="fraction"><span>m</span><span>M + m</span></span><span>Δs</span></div><div class="equation"><span class="object-color">Δx<sub>物体</sub></span><span>=</span><span class="fraction"><span>M</span><span>M + m</span></span><span>Δs</span></div></div>
+      <div id="explanation-copy"><div class="eyebrow">THE IDEA BEHIND IT</div><h2>它们反向移动，因为水平质心不变。</h2><p>系统初始静止，水平方向不受外力。物体与底座的水平动量始终相互抵消。再把“物体对地的位移”写成“底座的位移 ＋ 物体相对底座的位移”，就能得到右边的关系。</p></div>
+      <div class="equations" id="explanation-equations"><div class="equation"><span class="base-color">Δx<sub>底座</sub></span><span>= −</span><span class="fraction"><span>m</span><span>M + m</span></span><span>Δs</span></div><div class="equation"><span class="object-color">Δx<sub>物体</sub></span><span>=</span><span class="fraction"><span>M</span><span>M + m</span></span><span>Δs</span></div></div>
     </section>
   </div>
-  <footer class="footer"><p id="model-note">理想模型：忽略水的水平阻力；人和船初始静止，人自行平稳行走。人体以质点描述。所有标注都是水平位移，船与人物的装饰尺寸不参与计算。</p><span>XC / MOTION STUDIES · 01—03</span></footer>
+  <footer class="footer"><p id="model-note">理想模型：忽略水的水平阻力；人和船初始静止，人自行平稳行走。人体以质点描述。所有标注都是水平位移，船与人物的装饰尺寸不参与计算。</p><span>XC / MOTION STUDIES · 01—07</span></footer>
 </div>
 <noscript>这个实验需要启用 JavaScript 才能播放动画和计算位移。</noscript>
 <script id="physics-model">
@@ -99,7 +131,10 @@ const XCPhysics = (() => {
   const G = 9.81;
   const HALF_PI = Math.PI / 2;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  function makeModel(kind, M, m, size) {
+  function makeModel(kind, M, m, size, options = {}) {
+    if (kind === 'dropgroove' && (typeof M === 'object' ? M.wall !== false : options.wall !== false)) return makeWallGrooveModel(typeof M === 'object' ? M : { M, m, R: size, ...options });
+    if (kind === 'quarter' || kind === 'dropgroove') return makeArcModel(kind, typeof M === 'object' ? M : { M, m, R: size, ...options });
+    if (kind === 'spring2' || kind === 'spring3') return makeSpringModel(kind, M);
     if (!['boat', 'groove', 'pendulum'].includes(kind) || ![M, m, size].every(v => Number.isFinite(v) && v > 0)) throw new RangeError('物理参数必须为正数');
     const mu = m / (M + m);
     let quarter = 0;
@@ -180,6 +215,1038 @@ const XCPhysics = (() => {
     }
     return { kind, M, m, size, mu, quarter, times, duration, at, difference };
   }
+  // Paste inside the XCPhysics IIFE; G, HALF_PI and clamp are supplied by it.
+  // Finite quarter models clamp queries to their exit time, retaining exit velocities.
+  // In free flight theta/omega are the polar angle and its derivative about (X, R).
+  function makeArcModel(kind, p = {}) {
+    if (!['quarter', 'dropgroove'].includes(kind) || !p || typeof p !== 'object') {
+      throw new RangeError('请选择 quarter 或 dropgroove，并提供有效物理参数');
+    }
+    p = { M: 6, m: 2, R: 2, v0: kind === 'quarter' ? 8 : 0,
+      h: kind === 'dropgroove' ? 1 : 0, dropSpeed: 0, ...p };
+    const { M, m, R, v0, h, dropSpeed } = p;
+    if (![M, m, R].every(v => Number.isFinite(v) && v > 0)
+        || ![v0, h, dropSpeed].every(v => Number.isFinite(v) && v >= 0)) {
+      throw new RangeError('质量、半径必须为有限正数，初速度和释放高度必须为有限非负数');
+    }
+    const totalMass = M + m;
+    // Compute both mass fractions: 1 - mu loses the light-base limit.
+    const alpha = M / totalMass, mu = m / totalMass, sqrtAlpha = Math.sqrt(alpha);
+    const rootGR = Math.sqrt(G) * Math.sqrt(R);
+    const directCritical = Math.sqrt(2 * G * R / alpha);
+    const criticalSpeed = Number.isFinite(directCritical) ? directCritical
+      : Math.SQRT2 * rootGR / sqrtAlpha;
+    const q0 = kind === 'quarter' ? 0 : -R;
+    const comVelocity = kind === 'quarter' ? mu * v0 : 0;
+    const momentum0 = kind === 'quarter' ? m * v0 : 0;
+    const energy0 = kind === 'quarter' ? .5 * m * v0 * v0
+      : m * G * (R + h) + .5 * m * dropSpeed * dropSpeed;
+    if (!Number.isFinite(totalMass) || !(alpha > 0 && mu > 0)
+        || !Number.isFinite(criticalSpeed) || !Number.isFinite(energy0)) {
+      throw new RangeError('物理参数超出浮点数可计算范围');
+    }
+
+    // No tolerance band here: even an adjacent representable speed must select
+    // the correct side of criticalSpeed. Factoring the excess avoids cancellation.
+    const regime = kind === 'dropgroove' ? 'periodic' : v0 === 0 ? 'static'
+      : v0 < criticalSpeed ? 'subcritical' : v0 === criticalSpeed ? 'critical' : 'supercritical';
+    const turnsOnArc = kind === 'quarter' && v0 <= criticalSpeed;
+    const turnAngle = kind === 'quarter' && v0 < criticalSpeed
+      ? 2 * Math.asin((v0 / criticalSpeed) / Math.SQRT2) : HALF_PI;
+    const mouthSpeed = kind === 'dropgroove'
+      ? Math.hypot(dropSpeed, Math.sqrt(2 * G) * Math.sqrt(h))
+      : regime === 'supercritical'
+        ? Math.sqrt(v0 - criticalSpeed) * Math.sqrt(alpha * v0 + alpha * criticalSpeed) : 0;
+    const flightDuration = 2 * (mouthSpeed / G);
+    // Rationalized free-fall time remains accurate for h << dropSpeed^2 / g.
+    const entryTime = kind === 'dropgroove' && h > 0
+      ? h / (.5 * mouthSpeed + .5 * dropSpeed) : 0;
+    const sinc = z => z === 0 ? 1 : Math.sin(z) / z;
+    const cosine = (theta, gap = turnAngle - Math.abs(theta)) => gap < turnAngle / 2
+      ? Math.sin(HALF_PI - turnAngle + gap) : Math.cos(theta);
+    const coefficient = theta => alpha + mu * Math.sin(theta) ** 2;
+
+    function speed(theta, gap = turnAngle - Math.abs(theta)) {
+      theta = Math.abs(theta);
+      if (turnsOnArc) {
+        if (gap <= 0) return 0;
+        if (theta === 0 && gap === turnAngle) return v0 / R;
+        const s = Math.sin(turnAngle / 2);
+        return (v0 / R) * (sqrtAlpha / Math.sqrt(coefficient(theta)))
+          * Math.sqrt(Math.sin(turnAngle - gap / 2) / s)
+          * Math.sqrt(Math.sin(gap / 2) / s);
+      }
+      return Math.hypot(mouthSpeed, Math.SQRT2 * rootGR * Math.sqrt(cosine(theta, gap)))
+        / (R * Math.sqrt(coefficient(theta)));
+    }
+
+    function hermite(a, b, dt, u, gap = false) {
+      const u2 = u * u, u3 = u2 * u;
+      const start = gap ? a.gap : a.theta, end = gap ? b.gap : b.theta;
+      // Store the angle AND its distance from the turning point, so velocities
+      // remain smooth even when the displayed angle rounds to the turning angle.
+      return start + (3 * u2 - 2 * u3) * (end - start)
+        + (gap ? -1 : 1) * dt * (u * (1 - u) ** 2 * a.slope - u2 * (1 - u) * b.slope);
+    }
+
+    function makeTable() {
+      const a = turnAngle;
+      // theta = a*u*(2-u), 0 <= u <= 1. At a turning point a-theta
+      // is quadratic, cancelling the square-root singularity in dt/dtheta.
+      // This mapping also resolves theta ~ sqrt(alpha) near the lowest point.
+      const angle = u => u === 1 ? a : a * u * (2 - u);
+      const gap = u => a * (1 - u) ** 2;
+      const node = u => ({ theta: angle(u), gap: gap(u), slope: speed(angle(u), gap(u)) });
+      const integrand = u => {
+        const s = 1 - u, theta = angle(u);
+        const c = 1 - .5 * s * s;
+        const f = c * sinc(a * c) * sinc(.5 * a * s * s);
+        const regular = Math.sqrt(2 * R / G) * Math.sqrt(coefficient(theta) / f);
+        if (mouthSpeed === 0) return regular;
+        const gravitySpeed = Math.SQRT2 * rootGR * a * s * Math.sqrt(f);
+        return regular * (gravitySpeed / Math.hypot(mouthSpeed, gravitySpeed));
+      };
+      const nodes = [node(0)], intervals = [];
+      const f0 = integrand(0), fm = integrand(.5), f1 = integrand(1);
+      const roughTime = (f0 + 4 * fm + f1) / 6;
+      const timeTolerance = 8e-13 * roughTime;
+      const angleTolerance = 3e-12 * a;
+      function append(lo, hi, fl, fc, fr, coarse, depth) {
+        const mid = (lo + hi) / 2, width = hi - lo;
+        const fql = integrand((lo + mid) / 2), fqr = integrand((mid + hi) / 2);
+        const left = width * (fl + 4 * fql + fc) / 12;
+        const right = width * (fc + 4 * fqr + fr) / 12;
+        const fine = left + right;
+        const error = fine - coarse;
+        const dt = fine + error / 15;
+        const start = node(lo), end = node(hi);
+        const span = Math.max(end.theta - start.theta, start.gap - end.gap);
+        const interpolationError = Math.max(
+          Math.abs(hermite(start, end, fine, left / fine) - angle(mid)),
+          Math.abs(hermite(start, end, fine, left / fine, true) - gap(mid)));
+        const excessiveSlope = span > 0 && Math.max(start.slope, end.slope) * dt > 3 * span;
+        if (depth < 96 && mid > lo && mid < hi && (width > 1 / 128
+            || Math.abs(error) > 15 * timeTolerance * width
+            || interpolationError > angleTolerance || excessiveSlope)) {
+          append(lo, mid, fl, fql, fc, left, depth + 1);
+          append(mid, hi, fc, fqr, fr, right, depth + 1);
+        } else {
+          intervals.push(Math.max(0, dt));
+          nodes.push(end);
+        }
+      }
+      append(0, 1, f0, fm, f1, roughTime, 0);
+      // Sum from both ends so tiny elapsed times at either endpoint are usable.
+      // In particular, do not obtain initial bottom motion by subtracting from T.
+      function timed(reverse) {
+        const result = [];
+        let sum = 0, compensation = 0;
+        for (let j = 0; j < nodes.length; j++) {
+          const i = reverse ? nodes.length - 1 - j : j;
+          if (j) {
+            const value = intervals[reverse ? i : i - 1] - compensation;
+            const next = sum + value;
+            compensation = (next - sum) - value;
+            sum = next;
+          }
+          result.push({ t: sum, theta: nodes[i].theta, gap: nodes[i].gap,
+            slope: (reverse ? -1 : 1) * nodes[i].slope });
+        }
+        return result;
+      }
+      const bottom = timed(false), top = timed(true);
+      const duration = bottom[bottom.length - 1].t;
+      top[top.length - 1].t = duration;
+      function interpolate(table, t) {
+        if (t <= 0) return table[0];
+        if (t >= duration) return table[table.length - 1];
+        let lo = 0, hi = table.length - 1;
+        while (hi - lo > 1) {
+          const mid = (lo + hi) >> 1;
+          if (table[mid].t <= t) lo = mid; else hi = mid;
+        }
+        const start = table[lo], end = table[hi], dt = end.t - start.t;
+        const u = (t - start.t) / dt;
+        return { theta: clamp(hermite(start, end, dt, u),
+          Math.min(start.theta, end.theta), Math.max(start.theta, end.theta)),
+        gap: clamp(hermite(start, end, dt, u, true),
+          Math.min(start.gap, end.gap), Math.max(start.gap, end.gap)) };
+      }
+      return { duration, count: nodes.length,
+        fromBottom: t => t <= duration / 2 ? interpolate(bottom, t) : interpolate(top, duration - t),
+        fromTop: t => t <= duration / 2 ? interpolate(top, t) : interpolate(bottom, duration - t) };
+    }
+
+    const table = regime === 'static' ? null : makeTable();
+    const quarter = table ? table.duration : 0;
+    const arcDuration = 2 * quarter;
+    const halfPeriod = arcDuration + flightDuration;
+    const period = kind === 'dropgroove' ? 2 * halfPeriod : undefined;
+    const duration = kind === 'quarter' ? halfPeriod : Infinity;
+    if (![quarter, halfPeriod, entryTime, flightDuration].every(Number.isFinite)
+        || (kind === 'dropgroove' && !(period > 0 && Number.isFinite(period)))) {
+      throw new RangeError('物理参数对应的时间超出浮点数可计算范围');
+    }
+
+    function queryTime(time) {
+      if (typeof time !== 'number' || Number.isNaN(time)
+          || (kind === 'dropgroove' && !Number.isFinite(time))) {
+        throw new RangeError('查询时刻必须是有效秒数；周期模型需要有限时刻');
+      }
+      return clamp(time, 0, duration);
+    }
+
+    function at(time) {
+      const t = queryTime(time);
+      let theta = 0, omega = 0, q = 0, y = 0, qdot = 0, vy = 0;
+      let phase = '静止', normalForce = m * G, onArc = false;
+      function contact(point, direction, side = 1) {
+        onArc = true;
+        theta = side * point.theta;
+        const angularSpeed = speed(theta, point.gap);
+        omega = angularSpeed === 0 ? 0 : direction * angularSpeed;
+        const s = Math.sin(theta), c = cosine(theta, point.gap);
+        q = R * s;
+        y = Math.abs(theta) === HALF_PI ? R : 2 * R * Math.sin(theta / 2) ** 2;
+        qdot = R * c * omega;
+        vy = R * s * omega;
+        normalForce = m * (alpha / coefficient(theta)) * (R * omega * omega + G * c);
+      }
+      function flight(side, elapsed) {
+        q = side * R;
+        y = R + .5 * G * elapsed * (flightDuration - elapsed);
+        vy = mouthSpeed * (1 - 2 * elapsed / flightDuration);
+        normalForce = 0;
+        const end = side > 0 ? '右槽口' : '左槽口';
+        phase = (kind === 'quarter' ? '高端' : end)
+          + (vy > 0 ? '离槽上抛' : vy < 0 ? '自由回落' : '最高点');
+      }
+      if (kind === 'quarter') {
+        if (regime === 'static') {
+          phase = '低端静止';
+        } else if (t < quarter) {
+          contact(table.fromBottom(t), 1);
+          phase = '沿圆弧上滑';
+        } else if (flightDuration > 0 && t < quarter + flightDuration) {
+          flight(1, t - quarter);
+        } else {
+          contact(t === duration ? { theta: 0, gap: turnAngle }
+            : table.fromTop(t - quarter - flightDuration), -1);
+          phase = t === duration ? '低端滑出' : '沿圆弧回滑';
+        }
+      } else if (t < entryTime) {
+        q = -R;
+        const remaining = entryTime - t;
+        y = t === 0 ? R + h : R + remaining * (mouthSpeed - .5 * G * remaining);
+        vy = -(dropSpeed + G * t);
+        phase = '槽口上方自由下落';
+        normalForce = 0;
+      } else {
+        const elapsed = t - entryTime;
+        const cycle = elapsed % period;
+        const direction = cycle < halfPeriod ? 1 : -1;
+        const local = direction > 0 ? cycle : cycle - halfPeriod;
+        if (local < arcDuration) {
+          const point = local <= quarter ? table.fromTop(local) : table.fromBottom(local - quarter);
+          contact(point, direction, direction * (local <= quarter ? -1 : 1));
+          phase = theta * direction < 0
+            ? (theta < 0 ? '沿左槽壁下滑' : '沿右槽壁下滑')
+            : (theta < 0 ? '沿左槽壁上滑' : '沿右槽壁上滑');
+        } else if (flightDuration > 0) {
+          flight(direction, local - arcDuration);
+        } else {
+          // A zero-speed mouth is a turning point, including h = dropSpeed = 0.
+          contact({ theta: HALF_PI, gap: 0 }, -direction, direction);
+          phase = '槽口反向';
+        }
+      }
+      if (!onArc && !(kind === 'quarter' && regime === 'static')) {
+        theta = Math.atan2(q, R - y);
+        const radius = Math.hypot(q, R - y);
+        omega = (q / radius) * (vy / radius);
+      }
+      const base = comVelocity * t - mu * (q - q0);
+      const object = base + q;
+      const baseVelocity = comVelocity - mu * qdot;
+      const objectVelocity = comVelocity + alpha * qdot;
+      const kinetic = .5 * M * baseVelocity * baseVelocity
+        + .5 * m * objectVelocity * objectVelocity + .5 * m * vy * vy;
+      const potential = m * G * y;
+      return { t, bodies: [
+        { id: 'base', label: kind === 'quarter' ? '圆弧底座' : '半圆槽', m: M,
+          x: base, y: 0, vx: baseVelocity, vy: 0 },
+        { id: 'block', label: '小球', m, x: object, y, vx: objectVelocity, vy }
+      ], springs: [], phase, base, object, q, q0, theta, omega, height: y,
+      baseVelocity, objectVelocity, objectVy: vy,
+      com: comVelocity * t + mu * q0,
+      momentum: M * baseVelocity + m * objectVelocity,
+      energy: kinetic + potential, kinetic, potential, dissipated: 0, normalForce };
+    }
+
+    function difference(a, b) {
+      const from = typeof a === 'number' ? at(a) : a;
+      const to = typeof b === 'number' ? at(b) : b;
+      return { relative: to.q - from.q, base: to.base - from.base,
+        object: to.object - from.object, com: to.com - from.com };
+    }
+
+    function bounds(t0 = 0, t1 = kind === 'quarter' ? duration : entryTime + period) {
+      if (kind === 'dropgroove') {
+        // Exact envelope of release and every subsequent cycle, with base width.
+        return { xmin: -(2 * mu + 1.25) * R, xmax: 1.25 * R, ymin: -.25 * R,
+          ymax: R + h + .5 * (dropSpeed / G) * dropSpeed + .15 * R };
+      }
+      let a = queryTime(t0), b = queryTime(t1);
+      if (a > b) [a, b] = [b, a];
+      const start = at(a), end = at(b);
+      let ymax = Math.max(R, start.height, end.height);
+      const apex = quarter + flightDuration / 2;
+      if (flightDuration > 0 && a <= apex && apex <= b) {
+        ymax = Math.max(ymax, R + .5 * (mouthSpeed / G) * mouthSpeed);
+      }
+      // Xdot >= 0 throughout the quarter motion. Include its full arc-shaped base
+      // at both extremes; this also contains the moving horizontal COM and block.
+      return { xmin: start.base - .25 * R, xmax: end.base + 1.25 * R,
+        ymin: -.25 * R, ymax: ymax + .15 * R };
+    }
+
+    const events = [];
+    const event = (t, name, type) => events.push({ t, name, type });
+    if (kind === 'quarter') {
+      event(0, v0 === 0 ? '低端静止' : '低端出发', 'start');
+      if (v0 > 0) {
+        if (flightDuration > 0) {
+          event(quarter, '高端离槽', 'exit');
+          event(quarter + flightDuration / 2, '抛物线最高点', 'apex');
+          event(quarter + flightDuration, '高端无冲击再入', 'entry');
+        } else {
+          event(quarter, regime === 'critical' ? '临界高端反向' : '弧内最高点反向', 'turn');
+        }
+        event(duration, '回到低端滑出', 'end');
+      }
+    } else {
+      event(0, '释放', 'start');
+      event(entryTime, '左槽口入槽', 'entry');
+      event(entryTime + quarter, '最低点向右', 'bottom');
+      event(entryTime + arcDuration, mouthSpeed > 0 ? '右槽口离槽' : '右槽口反向', mouthSpeed > 0 ? 'exit' : 'turn');
+      if (flightDuration > 0) {
+        event(entryTime + arcDuration + flightDuration / 2, '右侧最高点', 'apex');
+        event(entryTime + halfPeriod, '右槽口无冲击再入', 'entry');
+      }
+      event(entryTime + halfPeriod + quarter, '最低点向左', 'bottom');
+      event(entryTime + halfPeriod + arcDuration, mouthSpeed > 0 ? '左槽口离槽' : '左槽口反向', mouthSpeed > 0 ? 'exit' : 'turn');
+      if (flightDuration > 0) event(entryTime + halfPeriod + arcDuration + flightDuration / 2, '左侧最高点', 'apex');
+      event(entryTime + period, '左槽口开始下一周期', 'cycle');
+    }
+    events.sort((a, b) => a.t - b.t);
+    const times = [...new Set(events.map(e => e.t))];
+    return { kind, continuous: true, indefinite: kind === 'dropgroove', duration,
+      size: R, params: p, M, m, R, mu, totalMass, comVelocity, energy0, momentum0,
+      initial: at(0), events, times, at, difference, bounds,
+      criticalSpeed, regime, turnAngle, quarter, arcDuration, entryTime, mouthSpeed,
+      flightDuration, halfPeriod, period, tableSize: table ? table.count : 0 };
+  }
+
+  /* Paste inside the XCPhysics IIFE; export makeSpringModel from that IIFE.
+   * Top view, SI units, no gravity/damping. Positive spring.force means tension.
+   * spring2: B.y = -d/2 (p.yB / p.vyB apply only to spring3).
+   * D starts at the actual initial height of B, including in spring2.
+   * Grid states alone advance the canonical trajectory. Fractional queries and
+   * old seeks use copies. Caches/checkpoints contain all collision bookkeeping.
+   */
+  // A fixed left wall supplies horizontal impulse. Analytic segments retain at(t)
+  // queries: pinned descent, a freely translating periodic groove, and wall impact.
+  function makeWallGrooveModel(options = {}) {
+    const p = { M: 6, m: 2, R: 2, h: 1, dropSpeed: 0, wallGap: 0, wallE: 0, ...options };
+    const { M, m, R, h, dropSpeed, wallGap, wallE } = p;
+    if (![M, m, R].every(v => Number.isFinite(v) && v > 0)
+        || ![h, dropSpeed, wallGap].every(v => Number.isFinite(v) && v >= 0)
+        || !Number.isFinite(wallE) || wallE < 0 || wallE > 1) throw new RangeError('质量、半径须为正数，高度和墙距不能为负，墙的恢复系数须在 0 到 1 之间');
+    const S = M + m, mu = m / S, alpha = M / S, q0 = -R;
+    const wallLimit = -wallGap, wallX = wallLimit - 1.2 * R;
+    const energy0 = m * G * (R + h) + .5 * m * dropSpeed ** 2;
+    const mouthSpeed = Math.hypot(dropSpeed, Math.sqrt(2 * G * h));
+    const entryTime = h > 0 ? 2 * h / (mouthSpeed + dropSpeed) : 0;
+    const eps = 2e-11 * Math.max(1, R);
+    const events = [{ t: 0, name: '释放', type: 'start' }], segments = [];
+    let currentLoss = 0, wallCollisions = 0;
+    const positiveMod = (a, b) => ((a % b) + b) % b;
+
+    function fixedDescent(theta0, omega0) {
+      const a = -theta0, count = 2048, table = [];
+      if (a < 1e-14) return { duration: 0, at: () => ({ theta: 0, omega: omega0 }) };
+      const node = z => {
+        const gap = 2 * a * Math.sin(z / 2) ** 2;
+        const theta = -a + gap;
+        const omega = Math.sqrt(Math.max(0, omega0 ** 2 + 4 * G / R * Math.sin(a - gap / 2) * Math.sin(gap / 2)));
+        return { theta, omega };
+      };
+      const integrand = z => {
+        if (z === 0) return omega0 > 0 ? 0 : Math.sqrt(a * R / (G * Math.sin(a)));
+        return a * Math.sin(z) / node(z).omega;
+      };
+      let time = 0;
+      table.push({ t: 0, theta: theta0, omega: omega0 });
+      for (let i = 1; i <= count; i++) {
+        const lo = (i - 1) * HALF_PI / count, hi = i * HALF_PI / count;
+        time += (hi - lo) * (integrand(lo) + 4 * integrand((lo + hi) / 2) + integrand(hi)) / 6;
+        table.push({ t: time, ...node(hi) });
+      }
+      table[count].theta = 0;
+      return { duration: time, at(t) {
+        if (t <= 0) return table[0];
+        if (t >= time) return table[count];
+        let lo = 0, hi = count;
+        while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (table[mid].t <= t) lo = mid; else hi = mid; }
+        const x = table[lo], y = table[hi], dt = y.t - x.t, u = (t - x.t) / dt;
+        const theta = (2 * u ** 3 - 3 * u ** 2 + 1) * x.theta + (u ** 3 - 2 * u ** 2 + u) * dt * x.omega
+          + (-2 * u ** 3 + 3 * u ** 2) * y.theta + (u ** 3 - u ** 2) * dt * y.omega;
+        const gap = theta - theta0;
+        const omega = Math.sqrt(Math.max(0, omega0 ** 2 + 4 * G / R * Math.sin(a - gap / 2) * Math.sin(gap / 2)));
+        return { theta, omega };
+      } };
+    }
+    function arcPoint(X, U, theta, omega, pinned, phase, loss, collisions) {
+      const c = Math.max(0, Math.cos(theta)), sn = Math.sin(theta);
+      const y = 2 * R * Math.sin(theta / 2) ** 2;
+      const N = pinned ? m * (R * omega ** 2 + G * c)
+        : m * M / (M + m * sn ** 2) * (R * omega ** 2 + G * c);
+      return { X, U, q: R * sn, y, qdot: R * c * omega, vy: R * sn * omega,
+        theta, omega, normalForce: Math.max(0, N), pinned,
+        wallForce: pinned ? Math.max(0, -N * sn) : 0, phase, loss, collisions };
+    }
+    function addPinned(t0, theta, omega) {
+      const table = fixedDescent(theta, omega), loss = currentLoss, collisions = wallCollisions;
+      const segment = { start: t0, end: t0 + table.duration, sample(t) {
+        const a = table.at(t);
+        return arcPoint(wallLimit, 0, a.theta, a.omega, true, '槽体贴住左墙，小球沿左槽壁下滑', loss, collisions);
+      }, next() {
+        const end = table.at(table.duration);
+        events.push({ t: segment.end, name: '槽体开始向右离墙', type: 'release-wall' });
+        addFree(segment.end, wallLimit, 0, 0, end.omega);
+      } };
+      segments.push(segment);
+    }
+    function addFree(t0, X0, U0, theta0, omega0) {
+      const loss = currentLoss, collisions = wallCollisions;
+      const qStart = R * Math.sin(theta0), qdotStart = R * Math.max(0, Math.cos(theta0)) * omega0;
+      const P = S * U0 + m * qdotStart, V = P / S;
+      const relativeEnergy = Math.max(0, energy0 - loss - P * P / (2 * S));
+      const bottomSpeed = Math.sqrt(2 * relativeEnergy / (m * alpha));
+      if (bottomSpeed < 1e-12) {
+        segments.push({ start: t0, end: Infinity, sample(t) { return arcPoint(X0 + V * t, V, 0, 0, false, '槽体与小球共同匀速移动', loss, collisions); } });
+        return;
+      }
+      const canonical = makeArcModel('quarter', { M, m, R, v0: bottomSpeed });
+      const half = canonical.duration, cycle = 2 * half;
+      let lo = 0, hi = canonical.quarter;
+      const angle = Math.abs(theta0);
+      for (let i = 0; i < 54; i++) {
+        const mid = (lo + hi) / 2;
+        if (canonical.at(mid).theta < angle) lo = mid; else hi = mid;
+      }
+      const upTime = angle < 1e-13 ? 0 : angle >= canonical.turnAngle - 1e-13 ? canonical.quarter : (lo + hi) / 2;
+      const side0 = theta0 < 0 ? -1 : 1;
+      const localPhase = omega0 * side0 >= 0 ? upTime : half - upTime;
+      const phase0 = positiveMod((side0 < 0 ? half : 0) + localPhase, cycle);
+      function relative(t) {
+        const phase = positiveMod(phase0 + t, cycle), side = phase < half ? 1 : -1;
+        const local = phase < half ? phase : phase - half;
+        const a = canonical.at(local);
+        return { q: side * a.q, qdot: side * (a.objectVelocity - a.baseVelocity),
+          y: a.height, vy: a.objectVy, theta: side * a.theta, omega: side * a.omega,
+          normalForce: a.normalForce, flight: a.height > R + 1e-10 || (local >= canonical.quarter && local < canonical.quarter + canonical.flightDuration) };
+      }
+      // Preserve the exact segment initial phase and avoid amplified bisection
+      // roundoff in the impulse/energy bookkeeping at the wall.
+      const initialRelative = relative(0);
+      const qOrigin = initialRelative.q;
+      function sample(t) {
+        const a = relative(t), X = X0 + V * t - mu * (a.q - qOrigin), U = V - mu * a.qdot;
+        const phase = a.flight ? (a.vy > 0 ? '小球离槽上抛，槽体自由移动' : '小球回落并准备再次入槽')
+          : a.theta * a.omega < 0 ? '小球沿槽下滑，槽体自由移动' : '小球沿槽上滑，槽体自由移动';
+        return { ...a, X, U, pinned: false, wallForce: 0, phase, loss, collisions };
+      }
+      let impactTime = Infinity;
+      // U<0 is possible only around a rightward passage through the lowest point.
+      // Successive minima of X differ by V*cycle >= 0, so testing the first such
+      // minimum suffices to prove that a free segment will never hit the wall.
+      if (P / m < bottomSpeed - 1e-12) {
+        let a = 0, b = canonical.quarter;
+        for (let i = 0; i < 54; i++) {
+          const mid = (a + b) / 2, s = canonical.at(mid);
+          if (s.objectVelocity - s.baseVelocity > P / m) a = mid; else b = mid;
+        }
+        const minimumPhase = (a + b) / 2;
+        let tMin = positiveMod(minimumPhase - phase0, cycle);
+        if (tMin < 1e-12 && U0 >= -1e-10) tMin += cycle;
+        if (sample(tMin).X < wallLimit - eps) {
+          let left = Math.max(0, tMin - 2 * minimumPhase), right = tMin;
+          if (X0 <= wallLimit + eps && U0 < -1e-10) right = 0;
+          else for (let i = 0; i < 60; i++) {
+            const mid = (left + right) / 2;
+            if (sample(mid).X > wallLimit) left = mid; else right = mid;
+          }
+          impactTime = (left + right) / 2;
+        }
+      }
+      const segment = { start: t0, end: t0 + impactTime, sample, next() {
+        const before = sample(impactTime), sin = Math.sin(before.theta), cos = Math.max(0, Math.cos(before.theta));
+        const afterU = -wallE * before.U, deltaU = afterU - before.U;
+        currentLoss += .5 * (1 - wallE ** 2) * (M + m * sin ** 2) * before.U ** 2;
+        wallCollisions++;
+        const omega = before.omega - cos * deltaU / R;
+        events.push({ t: segment.end, name: '槽体碰到固定左墙', type: 'wall-impact' });
+        if (wallE === 0 && before.theta < 0) addPinned(segment.end, before.theta, omega);
+        else addFree(segment.end, wallLimit, afterU, before.theta, omega);
+      } };
+      segments.push(segment);
+    }
+    function enter(t) {
+      events.push({ t, name: '左槽口入槽', type: 'entry' });
+      if (wallGap === 0) addPinned(t, -HALF_PI, mouthSpeed / R);
+      else addFree(t, 0, 0, -HALF_PI, mouthSpeed / R);
+    }
+    if (entryTime > 0) segments.push({ start: 0, end: entryTime, sample(t) {
+      return { X: 0, U: 0, q: -R, qdot: 0, y: R + h - dropSpeed * t - .5 * G * t * t,
+        vy: -dropSpeed - G * t, theta: -HALF_PI, omega: 0, normalForce: 0,
+        pinned: false, wallForce: 0, phase: '左墙旁，槽口上方自由下落', loss: 0, collisions: 0 };
+    }, next() { enter(entryTime); } });
+    else enter(0);
+
+    function at(time) {
+      if (!Number.isFinite(time)) throw new RangeError('查询时间必须是有限秒数');
+      const t = Math.max(0, time);
+      while (t >= segments[segments.length - 1].end) {
+        const last = segments[segments.length - 1];
+        if (!Number.isFinite(last.end)) break;
+        if (segments.length > 4096) throw new RangeError('碰墙事件过于密集，请增大墙距或减小恢复系数');
+        last.next();
+      }
+      let lo = 0, hi = segments.length;
+      while (lo + 1 < hi) { const mid = (lo + hi) >> 1; if (segments[mid].start <= t) lo = mid; else hi = mid; }
+      const a = segments[lo].sample(t - segments[lo].start);
+      const x = a.X + a.q, vx = a.U + a.qdot;
+      const kinetic = .5 * M * a.U ** 2 + .5 * m * (vx ** 2 + a.vy ** 2), potential = m * G * a.y;
+      const momentum = M * a.U + m * vx, com = (M * a.X + m * x) / S;
+      return { t, bodies: [{ id: 'base', label: '半圆槽', m: M, x: a.X, y: 0, vx: a.U, vy: 0 },
+        { id: 'block', label: '小球', m, x, y: a.y, vx, vy: a.vy }], springs: [],
+        phase: a.phase, base: a.X, object: x, q: a.q, q0, theta: a.theta, omega: a.omega,
+        height: a.y, baseVelocity: a.U, objectVelocity: vx, objectVy: a.vy,
+        com, momentum, kinetic, potential, energy: kinetic + potential, dissipated: a.loss,
+        normalForce: a.normalForce, hasWall: true, pinned: a.pinned, wallForce: a.wallForce,
+        wallImpulse: momentum, wallCollisions: a.collisions, instantaneousComVelocity: momentum / S };
+    }
+    const initial = at(0);
+    function difference(a, b) { const x = at(a), y = at(b); return { relative: y.q - x.q, base: y.base - x.base, object: y.object - x.object, com: y.com - x.com }; }
+    function bounds(t0 = 0, t1 = 10) {
+      let xmin = wallX, xmax = 1.2 * R, ymin = -.25 * R;
+      for (let i = 0; i <= 80; i++) { const a = at(t0 + (t1 - t0) * i / 80); xmin = Math.min(xmin, a.base - 1.2 * R, a.object); xmax = Math.max(xmax, a.base + 1.2 * R, a.object); }
+      return { xmin, xmax, ymin, ymax: energy0 / (m * G) + .2 * R };
+    }
+    return { kind: 'dropgroove', continuous: true, indefinite: true, duration: Infinity, hasWall: true,
+      size: R, params: p, M, m, R, totalMass: S, mu, energy0, momentum0: 0, comVelocity: 0,
+      wallX, wallLimit, entryTime, at, difference, bounds, initial, events, times: [0],
+      stats: { get segmentCount() { return segments.length; } } };
+  }
+
+  function makeSpringModel(kind, p) {
+    'use strict';
+    if (p === undefined) p = {};
+    if (kind !== 'spring2' && kind !== 'spring3') throw new RangeError('未知弹簧模型：' + kind);
+    if (p === null || typeof p !== 'object' || Array.isArray(p)) throw new TypeError('弹簧参数必须是对象');
+    const three = kind === 'spring3';
+    const defaults = {
+      mA: 2, mB: 2, mC: 2, mD: 2, d: three ? 4 : 2,
+      k1: 20, k2: 20, l1: 2, l2: 2, xA: 0, xB: 0, xC: 0, yB: 0,
+      vA: three ? 0 : 2, vB: three ? 2 : 0, vyB: 0, vC: 0,
+      mode: 'direct', vD: 3, vyD: 0, gap: 2, e: 1, radius: 0.12
+    };
+    p = { ...defaults, ...p };
+    for (const key of Object.keys(defaults)) {
+      if (p[key] === undefined) p[key] = defaults[key];
+      if (key !== 'mode' && !Number.isFinite(p[key])) throw new RangeError('参数 ' + key + ' 必须是有限数');
+    }
+    for (const key of ['mA', 'mB', 'mC', 'mD', 'd', 'radius']) {
+      if (!(p[key] > 0)) throw new RangeError('参数 ' + key + ' 必须大于 0');
+    }
+    for (const key of ['k1', 'k2', 'l1', 'l2', 'gap']) {
+      if (p[key] < 0) throw new RangeError('参数 ' + key + ' 不能为负');
+    }
+    if (p.mode !== 'direct' && p.mode !== 'collision') throw new RangeError('mode 必须为 direct 或 collision');
+    if (p.e < 0 || p.e > 1) throw new RangeError('恢复系数 e 必须在 0 到 1 之间');
+
+    const d = p.d, radius = p.radius, diameter = 2 * radius, restitution = p.e;
+    const ids = three ? ['A', 'B', 'C'] : ['A', 'B'];
+    if (p.mode === 'collision') ids.push('D');
+    const count = ids.length;
+    const masses = ids.map(id => p['m' + id]);
+    const invMass = masses.map(m => 1 / m);
+    const constrained = ids.map(id => id === 'A' || (three ? id === 'C' : id === 'B'));
+    const wy = invMass.map((w, i) => constrained[i] ? 0 : w);
+    const links = [{ i: 0, j: 1, a: 'A', b: 'B', k: p.k1, rest: p.l1 }];
+    if (three) links.push({ i: 1, j: 2, a: 'B', b: 'C', k: p.k2, rest: p.l2 });
+    const pairs = [];
+    for (let i = 0; i < count; i++) {
+      for (let j = i + 1; j < count; j++) pairs.push({ i, j, bit: 1 << pairs.length });
+    }
+    // State: [x,y,vx,vy] for each body, then dissipated, collisions, contact mask.
+    const lossIndex = 4 * count, collisionIndex = lossIndex + 1, maskIndex = lossIndex + 2;
+    const width = lossIndex + 3;
+    const start = new Float64Array(width);
+    for (let i = 0; i < count; i++) {
+      const id = ids[i], o = 4 * i;
+      start[o] = id === 'D' ? p.xB - p.gap - diameter : p['x' + id];
+      start[o + 1] = id === 'A' ? d / 2 : id === 'C' ? -d / 2 : (three ? p.yB : -d / 2);
+      start[o + 2] = p['v' + id];
+      start[o + 3] = constrained[i] ? 0 : (id === 'D' ? p.vyD : p.vyB);
+    }
+    const totalMass = masses.reduce((sum, m) => sum + m, 0);
+    const q0 = start[4] - start[0];
+    const EPS = Number.EPSILON;
+    const releaseTolerance = diameter * 1e-8;
+    const contactRadius2 = (diameter + releaseTolerance) ** 2;
+    const positionScale = Math.max(diameter, ...Array.from(start).filter((_, i) => i < lossIndex && i % 4 < 2).map(Math.abs));
+    if (!Number.isFinite(totalMass) || !invMass.every(Number.isFinite) || !Number.isFinite(diameter)
+        || !Array.from(start).every(Number.isFinite) || positionScale * EPS > radius * 1e-5) {
+      throw new RangeError('参数尺度超出浮点精度，请减小坐标范围或质量比');
+    }
+    for (const pair of pairs) {
+      const a = 4 * pair.i, b = 4 * pair.j;
+      const length = Math.hypot(start[b] - start[a], start[b + 1] - start[a + 1]);
+      if (length < diameter - 64 * EPS * Math.max(diameter, positionScale)) {
+        throw new RangeError('初始球 ' + ids[pair.i] + ' 与球 ' + ids[pair.j] + ' 重叠；请调整初始位置、gap、d 或 radius');
+      }
+    }
+
+    function snapshot(t, s) {
+      let kinetic = 0, potential = 0, momentum = 0, weightedX = 0;
+      const bodies = ids.map((id, i) => {
+        const o = 4 * i, m = masses[i], x = s[o], y = s[o + 1], vx = s[o + 2], vy = s[o + 3];
+        kinetic += 0.5 * m * (vx * vx + vy * vy);
+        momentum += m * vx;
+        weightedX += m * x;
+        return { id, label: '球 ' + id, m, x, y, vx, vy, r: radius, constrained: constrained[i] };
+      });
+      const springs = links.map(link => {
+        const length = Math.hypot(s[4 * link.j] - s[4 * link.i], s[4 * link.j + 1] - s[4 * link.i + 1]);
+        const extension = length - link.rest;
+        potential += 0.5 * link.k * extension * extension;
+        return { a: link.a, b: link.b, k: link.k, rest: link.rest, length, extension, force: link.k * extension };
+      });
+      const collisions = s[collisionIndex];
+      const phase = p.mode === 'collision'
+        ? (collisions ? '碰撞后继续运动，可再次碰撞' : '自由球 D 运动，等待碰撞')
+        : (collisions ? '弹簧运动与球间碰撞' : (three ? '三球双弹簧运动' : '双球弹簧运动'));
+      return {
+        t, bodies, springs, phase, base: s[0], object: s[4], q: s[4] - s[0], q0,
+        baseVelocity: s[2], objectVelocity: s[6], objectVy: s[7],
+        com: weightedX / totalMass, momentum, energy: kinetic + potential, kinetic, potential,
+        dissipated: s[lossIndex], collisions
+      };
+    }
+    const initial = snapshot(0, start);
+    const energy0 = initial.energy, momentum0 = initial.momentum, comVelocity = momentum0 / totalMass;
+    if (![energy0, momentum0, initial.com, comVelocity].every(Number.isFinite)) {
+      throw new RangeError('初始能量或动量超出数值范围');
+    }
+    // Gershgorin bound for the mass-weighted spring Hessian, including the
+    // transverse curvature of a compressed spring. Energy bounds its shortest
+    // reachable length; hard contacts also bound it below by the diameter.
+    const energyBound = energy0 * 1.05;
+    const stiffnessRows = new Float64Array(count);
+    for (const link of links) {
+      if (!link.k) continue;
+      const minimumLength = Math.max(diameter, link.rest - Math.sqrt(2 * energyBound / link.k));
+      const stiffness = link.k * Math.max(1, link.rest / minimumLength - 1);
+      stiffnessRows[link.i] += stiffness * invMass[link.i];
+      stiffnessRows[link.j] += stiffness * invMass[link.j];
+    }
+    const frequencyBound = Math.sqrt(2 * Math.max(...stiffnessRows));
+    const maxSpeedBound = Math.sqrt(2 * energyBound / Math.min(...masses));
+    // <= 0.012 radians of the fastest mode, and <= 0.12 radius of relative
+    // drift per step. The integer rate avoids accumulated clock roundoff.
+    const stepsPerSecond = Math.ceil(Math.max(1200, frequencyBound / 0.012, 2 * maxSpeedBound / (0.12 * radius)));
+    if (!Number.isSafeInteger(stepsPerSecond) || !Number.isFinite(energyBound)) {
+      throw new RangeError('弹簧频率或速度过大，无法构造可表示的稳定步长');
+    }
+    const dt = 1 / stepsPerSecond;
+    const minimumImpactStep = dt / 4096;
+    const normalTolerance = 64 * EPS * Math.max(1, maxSpeedBound);
+    const acceleration = new Float64Array(2 * count);
+    const contactLambda = new Float64Array(pairs.length);
+    const contactNx = new Float64Array(pairs.length), contactNy = new Float64Array(pairs.length);
+    const contactWeight = new Float64Array(pairs.length), contactTarget = new Float64Array(pairs.length);
+    let supportMask = 0;
+    let hitPair = -1, hitTime = Infinity;
+    let integrationSteps = 0, forceEvaluations = 0, impactRefinements = 0;
+
+    function forces(s, midpointVelocity = false) {
+      acceleration.fill(0);
+      forceEvaluations++;
+      for (const link of links) {
+        if (!link.k) continue;
+        const a = 4 * link.i, b = 4 * link.j;
+        const dx = s[b] - s[a], dy = s[b + 1] - s[a + 1], length = Math.hypot(dx, dy);
+        if (!(length > 0)) throw new RangeError('弹簧端点重合，无法确定胡克力方向');
+        const scale = link.k * (length - link.rest) / length;
+        const fx = scale * dx, fy = scale * dy;
+        acceleration[2 * link.i] += fx * invMass[link.i];
+        acceleration[2 * link.j] -= fx * invMass[link.j];
+        acceleration[2 * link.i + 1] += fy * wy[link.i];
+        acceleration[2 * link.j + 1] -= fy * wy[link.j];
+      }
+      supportMask = 0;
+      if (restitution !== 0 || !s[maskIndex]) return;
+      // Sustained e=0 contact carries a reaction force, not a new impact every
+      // kick. Its acceleration obeys n.(a_j-a_i) >= -|v_t|^2 / length.
+      contactLambda.fill(0);
+      contactWeight.fill(0);
+      for (let index = 0; index < pairs.length; index++) {
+        const pair = pairs[index];
+        if (!(s[maskIndex] & pair.bit)) continue;
+        const a = 4 * pair.i, b = 4 * pair.j;
+        const dx = s[b] - s[a], dy = s[b + 1] - s[a + 1], length = Math.hypot(dx, dy);
+        if (Math.abs(length - diameter) > releaseTolerance) continue;
+        const nx = dx / length, ny = dy / length;
+        const vx = s[b + 2] - s[a + 2], vy = s[b + 3] - s[a + 3], vn = vx * nx + vy * ny;
+        if (!midpointVelocity && vn > 8 * normalTolerance) continue;
+        contactNx[index] = nx;
+        contactNy[index] = ny;
+        contactWeight[index] = nx * nx * (invMass[pair.i] + invMass[pair.j]) + ny * ny * (wy[pair.i] + wy[pair.j]);
+        contactTarget[index] = -Math.max(0, vx * vx + vy * vy - vn * vn) / length;
+      }
+      for (let iteration = 0; iteration < 64; iteration++) {
+        let changed = false;
+        for (let index = 0; index < pairs.length; index++) {
+          const w = contactWeight[index];
+          if (!w) continue;
+          const pair = pairs[index], a = 2 * pair.i, b = 2 * pair.j;
+          const nx = contactNx[index], ny = contactNy[index];
+          const relative = (acceleration[b] - acceleration[a]) * nx + (acceleration[b + 1] - acceleration[a + 1]) * ny;
+          const next = Math.max(0, contactLambda[index] + (contactTarget[index] - relative) / w);
+          const delta = next - contactLambda[index];
+          contactLambda[index] = next;
+          acceleration[a] -= delta * nx * invMass[pair.i];
+          acceleration[b] += delta * nx * invMass[pair.j];
+          acceleration[a + 1] -= delta * ny * wy[pair.i];
+          acceleration[b + 1] += delta * ny * wy[pair.j];
+          if (Math.abs(delta) > 64 * EPS * Math.max(1, next)) changed = true;
+        }
+        if (!changed) break;
+      }
+      for (let index = 0; index < pairs.length; index++) {
+        if (contactLambda[index] > 0) supportMask |= pairs[index].bit;
+      }
+    }
+
+    function projectSupportedContacts(s, mask, positions) {
+      // RATTLE-style roundoff/truncation projections for a supported contact.
+      // These constraint reactions preserve horizontal momentum and rail height.
+      for (let iteration = 0; iteration < 16; iteration++) {
+        let changed = false;
+        for (const pair of pairs) {
+          if (!(mask & pair.bit)) continue;
+          const a = 4 * pair.i, b = 4 * pair.j;
+          const dx = s[b] - s[a], dy = s[b + 1] - s[a + 1], length = Math.hypot(dx, dy);
+          if (Math.abs(length - diameter) > diameter * 1e-5) continue;
+          const nx = dx / length, ny = dy / length;
+          const w = nx * nx * (invMass[pair.i] + invMass[pair.j]) + ny * ny * (wy[pair.i] + wy[pair.j]);
+          if (!w) continue;
+          const error = positions ? length - diameter : (s[b + 2] - s[a + 2]) * nx + (s[b + 3] - s[a + 3]) * ny;
+          const correction = -error / w, offset = positions ? 0 : 2;
+          s[a + offset] -= correction * nx * invMass[pair.i];
+          s[b + offset] += correction * nx * invMass[pair.j];
+          s[a + offset + 1] -= correction * ny * wy[pair.i];
+          s[b + offset + 1] += correction * ny * wy[pair.j];
+          if (positions) s[maskIndex] |= pair.bit;
+          if (Math.abs(error) > 64 * EPS * Math.max(1, diameter)) changed = true;
+        }
+        if (!changed) break;
+      }
+    }
+
+    function refreshContacts(s) {
+      let mask = s[maskIndex];
+      if (!mask) return;
+      for (const pair of pairs) {
+        if (!(mask & pair.bit)) continue;
+        const a = 4 * pair.i, b = 4 * pair.j;
+        const dx = s[b] - s[a], dy = s[b + 1] - s[a + 1];
+        if (dx * dx + dy * dy > contactRadius2) mask &= ~pair.bit;
+      }
+      s[maskIndex] = mask;
+    }
+
+    // Exact swept-circle roots for each constant-velocity Verlet drift.
+    // With halfKick != 0, inspect the proposed drift before changing the state.
+    function findImpact(s, remaining, halfKick, ignoredMask = 0) {
+      hitPair = -1;
+      hitTime = remaining;
+      for (let index = 0; index < pairs.length; index++) {
+        const pair = pairs[index], a = 4 * pair.i, b = 4 * pair.j;
+        if (ignoredMask & pair.bit) continue;
+        const dx = s[b] - s[a], dy = s[b + 1] - s[a + 1];
+        const vx = s[b + 2] - s[a + 2] + halfKick * (acceleration[2 * pair.j] - acceleration[2 * pair.i]);
+        const vy = s[b + 3] - s[a + 3] + halfKick * (acceleration[2 * pair.j + 1] - acceleration[2 * pair.i + 1]);
+        const dot = dx * vx + dy * vy;
+        const distance2 = dx * dx + dy * dy;
+        if (dot >= -normalTolerance * Math.sqrt(distance2)) continue;
+        const speed2 = vx * vx + vy * vy;
+        const c = distance2 - diameter * diameter;
+        const discriminant = dot * dot - speed2 * c;
+        if (!(discriminant > 0)) continue; // Tangency carries no normal impulse.
+        const root = c <= 0 ? 0 : c / (-dot + Math.sqrt(discriminant));
+        if (root >= 0 && root <= hitTime) {
+          hitTime = root;
+          hitPair = index;
+        }
+      }
+    }
+
+    function move(s, h) {
+      for (let i = 0; i < count; i++) {
+        const o = 4 * i;
+        s[o] += h * s[o + 2];
+        if (!constrained[i]) s[o + 1] += h * s[o + 3];
+      }
+      refreshContacts(s);
+    }
+
+    function drift(s, h, ignoredMask) {
+      let remaining = h, iterations = 0;
+      while (remaining > 0) {
+        findImpact(s, remaining, 0, ignoredMask);
+        if (hitPair < 0) { move(s, remaining); break; }
+        const pair = pairs[hitPair], elapsed = hitTime;
+        if (elapsed > 0) {
+          move(s, elapsed);
+          remaining = Math.max(0, remaining - elapsed);
+        }
+        const a = 4 * pair.i, b = 4 * pair.j;
+        const dx = s[b] - s[a], dy = s[b + 1] - s[a + 1], length = Math.hypot(dx, dy);
+        if (!(length > 0)) throw new RangeError('接触位置无法分辨，请检查球的位置与半径');
+        const nx = dx / length, ny = dy / length;
+        const vn = (s[b + 2] - s[a + 2]) * nx + (s[b + 3] - s[a + 3]) * ny;
+        const inverseEffectiveMass = nx * nx * (invMass[pair.i] + invMass[pair.j])
+          + ny * ny * (wy[pair.i] + wy[pair.j]);
+        if (!(inverseEffectiveMass > 0)) throw new RangeError('当前接触与杆约束不相容，请调整 d 或 radius');
+        // Inelastic collapse is the zero-rebound limit of repeated impacts.
+        // Complete that limit after a long simultaneous contact sequence.
+        const e = iterations >= 128 && restitution < 1 ? 0 : restitution;
+        const impulse = -(1 + e) * vn / inverseEffectiveMass;
+        s[a + 2] -= impulse * nx * invMass[pair.i];
+        s[b + 2] += impulse * nx * invMass[pair.j];
+        s[a + 3] -= impulse * ny * wy[pair.i];
+        s[b + 3] += impulse * ny * wy[pair.j];
+        s[lossIndex] += 0.5 * (1 - e * e) * vn * vn / inverseEffectiveMass;
+        if (!(s[maskIndex] & pair.bit)) s[collisionIndex]++;
+        s[maskIndex] |= pair.bit;
+        // Another impact can change the velocity of a supported contact.
+        ignoredMask = 0;
+        if (++iterations > 1024) throw new RangeError('多球接触未收敛，请调整初始接触几何');
+        // Process further zero-time contacts even if this impact is at h.
+        if (!remaining) {
+          findImpact(s, 0, 0);
+          if (hitPair >= 0) remaining = Number.MIN_VALUE;
+        }
+      }
+      return ignoredMask;
+    }
+
+    function repairRoundoff(s) {
+      // Sweeps prevent penetration. Only repair floating-point contact errors;
+      // inverse-mass weighting preserves horizontal COM and every rod constraint.
+      for (const pair of pairs) {
+        const a = 4 * pair.i, b = 4 * pair.j;
+        const dx = s[b] - s[a], dy = s[b + 1] - s[a + 1], length = Math.hypot(dx, dy);
+        const overlap = diameter - length;
+        if (overlap <= diameter * 1e-12) continue;
+        const tolerance = 256 * EPS * Math.max(diameter, Math.abs(s[a]), Math.abs(s[b]), Math.abs(s[a + 1]), Math.abs(s[b + 1]));
+        if (!(length > 0) || overlap > Math.max(diameter * 1e-7, tolerance)) {
+          throw new RangeError('球 ' + ids[pair.i] + ' 与球 ' + ids[pair.j] + ' 的接触精度不足，请缩小参数尺度');
+        }
+        const nx = dx / length, ny = dy / length;
+        const w = nx * nx * (invMass[pair.i] + invMass[pair.j]) + ny * ny * (wy[pair.i] + wy[pair.j]);
+        if (!w) continue;
+        const correction = (overlap + diameter * 1e-13) / w;
+        s[a] -= correction * nx * invMass[pair.i];
+        s[b] += correction * nx * invMass[pair.j];
+        s[a + 1] -= correction * ny * wy[pair.i];
+        s[b + 1] += correction * ny * wy[pair.j];
+      }
+    }
+
+    function step(s, h) {
+      refreshContacts(s);
+      forces(s);
+      const supportBefore = supportMask;
+      findImpact(s, h, h / 2, supportBefore);
+      // Resolve a new impact to dt/4096 by subdivision. Smooth motion still uses
+      // the fixed grid step. This removes the first-order energy error of a large
+      // kick placed on the wrong side of an impact, while retaining exact sweeps.
+      if (hitPair >= 0 && !(s[maskIndex] & pairs[hitPair].bit) && h > minimumImpactStep * 1.000001) {
+        impactRefinements++;
+        step(s, h / 2);
+        step(s, h / 2);
+        return;
+      }
+      integrationSteps++;
+      for (let i = 0; i < count; i++) {
+        s[4 * i + 2] += h * acceleration[2 * i] / 2;
+        s[4 * i + 3] += h * acceleration[2 * i + 1] / 2;
+      }
+      const sustainedSupport = drift(s, h, supportBefore);
+      if (sustainedSupport) projectSupportedContacts(s, sustainedSupport, true);
+      repairRoundoff(s);
+      forces(s, true);
+      const supportAfter = supportMask;
+      for (let i = 0; i < count; i++) {
+        s[4 * i + 2] += h * acceleration[2 * i] / 2;
+        s[4 * i + 3] += h * acceleration[2 * i + 1] / 2;
+      }
+      if (supportAfter) projectSupportedContacts(s, supportAfter, false);
+    }
+
+    // Flat ring buffers avoid allocating a state object for every grid tick.
+    function makeRing(capacity) {
+      const data = new Float64Array(capacity * width);
+      let first = 0, last = -1;
+      return {
+        capacity,
+        get count() { return Math.max(0, last - first + 1); },
+        reset() { first = 0; last = -1; },
+        save(n, s) {
+          if (last + 1 !== n) first = n;
+          last = n;
+          first = Math.max(first, last - capacity + 1);
+          data.set(s, (n % capacity) * width);
+        },
+        load(n, out) {
+          if (n < first || n > last) return false;
+          const offset = (n % capacity) * width;
+          out.set(data.subarray(offset, offset + width));
+          return true;
+        }
+      };
+    }
+    const recent = makeRing(8192), replayRecent = makeRing(2048);
+    const frontier = start.slice(), replay = start.slice(), query = new Float64Array(width);
+    let frontierTick = 0, replayTick = 0, forwardSteps = 0, replaySteps = 0, cacheHits = 0;
+    let checkpointStride = 1024;
+    let checkpoints = [{ n: 0, s: start.slice() }];
+    const checkpointCapacity = 2048;
+    recent.save(0, start);
+    replayRecent.save(0, start);
+
+    function checkpointBefore(n) {
+      let lo = 0, hi = checkpoints.length;
+      while (lo + 1 < hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        if (checkpoints[mid].n <= n) lo = mid; else hi = mid;
+      }
+      return checkpoints[lo];
+    }
+
+    function gridState(n, out) {
+      if (recent.load(n, out) || replayRecent.load(n, out)) { cacheHits++; return; }
+      if (n > frontierTick) {
+        while (frontierTick < n) {
+          step(frontier, dt);
+          frontierTick++;
+          forwardSteps++;
+          recent.save(frontierTick, frontier);
+          if (frontierTick % checkpointStride === 0) {
+            checkpoints.push({ n: frontierTick, s: frontier.slice() });
+            if (checkpoints.length > checkpointCapacity) {
+              checkpointStride *= 2;
+              checkpoints = checkpoints.filter(c => c.n % checkpointStride === 0);
+            }
+          }
+        }
+        out.set(frontier);
+        return;
+      }
+      const checkpoint = checkpointBefore(n);
+      if (replayTick > n || replayTick < checkpoint.n) {
+        replay.set(checkpoint.s);
+        replayTick = checkpoint.n;
+        replayRecent.reset();
+        replayRecent.save(replayTick, replay);
+      }
+      while (replayTick < n) {
+        step(replay, dt);
+        replayTick++;
+        replaySteps++;
+        replayRecent.save(replayTick, replay);
+      }
+      out.set(replay);
+    }
+
+    function validTime(time) {
+      if (!Number.isFinite(time)) throw new RangeError('查询时间必须是有限数');
+      return Math.max(0, time);
+    }
+
+    function at(time) {
+      const t = validTime(time), scaled = t * stepsPerSecond;
+      if (!Number.isFinite(scaled) || scaled > Number.MAX_SAFE_INTEGER - 2) {
+        throw new RangeError('查询时间超出当前步长的整数时钟精度');
+      }
+      const n = Math.floor(scaled);
+      gridState(n, query);
+      const remainder = (scaled - n) * dt;
+      if (remainder > 0) step(query, remainder);
+      for (let i = 0; i < width; i++) {
+        if (!Number.isFinite(query[i])) throw new RangeError('积分超出数值范围，请检查质量、刚度及初速度');
+      }
+      return snapshot(t, query);
+    }
+
+    function difference(a, b) {
+      const from = at(a), to = at(b);
+      return { relative: to.q - from.q, base: to.base - from.base, object: to.object - from.object, com: to.com - from.com };
+    }
+
+    function bounds(t0, t1) {
+      const a = validTime(t0), b = validTime(t1), lo = Math.min(a, b), hi = Math.max(a, b);
+      const samples = lo === hi ? 0 : Math.min(256, Math.max(64, Math.ceil((hi - lo) * frequencyBound * 8)));
+      let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+      for (let i = 0; i <= samples; i++) {
+        const state = at(samples ? lo + (hi - lo) * i / samples : lo);
+        for (const body of state.bodies) {
+          xmin = Math.min(xmin, body.x - radius);
+          xmax = Math.max(xmax, body.x + radius);
+          ymin = Math.min(ymin, body.y - radius);
+          ymax = Math.max(ymax, body.y + radius);
+        }
+      }
+      return { xmin, xmax, ymin, ymax };
+    }
+
+    const stats = {
+      dt, stepsPerSecond, frequencyBound, maxSpeedBound,
+      denseCapacity: recent.capacity, replayDenseCapacity: replayRecent.capacity, checkpointCapacity,
+      impactTimeResolution: minimumImpactStep,
+      get checkpointCount() { return checkpoints.length; },
+      get checkpointStride() { return checkpointStride; },
+      get denseCount() { return recent.count; },
+      get replayDenseCount() { return replayRecent.count; },
+      get frontierTime() { return frontierTick * dt; },
+      get forwardSteps() { return forwardSteps; },
+      get replaySteps() { return replaySteps; },
+      get cacheHits() { return cacheHits; },
+      get integrationSteps() { return integrationSteps; },
+      get forceEvaluations() { return forceEvaluations; },
+      get impactRefinements() { return impactRefinements; }
+    };
+    return {
+      kind, continuous: true, indefinite: true, duration: Infinity, size: d, params: p,
+      totalMass, comVelocity, momentum0, energy0, initial, events: [], times: [0],
+      at, difference, bounds, stats
+    };
+  }
+
   return { makeModel, G, clamp };
 })();
 </script>
@@ -192,7 +1259,25 @@ const XCPhysics = (() => {
     groove: { title: '球沿槽滑下，方块随之移动', subtitle: '光滑水平面 · 小球从左槽口静止释放', base: '方块', object: '小球', ground: '地', symbol: 'R', sizeName: '槽半径 R', states: ['左槽口', '最低点', '右槽口'], defaults: [6, 2, 2], ranges: [[1, 30, .5], [.5, 20, .5], [.5, 4, .1]], note: '理想模型：方块在光滑水平面上运动；小球是质点，在竖直光滑半圆槽内滑动，从左槽口静止释放，无摩擦与自转。R 为质点轨迹半径，g = 9.81 m/s²。圆点大小仅用于辨认。' },
     pendulum: { title: '摆球来回摆，小车也来回移动', subtitle: '光滑水平面 · 从右侧水平位置静止释放', base: '小车', object: '摆球', ground: '地', symbol: 'l', sizeName: '摆长 l', states: ['右水平', '最低点', '左水平', '最低点', '右水平'], defaults: [6, 2, 2], ranges: [[1, 30, .5], [.5, 20, .5], [.5, 4, .1]], note: '理想模型：小车在光滑水平面上运动；支架与摆绳质量忽略，摆球为质点，从右侧水平位置静止释放，忽略空气阻力。l 为悬点到摆球的距离，g = 9.81 m/s²。' }
   };
-  const saved = Object.fromEntries(Object.entries(config).map(([k, v]) => [k, [...v.defaults]]));
+  const field = (key, label, unit, min, max, step, group, extra = {}) => ({ key, label, unit, min, max, step, group, ...extra });
+  const mass = (key, label) => field(key, label, 'kg', .2, 30, .1, '质量');
+  const velocity = (key, label, extra = {}) => field(key, label, 'm/s', -12, 12, .1, '初速度', extra);
+  const stiffness = (key, label) => field(key, label, 'N/m', 1, 300, 1, '弹簧');
+  const restLength = (key, label) => field(key, label, 'm', .1, 8, .1, '弹簧');
+  const offset = (key, label, extra = {}) => field(key, label, 'm', -5, 5, .1, '初始位置与接触', { advanced: true, ...extra });
+  const contactFields = [field('radius', '小球接触半径 r', 'm', .03, .3, .01, '初始位置与接触', { advanced: true }), field('e', '碰撞恢复系数 e', '', 0, 1, .05, '初始位置与接触', { advanced: true })];
+  Object.assign(config, {
+    quarter: { continuous: true, title: '小球冲入圆弧，底座随之移动', subtitle: '光滑水平面 · 从最低端水平冲入开放的 1/4 圆弧', base: '圆弧底座', object: '小球', ground: '地', symbol: 'R', defaults: { M: 6, m: 2, R: 2, v0: 8 }, fields: [mass('M', '圆弧底座质量 M'), mass('m', '小球质量 m'), field('R', '圆弧半径 R', 'm', .3, 5, .1, '尺寸与入射'), field('v0', '小球入射速度 v₀', 'm/s', 0, 150, .1, '尺寸与入射')], note: '理想模型：开放、光滑的 1/4 圆弧底座只作水平平移；小球按质点计算、忽略自转，R 为球心轨迹半径，圆点大小不参与接触。包含回滑、上端切向飞出与无冲击再入轨；恰好到达上端且相对速度为零时沿弧反向。到返回低端滑出时结束，出口速度保留。g = 9.81 m/s²。' },
+    dropgroove: { continuous: true, title: '小球落入半圆槽，左墙挡住槽体', subtitle: '光滑水平面 · 左侧固定墙 · 从左槽口正上方下落', base: '半圆槽', object: '小球', ground: '地', symbol: 'R', defaults: { M: 6, m: 2, R: 2, h: 1, dropSpeed: 0, wallGap: 0, wallE: 0 }, fields: [mass('M', '半圆槽质量 M'), mass('m', '小球质量 m'), field('R', '槽半径 R', 'm', .3, 5, .1, '尺寸与下落'), field('h', '高于槽口的高度 h', 'm', 0, 8, .1, '尺寸与下落'), field('dropSpeed', '初始向下速度', 'm/s', 0, 12, .1, '尺寸与下落'), field('wallGap', '槽体距左墙的初始间隙', 'm', 0, 6, .1, '固定左墙'), field('wallE', '碰墙恢复系数 e墙', '', 0, 1, .05, '固定左墙')], note: '理想模型：半圆槽左侧有固定地面墙，默认槽体紧贴墙；墙只阻止槽体左移，允许其向右离开。墙提供水平外力，系统水平动量可改变。默认碰墙恢复系数为 0，可调为弹性反弹；贴墙静止起始时先由墙持续支撑。小球为质点、忽略自转，R 为球心轨迹半径。开放槽口支持切向出槽与再入轨；槽沿无厚度。g = 9.81 m/s²。' },
+    spring2: { continuous: true, spring: true, title: '两球沿平行杆滑动，弹簧传递运动', subtitle: '水平面俯视 · 两根固定光滑杆 · 一根理想弹簧', symbol: 'd', defaults: { mA: 2, mB: 2, d: 2, k1: 20, l1: 2, xA: 0, xB: 0, vA: 2, vB: 0, radius: .12, e: 1 }, fields: [mass('mA', '上杆球 A 质量'), mass('mB', '下杆球 B 质量'), field('d', '两杆间距 d', 'm', .8, 8, .1, '几何尺寸'), stiffness('k1', '弹簧刚度 k'), restLength('l1', '弹簧原长 L₀'), velocity('vA', '球 A 沿杆初速度'), velocity('vB', '球 B 沿杆初速度'), offset('xA', '球 A 初始 x'), offset('xB', '球 B 初始 x'), ...contactFields], note: '俯视模型：两球各套一根固定水平平行杆，只沿杆无摩擦滑动。弹簧无质量、可拉可压，按两球实际距离与方向计算胡克力。默认初始弹簧为自然长度；改变原长或错位可设置预拉伸、预压缩。杆无碰撞厚度；小球半径只用于球间接触，不考虑自转。' },
+    spring3: { continuous: true, spring: true, title: '中球牵动两侧球，也可以由碰撞启动', subtitle: '水平面俯视 · 两侧球套杆 · 中球在平面内自由运动', symbol: 'd', defaults: { mA: 2, mB: 2, mC: 2, mD: 6, d: 4, k1: 20, k2: 20, l1: 2, l2: 2, xA: 0, xB: 0, xC: 0, yB: 0, vA: 0, vB: 2, vyB: 0, vC: 0, mode: 'direct', vD: 3, vyD: 0, gap: 2, e: 1, radius: .12 }, fields: [mass('mA', '上杆球 A 质量'), mass('mB', '自由中球 B 质量'), mass('mC', '下杆球 C 质量'), { ...mass('mD', '撞击球 D 质量'), collision: true }, field('d', '两杆间距 d', 'm', .8, 8, .1, '几何尺寸'), stiffness('k1', '上弹簧刚度 k₁'), restLength('l1', '上弹簧原长 L₀₁'), stiffness('k2', '下弹簧刚度 k₂'), restLength('l2', '下弹簧原长 L₀₂'), velocity('vA', '球 A 沿杆初速度'), velocity('vB', '中球 B 水平初速度'), velocity('vyB', '中球 B 纵向初速度'), velocity('vC', '球 C 沿杆初速度'), velocity('vD', '撞击球 D 水平初速度', { collision: true }), velocity('vyD', '撞击球 D 纵向初速度', { collision: true }), field('gap', '撞击球初始净间距', 'm', .1, 8, .1, '碰撞', { collision: true }), offset('xA', '球 A 初始 x'), offset('xB', '中球 B 初始 x'), offset('yB', '中球 B 初始 y'), offset('xC', '球 C 初始 x'), ...contactFields], note: '俯视模型：A、C 分别套在两根固定平行杆上；B 不套杆，可在光滑水平面内自由运动。两根弹簧独立、理想且无质量，默认初态均为自然长度。碰撞模式保留自由球 D，允许与各球再次碰撞；恢复系数默认 e = 1，杆上球的碰撞同时满足杆约束。杆与弹簧无碰撞厚度，小球忽略自转。' }
+  });
+  const saved = Object.fromEntries(Object.entries(config).map(([k, v]) => [k, Array.isArray(v.defaults) ? [...v.defaults] : { ...v.defaults }]));
+  const legacyExplanation = { copy: $('explanation-copy').innerHTML, equations: $('explanation-equations').innerHTML };
+  const bodyColors = { base: '#247e6d', block: '#d87936', A: '#247e6d', B: '#d87936', C: '#5489a3', D: '#9473b0' };
+  let parameterSignature = '';
+  let timelineLimit = 0;
+  let fullArcBounds = null;
   const state = { kind: 'boat', time: 0, playing: false, mode: 'segment', frame: 0, lastFrame: 0 };
   let model, width = 0, height = 0;
   const canvas = $('scene-canvas');
@@ -211,7 +1296,7 @@ const XCPhysics = (() => {
     for (let i = 1; i < model.times.length; i++) if (state.time <= model.times[i] + 1e-8) return i - 1;
     return model.times.length - 2;
   }
-  function referenceTime() { return state.mode === 'total' ? 0 : model.times[segmentIndex()]; }
+  function referenceTime() { return config[state.kind].continuous || state.mode === 'total' ? 0 : model.times[segmentIndex()]; }
   function pause(status = '已暂停') {
     state.playing = false;
     cancelAnimationFrame(state.frame);
@@ -246,7 +1331,7 @@ const XCPhysics = (() => {
     const dt = state.lastFrame ? Math.min((now - state.lastFrame) / 1000, .06) * Number($('speed').value) : 0;
     state.lastFrame = now;
     let next = Math.min(state.time + dt, model.duration);
-    if ($('pause-stages').checked) {
+    if (!model.continuous && $('pause-stages').checked) {
       const boundary = model.times.find(t => t > state.time + 1e-8 && t <= next + 1e-8);
       if (boundary !== undefined) { next = boundary; pause(boundary === model.duration ? '本次演示完成' : '已到关键状态，点击继续'); }
     }
@@ -285,6 +1370,8 @@ const XCPhysics = (() => {
     state.time = 0;
     const cfg = config[state.kind];
     const values = saved[state.kind];
+    if (config[state.kind].continuous) return rebuildContinuous(cfg);
+    setSceneLayout(false);
     model = XCPhysics.makeModel(state.kind, ...values);
     $('scene-title').textContent = cfg.title;
     $('scene-subtitle').textContent = cfg.subtitle;
@@ -323,6 +1410,7 @@ const XCPhysics = (() => {
     rebuild();
   }
   function render() {
+    if (config[state.kind].continuous) { renderContinuous(); return; }
     const cfg = config[state.kind];
     const i = segmentIndex();
     const d = model.difference(referenceTime(), state.time);
@@ -347,6 +1435,146 @@ const XCPhysics = (() => {
     syncPlayback();
     draw();
   }
+  function setSceneLayout(continuous) {
+    ['legacy-readout', 'legacy-parameters', 'legacy-comparison', 'legacy-legend', 'stage-track', 'prev-btn', 'next-btn', 'pause-stages-option'].forEach(id => { $(id).hidden = continuous; });
+    ['continuous-readout', 'new-parameters', 'live-comparison', 'new-legend', 'vector-option'].forEach(id => { $(id).hidden = !continuous; });
+    $('experiment-card').classList.toggle('continuous-scene', continuous);
+    $('com-option-text').textContent = continuous ? '显示水平质心' : '显示固定水平质心';
+    $('timeline').disabled = false;
+    if (!continuous) {
+      $('explanation-copy').innerHTML = legacyExplanation.copy;
+      $('explanation-equations').innerHTML = legacyExplanation.equations;
+    }
+  }
+  function visibleFields() {
+    const cfg = config[state.kind], p = saved[state.kind];
+    return cfg.fields.filter(f => !f.collision || p.mode === 'collision');
+  }
+  function renderParameterFields() {
+    const cfg = config[state.kind], p = saved[state.kind];
+    const signature = `${state.kind}:${p.mode || ''}`;
+    const fields = visibleFields();
+    if (signature !== parameterSignature) {
+      parameterSignature = signature;
+      const control = f => `<div class="param"><div class="param-row"><label for="new-${f.key}">${f.label}</label><span class="number-unit"><input id="new-${f.key}-number" data-param="${f.key}" type="number" min="${f.min}" max="${f.max}" step="${f.step}" value="${p[f.key]}" aria-label="${f.label}${f.unit ? `，单位 ${f.unit}` : ''}"><span>${f.unit}</span></span></div><input id="new-${f.key}" data-param="${f.key}" type="range" min="${f.min}" max="${f.max}" step="${f.step}" value="${p[f.key]}" aria-label="调整${f.label}"></div>`;
+      const groups = [...new Set(fields.filter(f => !f.advanced).map(f => f.group))];
+      let html = state.kind === 'spring3' ? `<label class="launch-select" for="launch-mode">启动方式<select id="launch-mode"><option value="direct"${p.mode === 'direct' ? ' selected' : ''}>直接给中球初速度</option><option value="collision"${p.mode === 'collision' ? ' selected' : ''}>外来球撞击中球</option></select></label>` : '';
+      html += groups.map(group => `<fieldset class="parameter-group"><legend>${group}</legend>${fields.filter(f => !f.advanced && f.group === group).map(control).join('')}</fieldset>`).join('');
+      if (state.kind === 'quarter') html += '<button type="button" class="critical-speed-btn" id="critical-speed-btn">设为恰好到达上端的临界速度</button>';
+      const advanced = fields.filter(f => f.advanced);
+      if (advanced.length) html += `<details class="advanced-params"><summary>初始位置与接触参数</summary>${advanced.map(control).join('')}</details>`;
+      $('new-param-fields').innerHTML = html;
+    } else {
+      for (const f of fields) for (const suffix of ['', '-number']) {
+        const input = $(`new-${f.key}${suffix}`);
+        if (input && input !== document.activeElement) input.value = String(p[f.key]);
+      }
+    }
+  }
+  function rebuildContinuous(cfg) {
+    let nextModel;
+    try { nextModel = XCPhysics.makeModel(state.kind, saved[state.kind]); }
+    catch (error) { $('param-error').textContent = error.message; $('param-error').hidden = false; return false; }
+    model = nextModel;
+    timelineLimit = Number.isFinite(model.duration) ? model.duration : 0;
+    fullArcBounds = cfg.spring || model.hasWall ? null : model.bounds(0, Number.isFinite(model.duration) ? model.duration : model.period || 20);
+    setSceneLayout(true);
+    renderParameterFields();
+    $('param-error').hidden = true;
+    $('scene-title').textContent = cfg.title;
+    $('scene-subtitle').textContent = cfg.subtitle;
+    $('size-badge').textContent = `${cfg.symbol} = ${fmt(model.size, 1)} m`;
+    $('model-note').textContent = cfg.note;
+    const initial = model.initial;
+    $('new-legend').innerHTML = initial.bodies.map(b => `<span><i class="dot" style="background:${bodyColors[b.id]}"></i>${b.label}</span>`).join('') + '<span><i class="dot purple"></i>水平质心</span><span><i class="ghost-line"></i>初始位置</span>';
+    $('body-metrics').innerHTML = initial.bodies.map(b => `<div class="metric"><label>${b.label} · 对地水平位移</label><strong style="color:${bodyColors[b.id]}"><span id="live-dx-${b.id}">0.000</span><small>m</small></strong><output id="live-v-${b.id}"></output></div>`).join('');
+    $('explanation-copy').innerHTML = '<div class="eyebrow">THE IDEA BEHIND IT</div><h2>水平动量守恒，质心沿水平方向匀速运动。</h2><p>系统水平方向不受外力时，水平总动量保持不变。有初始动量时，水平质心以总动量除以总质量的速度运动；总动量为零时，水平质心固定。杆只约束沿杆方向以外的运动，弹簧与碰撞在物体间传递动量。</p>';
+    $('explanation-equations').innerHTML = '<div class="equation">Pₓ = Σ mᵢ vₓᵢ = 常量</div><div class="equation">Δx<sub>C</sub> = Pₓ t / Σ mᵢ</div><div class="equation">Σ mᵢ Δxᵢ = Pₓ t</div>';
+    if (model.hasWall) {
+      $('explanation-copy').innerHTML = '<div class="eyebrow">THE IDEA BEHIND IT</div><h2>左墙挡住槽体，也向系统传递水平冲量。</h2><p>槽体贴墙且受力朝墙时保持接触；合力朝右后可以离墙。墙只能推、不能拉，槽体始终不能穿过墙。贴墙支撑不做功；有速度撞墙时，恢复系数决定反弹及能量损失。离墙且未再碰墙的阶段，水平动量保持不变。</p>';
+      $('explanation-equations').innerHTML = '<div class="equation">Pₓ(t) − Pₓ(0) = I<sub>墙</sub>(t)</div><div class="equation">F<sub>墙</sub> ≥ 0，X<sub>槽</sub> ≥ X<sub>最左</sub></div><div class="equation">E<sub>机械</sub> + E<sub>碰墙损失</sub> = E<sub>初始</sub></div>';
+    }
+    canvas.setAttribute('aria-label', `${cfg.title}。${cfg.subtitle}。动画连续播放；各物体的位置、速度及位移见下方实时读数。`);
+    render();
+    return true;
+  }
+  function renderContinuous() {
+    const p = model.at(state.time), initial = model.initial;
+    timelineLimit = Number.isFinite(model.duration) ? model.duration : Math.max(timelineLimit, state.time);
+    $('timeline').value = String(Math.round(10000 * state.time / Math.max(timelineLimit, .001)));
+    $('timeline').disabled = timelineLimit < 1e-9;
+    $('timeline').setAttribute('aria-valuetext', `${fmt(state.time, 2)} 秒；可回看到 ${fmt(timelineLimit, 2)} 秒`);
+    $('time-output').textContent = model.indefinite ? `${fmt(state.time, 2)} s · 已演示 ${fmt(timelineLimit, 2)} s` : `${fmt(state.time, 2)} / ${fmt(model.duration, 2)} s`;
+    $('segment-title').textContent = p.phase;
+    canvas.dataset.time = state.time.toFixed(4);
+    canvas.dataset.phase = p.phase;
+    for (const b of p.bodies) {
+      const start = initial.bodies.find(a => a.id === b.id);
+      $(`live-dx-${b.id}`).textContent = signed(b.x - start.x);
+      $(`live-v-${b.id}`).textContent = `vₓ ${signed(b.vx)} · vᵧ ${signed(b.vy)} m/s`;
+    }
+    $('live-momentum').textContent = fmt(p.momentum);
+    $('live-energy').textContent = fmt(p.energy);
+    $('live-com').textContent = signed(p.com - initial.com);
+    const drift = (p.energy + (p.dissipated || 0) - model.energy0) / Math.max(1, Math.abs(model.energy0));
+    const comVelocity = model.hasWall ? p.instantaneousComVelocity : model.comVelocity;
+    const momentumNote = model.hasWall ? `${p.pinned ? '槽体贴墙' : '槽体离墙或尚未接触'} · 墙水平冲量 ${fmt(p.wallImpulse)} N·s` : Math.abs(comVelocity) < 1e-10 ? '水平质心固定' : '水平质心匀速移动';
+    $('conservation-note').textContent = `质心速度 ${signed(comVelocity)} m/s · ${momentumNote} · 能量相对偏差 ${fmt(drift * 100, 4)}%${p.dissipated > 1e-8 ? `（计入碰撞损失 ${fmt(p.dissipated)} J）` : ''}。`;
+    $('body-table').innerHTML = p.bodies.map(b => {
+      const start = initial.bodies.find(a => a.id === b.id);
+      return `<tr><td style="color:${bodyColors[b.id]}">${b.label}</td><td>${signed(b.x)}</td><td>${signed(b.y)}</td><td>${signed(b.vx)}</td><td>${signed(b.vy)}</td><td>${signed(b.x - start.x)}</td></tr>`;
+    }).join('');
+    $('spring-readings').innerHTML = p.springs.map((s, i) => `<div class="spring-reading"><b>弹簧 ${i + 1} · ${s.a}—${s.b}</b><br>长度 <output>${fmt(s.length)} m</output> · 原长 <output>${fmt(s.rest)} m</output><br>${s.extension >= 0 ? '伸长' : '压缩'} <output>${fmt(Math.abs(s.extension))} m</output> · 弹力 <output>${fmt(Math.abs(s.force))} N</output></div>`).join('');
+    const initialStrain = initial.springs.map((s, i) => `弹簧${i + 1}初始${Math.abs(s.extension) < 1e-8 ? '为自然长度' : `${s.extension > 0 ? '拉伸' : '压缩'} ${fmt(Math.abs(s.extension))} m`}`).join('；');
+    $('run-note').textContent = config[state.kind].spring ? `${initialStrain}。累计碰撞 ${p.collisions || 0} 次，碰撞损失 ${fmt(p.dissipated || 0)} J。轨迹显示最近一段运动；时间轴可回看已演示过程。` : `支持飞行与切向再次入轨。${Number.isFinite(model.duration) ? '返回低端滑出时结束演示，出口速度保持实际值。' : '持续往返，直到手动暂停；时间轴可回看已演示过程。'}`;
+    if (model.hasWall) $('run-note').textContent = `固定左墙：x = ${fmt(model.wallX)} m · 碰墙 ${p.wallCollisions} 次 · 损失 ${fmt(p.dissipated)} J · 当前墙反力 ${fmt(p.wallForce)} N。持续播放，直到手动暂停。`;
+    if (state.kind === 'quarter') {
+      $('insight-text').textContent = `入射初速度 ${fmt(saved.quarter.v0, 2)} m/s；到达上端的临界速度为 ${fmt(model.criticalSpeed, 3)} m/s。恰好到上端且相对速度为零时，重力使小球沿弧反向。当前：${p.phase}。`;
+    } else if (state.kind === 'dropgroove') {
+      $('insight-text').textContent = `固定左墙只阻止槽体向左移动。默认紧贴墙时，小球沿左半槽下滑，槽体由墙支撑；到最低点后可以向右离墙。墙提供水平冲量，质心不再始终固定。当前：${p.phase}。`;
+    } else {
+      $('insight-text').textContent = state.kind === 'spring2' ? `弹簧力沿两球连线，杆约束抵消垂直于杆的分量。两球沿杆动量之和保持不变；初始总动量决定质心以 ${fmt(model.comVelocity)} m/s 移动。` : '中球 B 不受杆约束，按平面内的合弹力运动。两侧参数对称时，它自然留在中线上；质量、弹簧或初态不对称时可偏离中线。碰撞模式中，D 始终计入系统动量与质心。';
+    }
+    syncPlayback();
+    draw();
+  }
+  function commitNewParameter(input) {
+    const key = input.dataset.param, p = saved[state.kind];
+    const f = visibleFields().find(item => item.key === key);
+    if (!f) return;
+    const value = Number(input.value);
+    if (!input.value.trim() || !Number.isFinite(value)) { input.value = p[key]; return; }
+    const previous = p[key];
+    p[key] = Number((Math.round((XCPhysics.clamp(value, f.min, f.max) - f.min) / f.step) * f.step + f.min).toFixed(6));
+    if (rebuild() === false) {
+      const message = $('param-error').textContent;
+      p[key] = previous;
+      rebuild();
+      $('param-error').textContent = message;
+      $('param-error').hidden = false;
+    }
+    for (const suffix of ['', '-number']) $(`new-${key}${suffix}`).value = String(p[key]);
+  }
+  const launchVelocities = { direct: { vB: 2, vyB: 0 }, collision: { vB: 0, vyB: 0 } };
+  $('new-param-fields').addEventListener('click', e => {
+    if (e.target.id === 'critical-speed-btn') {
+      const p = saved.quarter;
+      p.v0 = Math.sqrt(2 * XCPhysics.G * p.R / (p.M / (p.M + p.m)));
+      rebuild();
+    }
+  });
+  $('new-param-fields').addEventListener('input', e => { if (e.target.matches('input[type="range"]')) commitNewParameter(e.target); });
+  $('new-param-fields').addEventListener('change', e => {
+    if (e.target.matches('input[type="number"]')) commitNewParameter(e.target);
+    if (e.target.id === 'launch-mode') {
+      const p = saved.spring3;
+      launchVelocities[p.mode] = { vB: p.vB, vyB: p.vyB };
+      p.mode = e.target.value;
+      Object.assign(p, launchVelocities[p.mode]);
+      rebuild();
+    }
+  });
+  $('new-param-fields').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input[type="number"]')) e.target.blur(); });
   function resize() {
     const rect = canvas.getBoundingClientRect();
     width = rect.width;
@@ -443,8 +1671,179 @@ const XCPhysics = (() => {
     const middle=(lo+hi)/2;
     return {scale,floor,x:v=>width/2+(v-middle)*scale,lo:middle-width/(2*scale),hi:middle+width/(2*scale)};
   }
+  function continuousGeometry(p) {
+    const cfg = config[state.kind], size = model.size;
+    let middle, ymin, ymax, span;
+    if (model.hasWall) {
+      const nearWall = p.base - model.wallLimit < 2 * size;
+      const xmin = nearWall ? Math.min(p.base - 1.3 * size, model.wallX - .3 * size) : p.base - 1.3 * size;
+      const xmax = p.base + 1.3 * size;
+      middle = (xmin + xmax) / 2;
+      span = xmax - xmin + .4 * size;
+      ymin = -.25 * size;
+      ymax = model.energy0 / (model.params.m * XCPhysics.G) + .25 * size;
+    } else if (!cfg.spring) {
+      const b = fullArcBounds;
+      middle = (b.xmin + b.xmax) / 2;
+      span = Math.max(b.xmax - b.xmin + .6 * size, 2 * size);
+      ymin = Math.min(-.18 * size, b.ymin);
+      ymax = Math.max(size, b.ymax) + .2 * size;
+    } else {
+      const core = p.bodies.filter(b => b.id !== 'D');
+      const lo = Math.min(...core.map(b => b.x)), hi = Math.max(...core.map(b => b.x));
+      middle = (lo + hi) / 2;
+      span = Math.max(2 * size, hi - lo + .8 * size);
+      ymin = Math.min(-size / 2, ...core.map(b => b.y)) - .25 * size;
+      ymax = Math.max(size / 2, ...core.map(b => b.y)) + .25 * size;
+    }
+    const scale = Math.max(.0001, Math.min((width - (width < 430 ? 62 : 96)) / span, (height - 135) / (ymax - ymin)));
+    const cy = cfg.spring ? (height + 4) / 2 : height - 63 - (ymax - ymin) * scale / 2;
+    const middleY = (ymin + ymax) / 2;
+    return { scale, x: v => width / 2 + (v - middle) * scale, y: v => cy - (v - middleY) * scale, lo: middle - width / (2 * scale), hi: middle + width / (2 * scale) };
+  }
+  function drawCoil(a, b, geo, color, ghost = false) {
+    const ax = geo.x(a.x), ay = geo.y(a.y), bx = geo.x(b.x), by = geo.y(b.y);
+    const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy);
+    if (len < 2) return;
+    const ux = dx / len, uy = dy / len, lead = Math.min(12, len * .15), amp = Math.min(5, len / 10);
+    ctx.save();ctx.strokeStyle = color;ctx.lineWidth = 1.6;ctx.globalAlpha = ghost ? .25 : .85;
+    if (ghost) ctx.setLineDash([3, 4]);
+    ctx.beginPath();ctx.moveTo(ax, ay);ctx.lineTo(ax + ux * lead, ay + uy * lead);
+    for (let i = 1; i < 12; i++) {
+      const along = lead + (len - 2 * lead) * i / 12, side = (i % 2 ? 1 : -1) * amp;
+      ctx.lineTo(ax + ux * along - uy * side, ay + uy * along + ux * side);
+    }
+    ctx.lineTo(bx - ux * lead, by - uy * lead);ctx.lineTo(bx, by);ctx.stroke();ctx.restore();
+  }
+  function drawVelocity(b, geo) {
+    if (!$('show-vectors').checked) return;
+    const speed = Math.hypot(b.vx, b.vy);
+    if (speed < .02) return;
+    const x = geo.x(b.x), y = geo.y(b.y), length = Math.min(54, 22 + speed * 7);
+    const dx = b.vx / speed, dy = -b.vy / speed;
+    const sx = x + dx * 13, sy = y + dy * 13, ex = x + dx * length, ey = y + dy * length;
+    const color = bodyColors[b.id];
+    line(sx, sy, ex, ey, color, 1.4);
+    line(ex, ey, ex - dx * 6 - dy * 3, ey - dy * 6 + dx * 3, color, 1.4);
+    line(ex, ey, ex - dx * 6 + dy * 3, ey - dy * 6 - dx * 3, color, 1.4);
+  }
+  function drawArcShape(p, geo, ghost = false) {
+    const R = model.size, X = p.base, cx = geo.x(X), cy = geo.y(R), r = R * geo.scale;
+    ctx.save();ctx.strokeStyle = ghost ? colors.ghost : colors.green;ctx.lineWidth = 1.8;
+    if (ghost) {ctx.globalAlpha = .35;ctx.setLineDash([5, 5]);}
+    ctx.beginPath();
+    if (state.kind === 'quarter') {
+      ctx.moveTo(cx, geo.y(0));ctx.arc(cx, cy, r, Math.PI / 2, 0, true);
+      ctx.lineTo(geo.x(X + 1.2 * R), cy);ctx.lineTo(geo.x(X + 1.2 * R), geo.y(-.15 * R));ctx.lineTo(geo.x(X - .12 * R), geo.y(-.15 * R));ctx.lineTo(geo.x(X - .12 * R), geo.y(0));
+    } else {
+      ctx.moveTo(geo.x(X - 1.2 * R), cy);ctx.lineTo(geo.x(X - R), cy);ctx.arc(cx, cy, r, Math.PI, 0, true);
+      ctx.lineTo(geo.x(X + 1.2 * R), cy);ctx.lineTo(geo.x(X + 1.2 * R), geo.y(-.15 * R));ctx.lineTo(geo.x(X - 1.2 * R), geo.y(-.15 * R));
+    }
+    ctx.closePath();if (!ghost) {ctx.fillStyle = '#c4d8c9';ctx.fill();}ctx.stroke();
+    if (!ghost && r > 18) {
+      line(cx, cy, cx, geo.y(0), colors.green, 1, [3, 4]);circle(cx, cy, 2.2, colors.green);
+      text('R', cx + 10, (cy + geo.y(0)) / 2, colors.green, 11, 'left', 600);
+      const labelX = state.kind === 'quarter' ? X + .8 * R : X;
+      text('M', geo.x(labelX), geo.y(-.075 * R) + 3, colors.green, 10);
+    }
+    ctx.restore();
+  }
+  function drawContinuousBody(b, geo, ghost = false) {
+    const x = geo.x(b.x), y = geo.y(b.y), color = bodyColors[b.id];
+    if (b.id === 'base') return;
+    if (x < 17 || x > width - 17 || y < 54 || y > height - 45) {
+      if (!ghost && b.id === 'D') {
+        const edge = x < width / 2 ? 21 : width - 21, sign = x < width / 2 ? -1 : 1;
+        const yy = XCPhysics.clamp(y, 77, height - 95);
+        line(edge - sign * 9, yy, edge, yy, color, 1.5);line(edge, yy, edge - sign * 5, yy - 4, color, 1.5);line(edge, yy, edge - sign * 5, yy + 4, color, 1.5);
+        text(`D · x=${fmt(b.x, 1)} m`, edge - sign * 5, yy - 12, color, 9, sign < 0 ? 'left' : 'right');
+      }
+      return;
+    }
+    ctx.save();if (ghost) {ctx.globalAlpha = .3;ctx.setLineDash([3, 3]);}
+    if (b.id === 'block') {
+      const r = XCPhysics.clamp(model.size * geo.scale * .045, 6, 10);
+      circle(x, y, r + 2, ghost ? '' : 'white');
+      circle(x, y, r, ghost ? '' : color, color, 1.5);
+    } else {
+      const r = XCPhysics.clamp((b.r || .12) * geo.scale, 6, 16);
+      circle(x, y, r + 2, ghost ? '' : 'white');circle(x, y, r, ghost ? '' : color, color, 1.5);
+      if (!ghost && b.constrained) circle(x, y, 2.2, '#fff');
+    }
+    ctx.restore();
+    if (!ghost) {
+      text(b.id === 'block' ? 'm' : b.id, x, y - 16, color, 11, 'center', 650);
+      drawVelocity(b, geo);
+    }
+  }
+  function drawFixedWall(geo) {
+    const x = geo.x(model.wallX), top = geo.y(model.size * 1.22), bottom = geo.y(-.15 * model.size);
+    if (x < 28) {
+      text(`← 固定左墙 · x=${fmt(model.wallX, 1)} m`, 22, height - 67, colors.muted, 9, 'left');
+      return;
+    }
+    ctx.save();ctx.fillStyle = '#d4ded8';ctx.fillRect(x - 16, top, 16, bottom - top);
+    line(x, top, x, bottom, '#647f72', 2.5);
+    ctx.beginPath();ctx.rect(x - 16, top, 16, bottom - top);ctx.clip();
+    for (let y = top - 16; y < bottom + 20; y += 10) line(x - 16, y + 16, x, y, '#9cafa3', 1);
+    ctx.restore();
+    text('固定左墙', x - 3, top - 10, colors.muted, 10, 'center', 600);
+  }
+  function drawContinuous() {
+    const p = model.at(state.time), cfg = config[state.kind], geo = continuousGeometry(p);
+    ctx.clearRect(0, 0, width, height);
+    for (let xx = 20; xx < width; xx += 24) for (let yy = 14; yy < height; yy += 24) circle(xx, yy, .65, colors.grid);
+    text(cfg.spring ? (state.kind === 'spring3' ? '俯视 · 杆固定，中球在水平面内自由运动' : '俯视 · 光滑水平面 · 两球分别套杆') : '侧视 · 光滑水平面 · 开放圆弧', width / 2, 24, colors.ink, width < 430 ? 10 : 11);
+    text(cfg.spring ? '跟随系统取景 · 下方标尺为对地坐标' : '对地坐标 · 小球按质点计算', width / 2, 43, colors.muted, 9);
+    ctx.save();ctx.beginPath();ctx.rect(14, 55, width - 28, height - 106);ctx.clip();
+    if (cfg.spring) {
+      for (const [i, yy] of [[1, model.size / 2], [2, -model.size / 2]]) {
+        line(16, geo.y(yy), width - 16, geo.y(yy), '#a5bbae', 3);
+        line(16, geo.y(yy) + 3, width - 16, geo.y(yy) + 3, '#e3ebe4', 1);
+        text(`固定杆 ${i}`, width - 23, geo.y(yy) - 10, colors.muted, 9, 'right');
+      }
+    } else {
+      line(14, geo.y(-.15 * model.size), width - 14, geo.y(-.15 * model.size), '#bacbbf', 1.5);
+      if ($('show-ghost').checked && state.time > 1e-7) drawArcShape(model.initial, geo, true);
+      drawArcShape(p, geo);
+      if (model.hasWall) drawFixedWall(geo);
+    }
+    if ($('show-trail').checked && state.time > .01) {
+      const start = Math.max(0, state.time - 6), count = Math.max(2, Math.min(60, Math.ceil((state.time - start) * 20)));
+      const samples = Array.from({ length: count + 1 }, (_, i) => model.at(start + (state.time - start) * i / count));
+      for (const b of p.bodies.filter(body => body.id !== 'base')) {
+        ctx.save();ctx.beginPath();ctx.setLineDash([2, 4]);ctx.strokeStyle = bodyColors[b.id];ctx.globalAlpha = .3;ctx.lineWidth = 1.4;
+        samples.forEach((sample, i) => {const a = sample.bodies.find(body => body.id === b.id);if (i) ctx.lineTo(geo.x(a.x), geo.y(a.y));else ctx.moveTo(geo.x(a.x), geo.y(a.y));});
+        ctx.stroke();ctx.restore();
+      }
+    }
+    if (cfg.spring) {
+      if ($('show-ghost').checked && state.time > 1e-7) {
+        for (const s of model.initial.springs) drawCoil(model.initial.bodies.find(b => b.id === s.a), model.initial.bodies.find(b => b.id === s.b), geo, colors.ghost, true);
+      }
+      for (const [i, s] of p.springs.entries()) drawCoil(p.bodies.find(b => b.id === s.a), p.bodies.find(b => b.id === s.b), geo, i === 0 ? colors.green : '#5489a3');
+    }
+    if ($('show-com').checked) {
+      const cx = geo.x(p.com);
+      line(cx, 57, cx, height - 60, colors.purple, 1, [3, 5]);
+      text(model.hasWall ? 'xC 随墙冲量变化' : Math.abs(model.comVelocity) < 1e-10 ? 'xC 固定' : 'xC 匀速移动', XCPhysics.clamp(cx, 47, width - 47), 67, colors.purple, 9);
+    }
+    if ($('show-ghost').checked && state.time > 1e-7) for (const b of model.initial.bodies) drawContinuousBody(b, geo, true);
+    for (const b of p.bodies) drawContinuousBody(b, geo);
+    ctx.restore();
+    const rawStep = (geo.hi - geo.lo) / 6, power = 10 ** Math.floor(Math.log10(rawStep));
+    const step = [1, 2, 5, 10].map(n => n * power).find(n => n >= rawStep);
+    const rulerY = height - 42;
+    line(16, rulerY, width - 16, rulerY, '#c7d3c9');
+    for (let value = Math.ceil(geo.lo / step) * step; value <= geo.hi; value += step) {
+      const x = geo.x(value);if (x < 24 || x > width - 24) continue;
+      line(x, rulerY, x, rulerY + 5, '#a8b9ae');text(fmt(value, step < 1 ? 1 : 0), x, rulerY + 17, colors.muted, 9);
+    }
+    text('对地水平坐标 x / m', width - 17, height - 7, colors.muted, 9, 'right');
+  }
   function draw() {
     if(!model||!width||!height||!ctx)return;
+    if(config[state.kind].continuous){drawContinuous();return;}
     ctx.clearRect(0,0,width,height);
     const cfg=config[state.kind],p=model.at(state.time),ref=model.at(referenceTime()),d=model.difference(referenceTime(),state.time),geo=geometry();
     // The camera and ground ruler remain fixed throughout a complete run.
@@ -494,9 +1893,9 @@ const XCPhysics = (() => {
   $('reset-btn').addEventListener('click',()=>jump(0,'已回到初始状态'));
   $('prev-btn').addEventListener('click',()=>{const t=[...model.times].reverse().find(t=>t<state.time-1e-8);if(t!==undefined)jump(t);});
   $('next-btn').addEventListener('click',()=>{const t=model.times.find(t=>t>state.time+1e-8);if(t!==undefined)jump(t);});
-  $('timeline').addEventListener('input',()=>jump(Number($('timeline').value)/10000*model.duration,'正在查看所选时刻'));
+  $('timeline').addEventListener('input',()=>jump(Number($('timeline').value)/10000*(config[state.kind].continuous ? timelineLimit : model.duration),'正在查看所选时刻'));
   ['segment','total'].forEach(mode=>$(`mode-${mode}`).addEventListener('click',()=>{state.mode=mode;$('mode-segment').setAttribute('aria-pressed',String(mode==='segment'));$('mode-total').setAttribute('aria-pressed',String(mode==='total'));render();}));
-  ['show-ghost','show-trail','show-com'].forEach(id=>$(id).addEventListener('change',draw));
+  ['show-ghost','show-trail','show-com','show-vectors'].forEach(id=>$(id).addEventListener('change',draw));
   ['base-mass','object-mass','size'].forEach((id,index)=>{
     const commit=source=>{
       const value=Number(source.value),range=config[state.kind].ranges[index];
