@@ -766,9 +766,22 @@
     return math.abs(math.subtract(av, bv)) <= (tolerance || 2e-11) * Math.max(Number.MIN_VALUE, math.abs(av), math.abs(bv));
   }
   function safeArithmetic(expression) {
+    let before;
+    try {
+      before = parse(expression);
+      // A floating-point residual cannot validate a rational cancellation such as
+      // 0.1+0.2-0.3. Keep exact coefficients before asking the CAS to simplify.
+      const fraction = renderRational(before);
+      if (fraction) {
+        const text = fractionText(fraction, true);
+        try { parse(text); return text; }
+        catch (_) { return expression; } // Keep finite source literals rather than introducing an oversized integer.
+      }
+    } catch (_) { /* Fall back to the bounded CAS path. */ }
     const answer = cas(expression);
     try {
-      const before = parse(expression), after = parse(answer);
+      before = before || parse(expression);
+      const after = parse(answer);
       if (!symbols(before).length && !symbols(after).length) {
         const opts = optionsFor();
         if (!numericallyEqual(evaluateNode(before, Object.create(null), opts), evaluateNode(after, Object.create(null), opts))) return expression;
@@ -784,6 +797,10 @@
   function cpow(a, b) { return safeArithmetic('(' + a + ')^(' + b + ')'); }
   function zero(a) {
     if (a === '0') return true;
+    try {
+      const fraction = renderRational(parse(a));
+      if (fraction) return fraction.n === 0n;
+    } catch (_) { /* Non-rational expressions still use symbolic checks below. */ }
     let simplified;
     try { simplified = cas(a, 'simplify'); }
     catch (_) { try { simplified = cas(a); } catch (_) { return false; } }
@@ -978,12 +995,260 @@
     if (reconstructed.some((z, i) => Math.hypot(z.r - p[i], z.i) > (p[i] === 0 ? 1e-9 : 1e-7 * Math.abs(p[i])))) fail('高次根未通过系数重建检验，可能含难以分离的重根；请先因式分解。');
     return roots.map(z => C(z.r * variableScale, z.i * variableScale)).sort((a, b) => a.i === 0 && b.i !== 0 ? -1 : a.i !== 0 && b.i === 0 ? 1 : a.r - b.r || a.i - b.i);
   }
-  function rootRecord(exact, variable, opts, multiplicity) {
-    let value;
-    try { value = evaluateNode(parse(exact), Object.create(null), Object.assign({}, opts, { angle: 'rad' })); } catch (_) { value = null; }
+  function rootRecord(exact, variable, opts, multiplicity, value) {
+    if (value === undefined) {
+      try { value = evaluateNode(parse(exact), Object.create(null), Object.assign({}, opts, { angle: 'rad' })); } catch (_) { value = null; }
+    }
     return { variable, exact, approximate: value === null ? null : formatValue(value, opts),
-      real: value === null ? null : Number.isFinite(scalarNumber(value)), multiplicity: multiplicity || 1,
+      real: value === null ? null : value.isBigNumber ? value.isFinite() : Number.isFinite(scalarNumber(value)), multiplicity: multiplicity || 1,
       _value: value === null ? NaN : scalarNumber(value) };
+  }
+  function integerRoot(value, charge) {
+    if (value < 2n) return value;
+    let x = 1n << BigInt(Math.ceil(value.toString(2).length / 2));
+    for (let i = 0; i < 32; i++) {
+      if (charge) charge();
+      const next = (x + value / x) / 2n;
+      if (next >= x) return x;
+      x = next;
+    }
+    fail('根式的精确整数运算超过预算。');
+  }
+  function squareParts(value) {
+    // Extract small square factors, but do not attempt unbounded integer factorization.
+    let remaining = value, outside = 1n, inside = 1n;
+    for (let p = 2n; p <= 1000n && p * p <= remaining; p += p === 2n ? 1n : 2n) {
+      let count = 0;
+      while (remaining % p === 0n) { remaining /= p; count++; }
+      if (count >= 2) outside *= p ** BigInt(Math.floor(count / 2));
+      if (count % 2) inside *= p;
+    }
+    const tail = integerRoot(remaining);
+    return tail * tail === remaining ? [outside * tail, inside] : [outside, inside * remaining];
+  }
+  function quadraticRadical(square) {
+    const [n, top] = squareParts(square.n), [d, bottom] = squareParts(square.d);
+    // Rationalize √(top/bottom) when the resulting radicand is not too large.
+    const radicand = top * bottom;
+    const rationalize = Number.isFinite(Number(radicand)) && Number.isFinite(Number(d * bottom));
+    const text = rationalize ? String(radicand) : fractionText(math.fraction(top, bottom), true);
+    const atom = (square.s < 0n ? (text === '1' ? 'i' : 'i*') : '') + (text === '1' ? '' : 'sqrt(' + text + ')');
+    return { factor: math.fraction(n, rationalize ? d * bottom : d), atom };
+  }
+  function quadraticSum(center, { factor, atom }, sign) {
+    const real = rationalText(center);
+    if (!atom) {
+      const term = sign < 0 ? factor.neg() : factor;
+      return real ? fractionText(real.add(term), true) : cadd(center, fractionText(term, true));
+    }
+    const term = (factor.n === 1n ? '' : compactInteger(factor.n) + '*') + atom;
+    const op = sign < 0 ? '-' : '+';
+    if (real && real.n !== 0n && real.d === factor.d && real.d !== 1n) {
+      return '(' + compactInteger(real.s * real.n) + op + term + ')/' + compactInteger(factor.d);
+    }
+    const base = real ? fractionText(real, true) : center;
+    return (base === '0' ? (sign < 0 ? '-' : '') : base + op) + term + (factor.d === 1n ? '' : '/' + compactInteger(factor.d));
+  }
+  function algebraicRootText(exact) {
+    try { parse(exact); return exact; } catch (error) {
+      // A large exact integer need not fit in one literal (e.g. a discriminant
+      // squared from valid coefficients). Split only generated result literals.
+      const decomposed = exact.replace(/\d{309,}/g, digits => {
+        if (Number.isFinite(Number(digits))) return digits;
+        const terms = [];
+        for (let end = digits.length; end > 0; end -= 308) {
+          const chunk = digits.slice(Math.max(0, end - 308), end).replace(/^0+/, ''), exponent = digits.length - end;
+          if (chunk) terms.unshift(chunk + (exponent ? '*10^' + exponent : ''));
+        }
+        return '(' + terms.join('+') + ')';
+      });
+      if (decomposed === exact) throw error;
+      parse(decomposed);
+      return decomposed;
+    }
+  }
+  function algebraicMonomial(node) {
+    const n = unwrap(node), value = renderRational(n);
+    if (value) return { coefficient: value, radicand: math.fraction(1), imaginary: 0 };
+    if (n.isSymbolNode && n.name === 'i') return { coefficient: math.fraction(1), radicand: math.fraction(1), imaginary: 1 };
+    if (n.isFunctionNode && n.fn.name === 'sqrt' && n.args.length === 1) {
+      const square = renderRational(n.args[0]);
+      if (square) return { coefficient: math.fraction(1), radicand: square.abs(), imaginary: square.s < 0n ? 1 : 0 };
+    }
+    if (!n.isOperatorNode || !['unaryMinus', 'unaryPlus', 'multiply', 'divide', 'pow'].includes(n.fn)) return null;
+    const a = algebraicMonomial(n.args[0]);
+    if (!a) return null;
+    if (n.fn === 'unaryPlus') return a;
+    if (n.fn === 'unaryMinus') return { ...a, coefficient: a.coefficient.neg() };
+    if (n.fn === 'pow') {
+      const exponent = renderRational(n.args[1]);
+      if (!exponent || exponent.d !== 1n || exponent.n !== 1n || exponent.s !== -1n || !a.coefficient.n || !a.radicand.n) return null;
+      return { coefficient: a.coefficient.inverse(), radicand: a.radicand.inverse(), imaginary: -a.imaginary };
+    }
+    const b = algebraicMonomial(n.args[1]);
+    if (!b || n.fn === 'divide' && (!b.coefficient.n || !b.radicand.n)) return null;
+    if (n.fn === 'divide') return { coefficient: a.coefficient.div(b.coefficient), radicand: a.radicand.div(b.radicand), imaginary: a.imaginary - b.imaginary };
+    return { coefficient: a.coefficient.mul(b.coefficient), radicand: a.radicand.mul(b.radicand), imaginary: a.imaginary + b.imaginary };
+  }
+  function algebraicTerms(node) {
+    const terms = new Map();
+    function addTerm(part, scale) {
+      const n = unwrap(part);
+      if (n.isOperatorNode) {
+        if (n.fn === 'add' || n.fn === 'subtract') return addTerm(n.args[0], scale) && addTerm(n.args[1], n.fn === 'subtract' ? scale.neg() : scale);
+        if (n.fn === 'unaryPlus' || n.fn === 'unaryMinus') return addTerm(n.args[0], n.fn === 'unaryMinus' ? scale.neg() : scale);
+        if (n.fn === 'divide' || n.fn === 'multiply') {
+          const right = renderRational(n.args[1]);
+          if (right && n.fn === 'divide' && right.n !== 0n) return addTerm(n.args[0], scale.div(right));
+          if (right && n.fn === 'multiply') return addTerm(n.args[0], scale.mul(right));
+          const left = n.fn === 'multiply' && renderRational(n.args[0]);
+          if (left) return addTerm(n.args[1], scale.mul(left));
+        }
+      }
+      const term = algebraicMonomial(n);
+      if (!term) return false;
+      if (term.coefficient.n === 0n || term.radicand.n === 0n) return true;
+      const q = quadraticRadical(term.radicand), phase = (term.imaginary % 4 + 4) % 4;
+      const atom = [phase % 2 ? 'i' : '', q.atom].filter(Boolean).join('*');
+      const factor = q.factor.mul(term.coefficient).mul(phase >= 2 ? scale.neg() : scale);
+      const total = terms.has(atom) ? terms.get(atom).add(factor) : factor;
+      if (total.n === 0n) terms.delete(atom); else terms.set(atom, total);
+      return true;
+    }
+    return addTerm(node, math.fraction(1)) ? terms : null;
+  }
+  function quadraticQuotient(numerator, denominator) {
+    try {
+      const top = algebraicTerms(parse(numerator)), bottom = algebraicTerms(parse(denominator));
+      if (top && bottom && top.size === bottom.size && bottom.size) {
+        const [atom, factor] = bottom.entries().next().value;
+        const ratio = top.has(atom) && top.get(atom).div(factor);
+        if (ratio && Array.from(bottom).every(([key, value]) => top.has(key) && value.mul(ratio).equals(top.get(key)))) {
+          return fractionText(ratio, true);
+        }
+      }
+    } catch (_) { /* Nonproportional or unsupported coefficients retain ordinary division. */ }
+    return cdiv(numerator, denominator);
+  }
+  function symbolicSquareRoot(square, hint) {
+    const node = unwrap(parse(square)), negative = node.isOperatorNode && node.fn === 'unaryMinus';
+    const n = negative ? unwrap(node.args[0]) : node;
+    if (n.isOperatorNode && n.fn === 'pow' && plain(n.args[1]) === '2') {
+      // The two signs remove branch ambiguity: ±√(u²) and ±u are the same pair.
+      const base = safeArithmetic(plain(n.args[0]));
+      return negative ? cmul('i', base) : base;
+    }
+    if (!hint || square.length + hint.length >= 600) return null;
+    // A denominator zero is a candidate, not proof by itself. Check its
+    // squared offset using exact expansion (large radicals are kept opaque).
+    return exactContext(optionsFor()).simplify('(' + square + ')-(' + hint + ')^2', 'expand', false) === '0' ? hint : null;
+  }
+  function simplifyQuadraticTerms(raw) {
+    try {
+      const terms = algebraicTerms(parse(raw));
+      if (terms && terms.size <= 1) {
+        if (!terms.size) return '0';
+        const [atom, factor] = terms.entries().next().value;
+        return quadraticSum('0', { factor: factor.abs(), atom }, Number(factor.s));
+      }
+    } catch (_) { /* Keep the formula if optional term collection is too complex. */ }
+    return raw;
+  }
+  function sameEquationRoot(a, b, cache = new Map()) {
+    if (a.exact === b.exact) return true;
+    if (a.numerical || b.numerical) return Number.isFinite(a._value) && Number.isFinite(b._value) && closeRoot(a._value, b._value);
+    // No CAS or tolerance-based comparison of two exact roots: this is used to
+    // decide whether to drop a solution or coalesce two interval endpoints.
+    function terms(root) {
+      if (!cache.has(root.exact)) {
+        let value = null;
+        try { value = algebraicTerms(parse(root.exact)); } catch (_) { /* No exact comparison is available. */ }
+        cache.set(root.exact, value);
+      }
+      return cache.get(root.exact);
+    }
+    const left = terms(a), right = terms(b);
+    return !!(left && right && left.size === right.size && Array.from(left).every(([atom, factor]) => right.has(atom) && factor.equals(right.get(atom))));
+  }
+  function quadraticRoots(p, variable, opts, output, exclusions = []) {
+    const [c, b, a] = p;
+    const fractions = p.map(text => rationalText(text) || renderRational(parse(text)));
+    const rational = fractions.every(Boolean);
+    const denominator = rational ? null : cmul('2', a);
+    // Complete the square first: x = m ± √(m²−c/a), m = −b/(2a).
+    // This is the same pair of roots even for a negative or complex a. The
+    // denominator is applied to both terms without any branch-dependent CAS rewrite.
+    const ratio = rational ? fractions[0].div(fractions[2]) : null;
+    const midpoint = rational ? fractions[1].neg().div(fractions[2].mul(2n)) : null;
+    const center = rational ? fractionText(midpoint) : quadraticQuotient(cneg(b), denominator);
+    const square = rational ? midpoint.mul(midpoint).sub(ratio) : null;
+    let roots;
+    if (c === '0') {
+      // Factor out x so the parameter-independent zero root is kept even when
+      // the sign (or complex phase) of the leading coefficient is unknown.
+      roots = b === '0' ? [rootRecord('0', variable, opts, 2)]
+        : [rootRecord('0', variable, opts), rootRecord(cdiv(cneg(b), a), variable, opts)];
+      roots.sort((r, s) => r._value - s._value);
+    } else {
+      const spread = rational ? '' : csub(cpow(center, '2'), quadraticQuotient(c, a));
+      const offset = square || rationalText(spread) || (spread && renderRational(parse(spread)));
+      const repeated = offset ? offset.n === 0n : zero(spread);
+      let symbolicRoot = null;
+      if (!offset && !repeated) {
+        symbolicRoot = symbolicSquareRoot(spread);
+        for (const pole of exclusions.slice(0, 8)) {
+          if (symbolicRoot) break;
+          if (pole.numerical) continue;
+          try { symbolicRoot = symbolicSquareRoot(spread, csub(pole.exact, center)); }
+          catch (_) { /* A complex pole expression is not needed to solve the numerator. */ }
+        }
+      }
+      if (repeated) roots = [rootRecord(rational ? algebraicRootText(fractionText(midpoint, true)) : center, variable, opts, 2, rational ? math.bignumber(midpoint) : undefined)];
+      else if (symbolicRoot) {
+        const sum = cadd(center, symbolicRoot), difference = csub(center, symbolicRoot);
+        const exact = exactContext(opts);
+        roots = [difference, sum].map(text => rootRecord(exact.simplify(text, 'expand'), variable, opts));
+      }
+      else {
+        const radical = offset ? quadraticRadical(offset) : { factor: math.fraction(1), atom: 'sqrt(' + spread + ')' };
+        let values = [];
+        if (rational) {
+          const m = math.bignumber(midpoint), radius = math.bignumber(square.abs()).sqrt();
+          if (square.s < 0n) {
+            const re = m.toNumber(), im = radius.toNumber();
+            values = Number.isFinite(re) && Number.isFinite(im) && im > 0 ? [math.complex(re, -im), math.complex(re, im)] : [null, null];
+          } else {
+            // Evaluate the large root with like signs, then recover the small
+            // root via Vieta instead of subtracting nearly equal numbers.
+            const negative = midpoint.s < 0n, far = negative ? m.minus(radius) : m.plus(radius);
+            const near = math.bignumber(ratio).div(far);
+            values = negative ? [far, near] : [near, far];
+          }
+        }
+        roots = [-1, 1].map((sign, index) => {
+          const raw = quadraticSum(center, radical, sign);
+          const exact = rational ? algebraicRootText(raw) : offset ? simplifyQuadraticTerms(raw) : raw;
+          const record = rootRecord(exact, variable, opts, 1, values[index]);
+          if (rational && square.s < 0n) record.real = false;
+          return record;
+        });
+      }
+      if (!rational) roots.sort((r, s) => r._value - s._value);
+    }
+    if (output) {
+      let deltaTex = '';
+      try {
+        const delta = rational ? fractionText(square.mul(fractions[2].mul(2n).pow(2)), true) : csub(cpow(b, '2'), cmul('4', cmul(a, c)));
+        deltaTex = toLatex(delta);
+      } catch (_) { /* The unscaled discriminant can exceed the display range. */ }
+      step(output, '计算判别式', 'Δ=0 时有二重根；实系数且 Δ<0 时有一对共轭复根。',
+        '\\Delta=(' + toLatex(b) + ')^2-4(' + toLatex(a) + ')(' + toLatex(c) + ')' + (deltaTex ? '=' + deltaTex : ''));
+      step(output, '代入求根公式', '将二次项系数、一次项系数和判别式代入公式。', variable + '=\\frac{-b\\pm\\sqrt{\\Delta}}{2a}'
+        + '=\\frac{-(' + toLatex(b) + ')\\pm\\sqrt{' + (deltaTex || '\\Delta') + '}}{2(' + toLatex(a) + ')}');
+      step(output, '化简候选根', c === '0' ? '常数项为零，可提出未知量后分别令各因子为零。'
+        : '把分母分配到两项，化简根式并约分；不能约掉的分母继续保留。', roots.map(v => variable + '=' + toLatex(v.exact)).join(',\\quad '));
+    }
+    return roots;
   }
   function safeFactorCoefficients(p) {
     return p.every(coefficient => {
@@ -995,38 +1260,9 @@
     p = ptrim(p.slice());
     const degree = p.length - 1;
     if (degree < 1) return [];
+    if (degree === 2) return quadraticRoots(p, variable, opts);
     if (p.slice(0, -1).every(c => c === '0')) return [rootRecord('0', variable, opts, degree)];
     if (degree === 1) return [rootRecord(cdiv(cneg(p[0]), p[1]), variable, opts)];
-    if (degree === 2) {
-      const [c, b, a] = p, discriminant = csub(cpow(b, '2'), cmul('4', cmul(a, c)));
-      if (zero(discriminant)) return [rootRecord(cdiv(cneg(b), cmul('2', a)), variable, opts, 2)];
-      // Keep the radical until each simplified candidate passes a relative residual
-      // test. Nerdamer 1.1.13 rounds sqrt(1/10^30) to zero; this must remain complex
-      // for a negative discriminant, however small its imaginary part is.
-      const denominator = cmul('2', a), square = 'sqrt(' + discriminant + ')';
-      const roots = [-1, 1].map(sign => {
-        const raw = '(-(' + b + ')' + (sign < 0 ? '-' : '+') + square + ')/(' + denominator + ')';
-        let exact = raw;
-        try {
-          const candidate = cas(raw);
-          const params = Array.from(new Set(p.flatMap(c => symbols(parse(c)))));
-          if (params.length) { if (probeEquivalence(raw, candidate) !== false) exact = candidate; }
-          else {
-            const value = evaluateNode(parse(candidate), Object.create(null), Object.assign({}, opts, { angle: 'rad' }));
-            const scope = Object.create(null); scope[variable] = value;
-            const residual = math.abs(evaluateNode(parse(polynomialText(p, variable)), scope, Object.assign({}, opts, { angle: 'rad' })));
-            const magnitude = math.abs(value);
-            const scale = p.reduce((sum, coefficient, i) => sum + math.abs(evaluateNode(parse(coefficient), Object.create(null), Object.assign({}, opts, { angle: 'rad' }))) * Math.pow(magnitude, i), 0);
-            if (residual <= 2e-11 * Math.max(Number.MIN_VALUE, scale)) {
-              const symbolicResidual = cas(substitution(polynomialText(p, variable), variable, candidate), 'expand');
-              if (zero(symbolicResidual)) exact = candidate;
-            }
-          }
-        } catch (_) { /* A valid unsimplified quadratic radical is an exact answer. */ }
-        return rootRecord(exact, variable, opts);
-      });
-      return roots.sort((r, s) => Number.isFinite(r._value) && Number.isFinite(s._value) ? r._value - s._value : 0);
-    }
     const coefficients = numericCoefficients(p, Object.assign({}, opts, { angle: 'rad' }));
     const text = polynomialText(p, variable);
     if (allowFactor !== false && text.length < 500 && safeFactorCoefficients(p)) {
@@ -1364,6 +1600,7 @@
     step(output, '移项并保留定义域', '将两边的差写成有理式；只在原分母非零的位置令分子为零。', toLatex(polyText) + '=0');
     step(output, '读取多项式系数', '按 ' + variable + ' 的升幂排列，次数为 ' + degree + '。', '[' + poly.map(toLatex).join(',\\;') + ']');
     if (degree === 0) {
+      if (excluded.length) step(output, '排除分母零点', '原分母为零的位置始终没有定义。', variable + '\\notin\\{' + excluded.map(v => toLatex(v.exact)).join(',') + '\\}');
       const identical = zero(poly[0]);
       output.answerLatex = identical ? variable + '\\in\\mathbb{C}' + (excluded.length ? '\\setminus\\{' + excluded.map(v => toLatex(v.exact)).join(',') + '\\}' : '') : '\\varnothing';
       output.answerText = identical ? '所有满足原式定义域的 ' + variable + ' 都是解' : '无解';
@@ -1376,11 +1613,6 @@
       if (degree === 1) output.notes.push('当 ' + poly[1] + '=0 时：若 ' + poly[0] + '=0，则定义域内所有值都是解；否则无解。');
     }
     if (degree === 1) step(output, '解一次方程', '由 a' + variable + '+b=0 得 ' + variable + '=-b/a，要求 a≠0。', variable + '=\\frac{-(' + toLatex(poly[0]) + ')}{' + toLatex(poly[1]) + '}');
-    if (degree === 2) {
-      const d = csub(cpow(poly[1], '2'), cmul('4', cmul(poly[2], poly[0])));
-      step(output, '计算判别式', 'Δ=b²−4ac；Δ=0 对应二重根，Δ<0 时有一对共轭复根。', '\\Delta=(' + toLatex(poly[1]) + ')^2-4(' + toLatex(poly[2]) + ')(' + toLatex(poly[0]) + ')=' + toLatex(d));
-      step(output, '代入求根公式', '在复数范围使用平方根求解；重复的根只列一次并标注重数。', variable + '=\\frac{-b\\pm\\sqrt{\\Delta}}{2a}');
-    }
     if (degree > 2) {
       const coeff = numericCoefficients(poly, opts);
       if (safeFactorCoefficients(poly) && polyText.length < 500) {
@@ -1389,8 +1621,12 @@
         else step(output, '数值求多项式根', '因式分解未通过精确系数检查，改用变量缩放后的有界迭代及残差、系数检验。', toLatex(polyText) + '=0');
       } else step(output, '数值求多项式根', '使用最多 300 次迭代，并以代回残差和韦达系数重建检查结果。', toLatex(polyText) + '=0');
     }
-    let roots = polynomialRoots(poly, variable, opts);
-    roots = roots.filter(v => !excluded.some(s => s.exact === v.exact || Number.isFinite(v._value) && Number.isFinite(s._value) && closeRoot(v._value, s._value)));
+    let roots = degree === 2 ? quadraticRoots(poly, variable, opts, output, excluded) : polynomialRoots(poly, variable, opts);
+    const rootTerms = new Map();
+    roots = roots.filter(v => !excluded.some(s => sameEquationRoot(v, s, rootTerms)));
+    if (excluded.length) {
+      step(output, '排除分母零点', '分子为零的候选根仍需满足原分母非零。', variable + '\\notin\\{' + excluded.map(v => toLatex(v.exact)).join(',') + '\\}');
+    }
     output.solutions = publicRoots(roots);
     output.answerLatex = roots.length ? roots.map(v => variable + (v.numerical ? '\\approx' : '=') + toLatex(v.exact)).join(',\\quad ') : '\\varnothing';
     output.answerText = roots.length ? roots.map(v => variable + (v.numerical ? ' ≈ ' : ' = ') + v.exact + (v.multiplicity > 1 ? '（' + v.multiplicity + ' 重根）' : '')).join('；') : '无解';
@@ -1535,12 +1771,6 @@
     const atoms = new Map(), definitions = new Map(), cache = new Map(), occupied = new Set(opts._systemNames || []);
     let work = 0, index = 0;
     const charge = () => { if (++work > 24000) fail('方程组精确代回超过预算。'); };
-    function integerRoot(value) {
-      if (value < 2n) return value;
-      let x = 1n << BigInt(Math.ceil(value.toString(2).length / 2));
-      for (let i = 0; i < 32; i++) { charge(); const next = (x + value / x) / 2n; if (next >= x) return x; x = next; }
-      fail('根式的精确整数运算超过预算。');
-    }
     function opaque(text, name, argument) {
       if (!atoms.has(text)) {
         let key; do { key = 'zzsatom' + index++; } while (occupied.has(key));
@@ -1592,7 +1822,7 @@
       if (n.isFunctionNode) {
         const name = n.fn.name;
         if (name === 'sqrt' && fractions[0] && fractions[0].s >= 0n) {
-          const a = integerRoot(fractions[0].n), b = integerRoot(fractions[0].d);
+          const a = integerRoot(fractions[0].n, charge), b = integerRoot(fractions[0].d, charge);
           if (a * a === fractions[0].n && b * b === fractions[0].d) return fractionText(math.fraction(a, b));
         }
         if (name === 'abs' && fractions[0]) return fractionText(math.abs(fractions[0]));
@@ -2042,7 +2272,10 @@
       const r = { num: psub(pmul(a.num, b.den), pmul(b.num, a.den)), den: pmul(a.den, b.den), excluded: a.excluded.concat(b.excluded) };
       const nums = numericCoefficients(r.num, opts), dens = numericCoefficients(r.den, opts);
       if (dens.every(c => c === 0)) fail('不等式的分母恒为零，无定义。');
-      return { r, nums, dens, op, roots: polynomialRoots(r.num, variable, opts).filter(v => v.real), holes: domainRoots(r, variable, opts).filter(v => v.real) };
+      const poles = r.excluded.flatMap(p => polynomialRoots(p, variable, opts).filter(v => v.real));
+      const holes = Array.from(new Map(poles.map(root => [root.exact, root])).values());
+      const roots = (r.num.length === 3 ? quadraticRoots(r.num, variable, opts, null, holes) : polynomialRoots(r.num, variable, opts)).filter(v => v.real);
+      return { r, nums, dens, op, roots, poles, holes };
     }
     if (!abs.length) branches.push(relation.operators.map((op, i) => makeConstraint(nodes[i], nodes[i + 1], op)));
     else {
@@ -2054,34 +2287,47 @@
         branches.push(constraints);
       }
     }
-    const constraints = branches.flat(), boundaries = [];
-    constraints.forEach(c => c.roots.concat(c.holes).forEach(v => {
-      if (!Number.isFinite(v._value)) fail('无法可靠确定实数边界。');
-      const existing = boundaries.find(b => closeRoot(b.value, v._value));
-      if (!existing) boundaries.push({ value: v._value, exact: v.exact, numerical: !!v.numerical });
+    const constraints = branches.flat(), boundaries = [], representatives = new Map(), rootTerms = new Map();
+    // Unequal floating coordinates may still denote identical exact surds. Most
+    // pairs are far apart, so only compare exact forms near a common boundary.
+    constraints.forEach(c => c.roots.concat(c.poles).forEach(root => {
+      if (!Number.isFinite(root._value)) fail('无法可靠确定实数边界。');
+      const boundary = boundaries.find(b => (b.exact === root.exact || closeRoot(b._value, root._value)) && sameEquationRoot(b, root, rootTerms));
+      if (!boundary) boundaries.push(root);
+      representatives.set(root, boundary || root);
     }));
-    boundaries.sort((a, b) => a.value - b.value);
-    function constraintAt(c, x, endpoint) {
-      const hole = c.holes.some(r => closeRoot(r._value, x));
-      if (hole) return null;
-      let numerator = peval(c.nums, x), denominator = peval(c.dens, x);
-      if (endpoint && c.roots.some(r => closeRoot(r._value, x))) numerator = 0;
-      if (denominator === 0 || !Number.isFinite(numerator) || !Number.isFinite(denominator)) return null;
-      const sign = Math.sign(numerator) * Math.sign(denominator);
+    boundaries.sort((a, b) => a._value - b._value);
+    if (boundaries.some((b, i) => i && Math.abs(b._value - boundaries[i - 1]._value) <= 2 * Number.EPSILON * Math.max(Math.abs(b._value), Math.abs(boundaries[i - 1]._value)))) {
+      fail('实数边界过于接近，浮点精度不足以可靠排序，请缩放或平移变量。');
+    }
+    const positions = new Map(boundaries.map((root, index) => [root, index]));
+    const positionOf = root => positions.get(representatives.get(root));
+    function signAt(coefficients, roots, position, endpoint) {
+      if (coefficients.length === 1) return Math.sign(coefficients[0]);
+      // A polynomial changes sign only at a real zero of odd multiplicity.
+      // Sampling the midpoint could round away the sign of a narrow interval.
+      let sign = Math.sign(coefficients[coefficients.length - 1]);
+      for (const r of roots) {
+        const index = positionOf(r);
+        if (endpoint && index === position) return 0;
+        if (index >= position && r.multiplicity % 2) sign = -sign;
+      }
       return sign;
     }
+    function constraintAt(c, position, endpoint) {
+      if (endpoint && c.holes.some(r => positionOf(r) === position)) return null;
+      const denominator = signAt(c.dens, c.poles, position, endpoint);
+      return denominator === 0 ? null : denominator * signAt(c.nums, c.roots, position, endpoint);
+    }
     function satisfies(sign, op) { return sign !== null && (op === '>' ? sign > 0 : op === '>=' ? sign >= 0 : op === '<' ? sign < 0 : op === '<=' ? sign <= 0 : sign !== 0); }
-    function allowed(x, endpoint) { return branches.some(branch => branch.every(c => satisfies(constraintAt(c, x, endpoint), c.op))); }
-    const endpoints = boundaries.map(b => allowed(b.value, true));
-    const points = [-Infinity].concat(boundaries.map(b => b.value), [Infinity]);
+    function allowed(position, endpoint) { return branches.some(branch => branch.every(c => satisfies(constraintAt(c, position, endpoint), c.op))); }
+    const endpoints = boundaries.map((_, i) => allowed(i, true));
     const segments = [], chartRows = [];
     function label(index) { return index < 0 ? '-∞' : index >= boundaries.length ? '+∞' : boundaries[index].exact; }
     function texLabel(index) { return index < 0 ? '-\\infty' : index >= boundaries.length ? '+\\infty' : toLatex(boundaries[index].exact); }
-    for (let i = 0; i < points.length - 1; i++) {
-      const a = points[i], b = points[i + 1];
-      const sample = a === -Infinity ? (b === Infinity ? 0 : b - Math.max(1, Math.abs(b))) : b === Infinity ? a + Math.max(1, Math.abs(a)) : a + (b - a) / 2;
-      const accepted = allowed(sample, false);
-      const signs = constraints.map(c => { const sign = constraintAt(c, sample, false); return sign === null ? '无定义' : sign === 0 ? '0' : sign > 0 ? '+' : '−'; });
+    for (let i = 0; i <= boundaries.length; i++) {
+      const accepted = allowed(i);
+      const signs = constraints.map(c => { const sign = constraintAt(c, i); return sign === null ? '无定义' : sign === 0 ? '0' : sign > 0 ? '+' : '−'; });
       chartRows.push(['(' + label(i - 1) + ', ' + label(i) + ')'].concat(signs, accepted ? '满足' : '不满足'));
       if (accepted) segments.push({ left: i - 1, right: i, lc: i > 0 && endpoints[i - 1], rc: i < boundaries.length && endpoints[i] });
     }
@@ -2102,8 +2348,7 @@
     output.solutions = merged.map(s => ({ lower: s.left < 0 ? '-Infinity' : label(s.left), upper: s.right >= boundaries.length ? 'Infinity' : label(s.right), lowerClosed: !!s.lc, upperClosed: !!s.rc }));
     if (abs.length) step(output, '按绝对值分段', '在内部表达式 ≥0 时取原式，在 <0 时取相反数；分别求解再取并集。', '\\left|' + toLatex(plain(abs[0].args[0])) + '\\right|');
     constraints.forEach((c, i) => step(output, '条件 ' + (i + 1) + '：移项与有理化', '保留原分母的非零条件，再比较分子和分母的符号。', '\\frac{' + toLatex(polynomialText(c.r.num, variable)) + '}{' + toLatex(polynomialText(c.r.den, variable)) + '}' + ({ '>': '>0', '<': '<0', '>=': '\\ge0', '<=': '\\le0', '!=': '\\ne0' })[c.op]));
-    const excluded = [];
-    constraints.forEach(c => c.holes.forEach(h => { if (!excluded.some(v => closeRoot(v._value, h._value))) excluded.push(h); }));
+    const excluded = Array.from(new Set(constraints.flatMap(c => c.holes.map(h => representatives.get(h)))));
     if (excluded.length) {
       output.notes.push('分母禁用点（即使约分消去仍排除）：' + excluded.map(h => variable + '=' + h.exact).join('，') + '。');
       step(output, '排除分母零点', '分母为零的点一律不能成为闭区间端点或孤立解。', variable + '\\notin\\{' + excluded.map(h => toLatex(h.exact)).join(',') + '\\}');
@@ -2208,7 +2453,9 @@
     }
     const expression = plain(node, opts), output = result(mode, { simplify: '代数化简', expand: '展开表达式', factor: '因式分解' }[mode], input, normalized);
     const exact = exactContext(opts);
-    let answer = exact.simplify(expression, mode);
+    // Nerdamer's simplify can fit a constant surd to a close rational. Use the
+    // exact expansion path for constants so simplifying a copied root keeps √.
+    let answer = exact.simplify(expression, mode === 'simplify' && !symbols(node).length ? 'expand' : mode);
     if (uncomputed(answer) || new RegExp('\\b' + mode + '\\s*\\(').test(answer)) fail('符号库未完成此代数运算，请简化输入。');
     if (probeEquivalence(expression, answer) === false) {
       if (mode !== 'simplify') fail('符号计算结果未通过代入等价检查，暂不输出可能错误的变形。');
@@ -2362,9 +2609,15 @@
     if (name === 'nthRoot' || name === 'cbrt') return '((' + args[0] + ')^(1/(' + (name === 'cbrt' ? '3' : args[1]) + ')))';
     return name + '(' + args.join(',') + ')';
   }
-  function fractionText(value) {
-    const numerator = value.s * value.n;
-    return numerator.toString() + (value.d === 1n ? '' : '/' + value.d.toString());
+  function compactInteger(value) {
+    const text = String(value);
+    // Preserve exact powers of ten that would not fit in a single numeric literal.
+    const power = /^(-?)1(0{309,1024})$/.exec(text);
+    return power ? power[1] + '10^' + power[2].length : text;
+  }
+  function fractionText(value, compact) {
+    const format = compact ? compactInteger : String;
+    return format(value.s * value.n) + (value.d === 1n ? '' : '/' + format(value.d));
   }
   function rationalText(text) {
     return typeof text === 'string' && /^-?\d+(?:\/\d+)?$/.test(text) ? math.fraction(text) : null;
@@ -2380,16 +2633,36 @@
     }
     return fractionText(value);
   }
+  function renderRational(node, charge) {
+    if (charge) charge();
+    const n = unwrap(node);
+    if (n.isConstantNode) return rationalText(exactLiteral(n));
+    if (!n.isOperatorNode || !['add', 'subtract', 'multiply', 'divide', 'pow', 'unaryMinus', 'unaryPlus'].includes(n.fn)) return null;
+    const args = n.args.map(arg => renderRational(arg, charge));
+    if (args.some(a => !a)) return null;
+    if (n.fn === 'pow') {
+      if (args[1].d !== 1n || args[1].n > 1024n) return null;
+      if ((args[0].n.toString().length + args[0].d.toString().length) * Number(args[1].n) > 4096) {
+        if (charge) fail('精确幂结果过长。');
+        return null;
+      }
+    }
+    try {
+      const value = math[n.fn](...args);
+      return value.n.toString().length + value.d.toString().length <= 4096 ? value : null;
+    } catch (_) { return null; }
+  }
   // Exact work is separate from evaluateAt: literals become BigInt-backed Fractions,
   // while unsupported constants are opaque CAS symbols, never fitted numeric values.
   function exactContext(opts) {
     let work = 0, casWork = 0;
     const cache = new Map();
     const charge = () => { if (++work > 4000) fail('精确计算量超过限制。'); };
+    const rationalValue = node => renderRational(node, charge);
     function bounded(text) { return boundedText(text, 4096); }
-    function simplify(expression, action) {
+    function simplify(expression, action, verify = true) {
       bounded(expression);
-      const key = (action || 'expand') + ':' + expression;
+      const key = (action || 'expand') + ':' + (verify ? '' : 'exact:') + expression;
       if (cache.has(key)) return cache.get(key);
       if (++casWork > 128) fail('精确符号计算量超过限制。');
       const atoms = new Map(), restored = new Map(), occupied = new Set(symbols(parse(expression)));
@@ -2407,7 +2680,7 @@
         if (n.isConstantNode || n.isSymbolNode) return plain(n);
         if (n.isOperatorNode) {
           if (n.fn === 'pow') {
-            const base = rationalText(renderRational(n.args[0])), exponent = rationalText(renderRational(n.args[1]));
+            const base = rationalValue(n.args[0]), exponent = rationalValue(n.args[1]);
             const safeInteger = exponent && exponent.d === 1n && Math.abs(scalarNumber(exponent)) <= 1024;
             const safeRoot = base && base.s > 0n && exponent && base.n <= 1000000000000n && base.d <= 1000000000000n && exponent.d <= 64n;
             if (!safeInteger && !safeRoot) return opaque(plain(n));
@@ -2417,14 +2690,14 @@
         if (n.isFunctionNode) {
           const name = n.fn.name;
           if (name === 'sqrt' && n.args.length === 1) {
-            const argument = rationalText(renderRational(n.args[0]));
+            const argument = rationalValue(n.args[0]);
             if (argument && argument.n <= 1000000000000n && argument.d <= 1000000000000n) return 'sqrt(' + fractionText(argument) + ')';
           }
           if (DIRECT_TRIG.has(name) && n.args.length === 1) {
             const coefficient = piCoefficient(n.args[0]);
             if (coefficient && [1n, 2n, 3n, 4n, 6n].includes(coefficient.d)) return name + '((' + fractionText(coefficient) + ')*pi)';
-            const argument = renderRational(n.args[0]);
-            if (argument === '0') return name + '(0)';
+            const argument = rationalValue(n.args[0]);
+            if (argument && argument.n === 0n) return name + '(0)';
           }
           return opaque(plain(n));
         }
@@ -2438,9 +2711,9 @@
         // CAS has known tiny-root/sign bugs. Opaque atoms prevent approximation from
         // becoming a rational; this check independently rejects incorrect rewrites.
         const rad = Object.assign({}, opts, { angle: 'rad' });
-        if (symbols(parse(expression)).length) {
+        if (verify && symbols(parse(expression)).length) {
           if (probeEquivalence(expression, answer) === false) answer = expression;
-        } else if (!numericallyEqual(evaluateNode(parse(expression), Object.create(null), rad), evaluateNode(parse(answer), Object.create(null), rad))) answer = expression;
+        } else if (verify && !numericallyEqual(evaluateNode(parse(expression), Object.create(null), rad), evaluateNode(parse(answer), Object.create(null), rad))) answer = expression;
       } catch (_) { answer = expression; }
       cache.set(key, answer);
       return answer;
@@ -2453,20 +2726,10 @@
       const left = piCoefficient(n.args[0]);
       if (['unaryMinus', 'unaryPlus'].includes(n.fn)) return left && math[n.fn](left);
       if (!['multiply', 'divide', 'add', 'subtract'].includes(n.fn)) return null;
-      const right = piCoefficient(n.args[1]), a = rationalText(renderRational(n.args[0])), b = rationalText(renderRational(n.args[1]));
+      const right = piCoefficient(n.args[1]), a = rationalValue(n.args[0]), b = rationalValue(n.args[1]);
       if (['add', 'subtract'].includes(n.fn)) return left && right && math[n.fn](left, right);
       if (left && b) return math[n.fn](left, b);
       return n.fn === 'multiply' && a && right ? math.multiply(a, right) : null;
-    }
-    function renderRational(node) {
-      charge();
-      const n = unwrap(node);
-      if (n.isConstantNode) return exactLiteral(n);
-      if (!n.isOperatorNode || !['add', 'subtract', 'multiply', 'divide', 'pow', 'unaryMinus', 'unaryPlus'].includes(n.fn)) return '';
-      const args = n.args.map(renderRational).map(rationalText);
-      if (args.some(a => !a) || n.fn === 'pow' && (args[1].d !== 1n || Math.abs(scalarNumber(args[1])) > 1024)) return '';
-      if (n.fn === 'pow' && (args[0].n.toString().length + args[0].d.toString().length) * Math.abs(scalarNumber(args[1])) > 4096) fail('精确幂结果过长。');
-      try { return bounded(fractionText(math[n.fn](...args))); } catch (_) { return ''; }
     }
     function scalar(name, args) {
       charge();

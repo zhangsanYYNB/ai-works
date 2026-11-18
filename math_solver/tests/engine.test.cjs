@@ -160,6 +160,71 @@ test('linear/quadratic real equations produce exact roots and actual coefficient
   near(number(quadratic.graphs[0].expression, { x: 2 }), 0, 1e-8);
 });
 
+test('quadratic roots distribute and cancel the denominator only where possible', () => {
+  for (const [input, exact] of [
+    ['x^2+2x-1=0', ['-1-sqrt(2)', '-1+sqrt(2)']],
+    ['x^2-2x-1=0', ['1-sqrt(2)', '1+sqrt(2)']],
+    ['-x^2-2x+1=0', ['-1-sqrt(2)', '-1+sqrt(2)']],
+    ['x²+4x-4=0', ['-2-2*sqrt(2)', '-2+2*sqrt(2)']],
+    ['0.5x²+x=1', ['-1-sqrt(3)', '-1+sqrt(3)']],
+    ['\\frac{x^2}{2}-x-1=0', ['1-sqrt(3)', '1+sqrt(3)']],
+    ['6x^2+8x-4=0', ['(-2-sqrt(10))/3', '(-2+sqrt(10))/3']],
+    ['x^2+x-1=0', ['(-1-sqrt(5))/2', '(-1+sqrt(5))/2']],
+    ['x^2/2+x/3-1/5=0', ['-1/3-sqrt(115)/15', '-1/3+sqrt(115)/15']]
+  ]) {
+    const r = engine.solve(input);
+    assert.deepEqual(r.solutions.map(s => s.exact), exact, input);
+    assert.ok(r.solutions.every(s => s.real && s.multiplicity === 1 && !s.numerical), input);
+    assert.equal(r.steps.find(s => /化简候选根/.test(s.title)).latex, r.answerLatex, input);
+    assert.match(r.steps.find(s => /代入求根公式/.test(s.title)).latex, /2\(/, input);
+  }
+  const surd = engine.solve('x^2+2x-1=0');
+  assert.equal(surd.answerLatex, 'x=-1-\\sqrt{2},\\quad x=-1+\\sqrt{2}');
+  assert.equal(engine.solve('1/2*(-2+2*sqrt(2))', { mode: 'simplify' }).exact, '-1+sqrt(2)');
+});
+
+test('quadratic simplification also combines like surds and handles symbolic coefficients', () => {
+  const roots = input => engine.solve(input).solutions.map(s => s.exact);
+  assert.deepEqual(roots('x^2+sqrt(18)*x+4=0'), ['-2*sqrt(2)', '-sqrt(2)']);
+  assert.deepEqual(roots('x^2+3i*x+4=0'), ['-4*i', 'i']);
+  assert.deepEqual(roots('2*(sqrt(2)+1)*x^2+4*(sqrt(2)+1)*x-2*(sqrt(2)+1)=0'), ['-1-sqrt(2)', '-1+sqrt(2)']);
+  assert.deepEqual(roots('x^2+2x-a=0'), ['-1-sqrt(1+a)', '-1+sqrt(1+a)']);
+  const parametric = engine.solve('a*x^2+b*x+c=0');
+  assert.match(parametric.notes.join(' '), /a ≠ 0/);
+  for (const a of [-2, 2, math.complex(1, 2)]) {
+    const b = -1, c = 3;
+    for (const root of parametric.solutions) {
+      const x = number(root.exact, { a, b, c });
+      assert.ok(math.abs(number('a*x^2+b*x+c', { a, b, c, x })) < 1e-10);
+    }
+  }
+});
+
+test('quadratic coefficients keep decimal cancellation exact and roots survive rescaling', () => {
+  const linear = engine.solve('(0.1+0.2-0.3)*x^2+x-1=0');
+  assert.deepEqual(linear.solutions.map(s => s.exact), ['1']);
+  assert.ok(!linear.steps.some(s => /判别式/.test(s.title)));
+  const repeated = engine.solve('x^2+2x+(1e100+1-1e100)=0');
+  assert.deepEqual(repeated.solutions.map(s => [s.exact, s.multiplicity]), [['-1', 2]]);
+  for (const scale of ['1e-200', '1e200']) {
+    const r = engine.solve(`${scale}*(x^2+2x-1)=0`);
+    assert.deepEqual(r.solutions.map(s => s.exact), ['-1-sqrt(2)', '-1+sqrt(2)']);
+  }
+});
+
+test('quadratic approximations use Vieta for small roots instead of cancelling leading digits', () => {
+  const r = engine.solve('x^2+1000000x+1=0', { precision: 15 });
+  const far = (-1000000 - Math.sqrt(1e12 - 4)) / 2;
+  near(Number(r.solutions[0].approximate), far, 1e-14);
+  near(Number(r.solutions[1].approximate), 1 / far, 1e-14);
+  assert.match(r.solutions[1].exact, /sqrt/);
+  assert.ok(!r.solutions[1].numerical);
+  const wide = engine.solve('x^2+1e200x+1=0').solutions;
+  near(Number(wide[0].approximate), -1e200);
+  near(Number(wide[1].approximate), -1e-200);
+  assert.ok(wide.every(s => s.real && !s.numerical));
+});
+
 test('repeated and complex quadratic roots are distinct cases', () => {
   const repeated = engine.solve('x^2-2x+1=0');
   assert.equal(repeated.solutions.length, 1);
@@ -172,14 +237,19 @@ test('repeated and complex quadratic roots are distinct cases', () => {
   assert.ok(values.some(v => v.re === -1 && v.im === -2));
   assert.ok(values.some(v => v.re === -1 && v.im === 2));
   assert.ok(complex.graphs.every(g => !/\bi\b/.test(g.expression)));
+  const complexSurd = engine.solve('3x^2+4x+4=0');
+  assert.deepEqual(complexSurd.solutions.map(s => s.exact), ['(-2-2*i*sqrt(2))/3', '(-2+2*i*sqrt(2))/3']);
 });
 
 test('tiny negative discriminants do not become repeated/real roots (Nerdamer regression)', () => {
-  const result = engine.solve('x^2+1e-30=0');
-  assert.equal(result.solutions.length, 2);
-  assert.ok(result.solutions.every(s => s.real === false && s.multiplicity === 1));
-  const values = rootValues(result);
-  near(values[0].im, -1e-15); near(values[1].im, 1e-15);
+  for (const input of ['x^2+1e-30=0', 'x^2+2x+1+1e-30=0', 'x^2+1e-310=0']) {
+    const result = engine.solve(input);
+    assert.equal(result.solutions.length, 2);
+    assert.ok(result.solutions.every(s => s.real === false && s.multiplicity === 1));
+    const radius = input.includes('310') ? 1e-155 : 1e-15;
+    const values = rootValues(result);
+    near(values[0].im, -radius); near(values[1].im, radius);
+  }
   assert.equal(engine.solve('x^2+1e-30<=0').solutions.length, 0);
 });
 
@@ -217,6 +287,18 @@ test('equations retain denominator exclusions and reject spurious cancelled root
   assert.equal(engine.solve('x=x+1').solutions.length, 0);
 });
 
+test('exact quadratic roots distinguish nearby poles and exclude equivalent radical poles', () => {
+  assert.deepEqual(rootValues(engine.solve('(x^2-1)/(x-1.0000000000000001)=0')), [-1, 1]);
+  assert.deepEqual(engine.solve('(x^2-2)/(x-1.4142135623730951)=0').solutions.map(s => s.exact), ['-sqrt(2)', 'sqrt(2)']);
+  assert.deepEqual(engine.solve('(x^2-2)/(x-sqrt(2))=0').solutions.map(s => s.exact), ['-sqrt(2)']);
+  assert.deepEqual(engine.solve('(x^2-pi^2)/(x-pi)=0').solutions.map(s => s.exact), ['-pi']);
+  assert.deepEqual(engine.solve('(x^2-a^2)/(x-a)=0').solutions.map(s => s.exact), ['-a']);
+  assert.deepEqual(engine.solve('(x^2-(sqrt(2)+1)*x+sqrt(2))/(x-sqrt(2))=0').solutions.map(s => s.exact), ['1']);
+  assert.equal(engine.solve('(x^2-(sqrt(2)+1)*x+sqrt(2))/(x-sqrt(2)-1e-20)=0').solutions.length, 2);
+  assert.deepEqual(engine.solve('(x^2+3/2)/(x-i*sqrt(3/2))=0').solutions.map(s => s.exact), ['-i*sqrt(6)/2']);
+  assert.deepEqual(engine.solve('(x^2+x+1)/(x+1/2+i*sqrt(3)/2)=0').solutions.map(s => s.exact), ['(-1+i*sqrt(3))/2']);
+});
+
 test('two/three variable systems perform real elimination and exact substitution', () => {
   const two = engine.solve('2x+y=7\nx-y=2');
   assert.deepEqual(two.solutions.map(s => Number(number(s.exact))), [3, 1]);
@@ -238,6 +320,7 @@ test('inconsistent and underdetermined systems are reported honestly', () => {
 
 test('polynomial and chained inequalities keep strict/non-strict endpoints', () => {
   assert.deepEqual(engine.solve('x^2-5x+6<=0').solutions, [{ lower: '2', upper: '3', lowerClosed: true, upperClosed: true }]);
+  assert.deepEqual(engine.solve('x^2+2x-1<=0').solutions, [{ lower: '-1-sqrt(2)', upper: '-1+sqrt(2)', lowerClosed: true, upperClosed: true }]);
   assert.deepEqual(engine.solve('0<x<=2').solutions, [{ lower: '0', upper: '2', lowerClosed: false, upperClosed: true }]);
   assert.deepEqual(engine.solve('x^2<=0').solutions, [{ lower: '0', upper: '0', lowerClosed: true, upperClosed: true }]);
   assert.equal(engine.solve('x^2<0').solutions.length, 0);
@@ -257,11 +340,21 @@ test('rational inequality holes remain excluded after cancellation, including re
 });
 
 test('near-zero real inequality roots remain separate', () => {
-  const r = engine.solve('x^2-1e-30>0');
-  assert.equal(r.solutions.length, 2);
-  near(Number(number(r.solutions[0].upper)), -1e-15);
-  near(Number(number(r.solutions[1].lower)), 1e-15);
-  assert.ok(r.solutions.every(s => !s.lowerClosed && !s.upperClosed));
+  for (const exponent of [30, 40]) {
+    const r = engine.solve('x^2-1e-' + exponent + '>0');
+    assert.equal(r.solutions.length, 2);
+    near(Number(number(r.solutions[0].upper)), -(10 ** (-exponent / 2)));
+    near(Number(number(r.solutions[1].lower)), 10 ** (-exponent / 2));
+    assert.ok(r.solutions.every(s => !s.lowerClosed && !s.upperClosed));
+  }
+});
+
+test('narrow quadratic inequality intervals use root multiplicities, not rounded samples', () => {
+  const lower = '999999999999999/1000000000000000', upper = '1000000000000001/1000000000000000';
+  assert.deepEqual(engine.solve('(x-1)^2<1e-30').solutions, [{ lower, upper, lowerClosed: false, upperClosed: false }]);
+  assert.deepEqual(engine.solve('(x-1)^2<=1e-30').solutions, [{ lower, upper, lowerClosed: true, upperClosed: true }]);
+  assert.deepEqual(engine.solve('(x-1)^2/(x-1)^3>=0').solutions, [{ lower: '1', upper: 'Infinity', lowerClosed: false, upperClosed: false }]);
+  ChineseError('(x-1)^2<1e-40', {}, /边界过于接近/);
 });
 
 test('absolute value inequalities use actual branches', () => {
@@ -572,7 +665,8 @@ test('solver worker imports the matching engine version and returns cloneable ex
   const posted=[], imports=[];
   const context=vm.createContext({console});
   context.self=context;
-  context.location={search:'?v=10'};
+  const query='?v=13&test=1';
+  context.location={search:query};
   context.addEventListener=(name,handler)=>{assert.equal(name,'message');receive=handler;};
   context.postMessage=message=>posted.push(JSON.parse(JSON.stringify(message)));
   context.importScripts=(...urls)=>{
@@ -583,9 +677,7 @@ test('solver worker imports the matching engine version and returns cloneable ex
     }
   };
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/solver-worker.js'),'utf8'),context,{timeout:5000});
-  assert.ok(imports.includes('engine.js?v=10'));
-  assert.ok(imports.includes('system-numeric.js?v=10'));
-  assert.ok(imports.includes('system-polynomial.js?v=10'));
+  assert.deepEqual(imports.slice(-3),['system-numeric.js','system-polynomial.js','engine.js'].map(name=>name+query));
   receive({data:{id:1,input:'1/3+sqrt(2)',options:{}}});
   receive({data:{id:2,input:'inv([2,1;1,2])',options:{}}});
   receive({data:{id:3,input:'1/0',options:{}}});
@@ -604,6 +696,9 @@ test('solver worker imports the matching engine version and returns cloneable ex
   assert.equal(posted[5].result.complete,true);
   assert.ok(posted[5].result.exact && !posted[5].result.numerical);
   assert.equal(posted[5].result.solutionSets[0][0].exact,'-59/4');
+  receive({data:{id:7,input:'x^2+2x-1=0',options:{}}});
+  assert.deepEqual(posted[6].result.solutions.map(s=>s.exact),['-1-sqrt(2)','-1+sqrt(2)']);
+  assert.equal(posted[6].result.answerLatex,'x=-1-\\sqrt{2},\\quad x=-1+\\sqrt{2}');
 });
 
 test('symbolic-first evaluation preserves fractions, radicals, trig and irrational function constants', () => {
