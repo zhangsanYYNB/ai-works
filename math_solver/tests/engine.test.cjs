@@ -377,6 +377,26 @@ test('algebra simplify, expand and factor preserve actual values and domain note
   assert.ok(factored.steps.some(s => /展开验证/.test(s.title)));
 });
 
+test('constant nested square roots denest only when the exact rational discriminant permits it', () => {
+  const cases = [
+    ['sqrt(2*sqrt(3)+4)', '1+sqrt(3)'],
+    ['sqrt(4-2*sqrt(3))', '-1+sqrt(3)'],
+    ['sqrt(5+2*sqrt(6))', 'sqrt(2)+sqrt(3)'],
+    ['sqrt(7+4*sqrt(3))', '2+sqrt(3)'],
+    ['sqrt(3+2*sqrt(2))', '1+sqrt(2)'],
+    ['sqrt(6+2*sqrt(5))', '1+sqrt(5)'],
+    ['sqrt(9-4*sqrt(5))', '-2+sqrt(5)']
+  ];
+  for (const [input, expected] of cases) {
+    const result = engine.solve(input, { mode: 'simplify' });
+    assert.equal(result.exact, expected, input);
+    near(number(result.exact), number(input), 1e-12);
+  }
+  const unsupported = engine.solve('sqrt(2+2*sqrt(2))', { mode: 'simplify' });
+  assert.match(unsupported.exact, /sqrt/);
+  near(number(unsupported.exact), number('sqrt(2+2*sqrt(2))'));
+});
+
 test('incorrect Nerdamer root-containing simplify output is rejected (sign regression)', () => {
   const r = engine.solve('x^2+2*pi*x-sqrt(x+1)', { mode: 'simplify' });
   for (const x of [0.2, 1, 3]) near(number(r.exact, { x }), x * x + 2 * Math.PI * x - Math.sqrt(x + 1));

@@ -2660,6 +2660,55 @@
     const charge = () => { if (++work > 4000) fail('精确计算量超过限制。'); };
     const rationalValue = node => renderRational(node, charge);
     function bounded(text) { return boundedText(text, 4096); }
+    function rationalSquareRoot(value) {
+      if (!value || value.s < 0n) return null;
+      const n = integerRoot(value.n, charge), d = integerRoot(value.d, charge);
+      return n * n === value.n && d * d === value.d ? math.fraction(n, d) : null;
+    }
+    function radicalTerm(node) {
+      const n = unwrap(node);
+      const direct = rationalValue(n);
+      if (direct) return { rational: direct };
+      const factors = n.isOperatorNode && n.fn === 'multiply' ? n.args : [n];
+      let coefficient = math.fraction(1), root = null;
+      for (const factor of factors) {
+        const value = rationalValue(factor);
+        if (value) coefficient = math.multiply(coefficient, value);
+        else if (!root && unwrap(factor).isFunctionNode && unwrap(factor).fn.name === 'sqrt' && unwrap(factor).args.length === 1) {
+          root = rationalValue(unwrap(factor).args[0]);
+          if (!root || root.s < 0n) return null;
+        } else return null;
+      }
+      return root ? { coefficient, root } : null;
+    }
+    function denestSquareRoot(node) {
+      const terms = [];
+      function collect(n, sign) {
+        n = unwrap(n);
+        if (n.isOperatorNode && (n.fn === 'add' || n.fn === 'subtract')) {
+          collect(n.args[0], sign);
+          collect(n.args[1], n.fn === 'subtract' ? -sign : sign);
+          return;
+        }
+        if (n.isOperatorNode && n.fn === 'unaryMinus') { collect(n.args[0], -sign); return; }
+        const part = radicalTerm(n);
+        if (part) terms.push({ part, sign });
+      }
+      collect(node, 1);
+      if (terms.length !== 2 || terms.filter(t => t.part.rational).length !== 1 || terms.filter(t => t.part.root).length !== 1) return null;
+      const rational = terms.find(t => t.part.rational), radical = terms.find(t => t.part.root);
+      const a = rational.sign < 0 ? rational.part.rational.neg() : rational.part.rational;
+      const b = radical.sign < 0 ? radical.part.coefficient.neg() : radical.part.coefficient;
+      const discriminant = math.subtract(math.multiply(a, a), math.multiply(math.multiply(b, b), radical.part.root));
+      const rootDiscriminant = rationalSquareRoot(discriminant);
+      if (!rootDiscriminant) return null;
+      const p = math.divide(math.add(a, rootDiscriminant), 2);
+      const q = math.divide(math.subtract(a, rootDiscriminant), 2);
+      if (p.s < 0n || q.s < 0n) return null;
+      const sign = b.s < 0n ? '-' : '+';
+      const left = 'sqrt(' + fractionText(p) + ')', right = 'sqrt(' + fractionText(q) + ')';
+      return p.n === 0n ? right : q.n === 0n ? left : left + sign + right;
+    }
     function simplify(expression, action, verify = true) {
       bounded(expression);
       const key = (action || 'expand') + ':' + (verify ? '' : 'exact:') + expression;
@@ -2692,6 +2741,8 @@
           if (name === 'sqrt' && n.args.length === 1) {
             const argument = rationalValue(n.args[0]);
             if (argument && argument.n <= 1000000000000n && argument.d <= 1000000000000n) return 'sqrt(' + fractionText(argument) + ')';
+            const denested = denestSquareRoot(n.args[0]);
+            if (denested) return protect(parse(denested));
           }
           if (DIRECT_TRIG.has(name) && n.args.length === 1) {
             const coefficient = piCoefficient(n.args[0]);
