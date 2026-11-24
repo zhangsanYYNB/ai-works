@@ -184,7 +184,7 @@
   function engineVersion() {
     const script = document.querySelector('script[src*="engine.js"]');
     const query = script ? new URL(script.src, document.baseURI).search : '';
-    return query || '?v=13';
+    return query || '?v=14';
   }
   function ensureWorker() {
     if(worker || workerDisabled) return;

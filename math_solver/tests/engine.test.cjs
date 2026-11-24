@@ -377,7 +377,7 @@ test('algebra simplify, expand and factor preserve actual values and domain note
   assert.ok(factored.steps.some(s => /展开验证/.test(s.title)));
 });
 
-test('constant nested square roots denest only when the exact rational discriminant permits it', () => {
+test('constant nested square roots denest in both direct expressions and quadratic solutions', () => {
   const cases = [
     ['sqrt(2*sqrt(3)+4)', '1+sqrt(3)'],
     ['sqrt(4-2*sqrt(3))', '-1+sqrt(3)'],
@@ -392,6 +392,10 @@ test('constant nested square roots denest only when the exact rational discrimin
     assert.equal(result.exact, expected, input);
     near(number(result.exact), number(input), 1e-12);
   }
+  const equation = engine.solve('x^2=4+2*sqrt(3)');
+  assert.deepEqual(equation.solutions.map(solution => solution.exact), ['-1-sqrt(3)', '1+sqrt(3)']);
+  assert.ok(equation.steps.find(step => /化简候选根/.test(step.title)).latex.includes('x=1+\\sqrt{3}'));
+
   const unsupported = engine.solve('sqrt(2+2*sqrt(2))', { mode: 'simplify' });
   assert.match(unsupported.exact, /sqrt/);
   near(number(unsupported.exact), number('sqrt(2+2*sqrt(2))'));

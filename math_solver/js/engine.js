@@ -1227,7 +1227,8 @@
         }
         roots = [-1, 1].map((sign, index) => {
           const raw = quadraticSum(center, radical, sign);
-          const exact = rational ? algebraicRootText(raw) : offset ? simplifyQuadraticTerms(raw) : raw;
+          const exact = rational ? algebraicRootText(raw) : offset ? simplifyQuadraticTerms(raw)
+            : !symbols(parse(spread)).length ? exactContext(opts).simplify(raw, 'expand') : raw;
           const record = rootRecord(exact, variable, opts, 1, values[index]);
           if (rational && square.s < 0n) record.real = false;
           return record;
